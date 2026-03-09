@@ -7,7 +7,7 @@
 window.ADMIN_EMAIL = "asmodeotayson@gmail.com";
 
 // API Key de Google Gemini (gratis en aistudio.google.com)
-window.GEMINI_API_KEY = "PEGA_AQUI_TU_API_KEY_DE_GEMINI";
+window.GEMINI_API_KEY = "AIzaSyDXfpFOzU4fRhojl-jN9keg1Vnh3qsJXDg";
 
 // Cloudinary
 window.CLOUDINARY_CLOUD = "dcvofzfdf";
