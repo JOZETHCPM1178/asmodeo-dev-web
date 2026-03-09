@@ -8,7 +8,7 @@ window.ADMIN_EMAIL = "asmodeotayson@gmail.com";
 
 // Tu API Key de Claude (Anthropic)
 // Consíguela en: console.anthropic.com
-window.CLAUDE_API_KEY = "PEGA_AQUI_TU_API_KEY";
+window.CLAUDE_API_KEY = "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";
 
 // Cloudinary
 window.CLOUDINARY_CLOUD = "dcvofzfdf";
