@@ -575,3 +575,25 @@ footer { background:var(--bg2); border-top:1px solid var(--border); padding:50px
   color:var(--green); padding:10px 14px; border-radius:var(--r);
   font-size:.83rem; margin-bottom:14px;
 }
+
+/* ═══════════════════════════════════
+   PERFIL PÚBLICO
+   ═══════════════════════════════════ */
+.prof-pub-card { background:var(--c2); border-radius:var(--r2); overflow:hidden; border:1px solid var(--bord); }
+.prof-pub-banner { height:100px; background:linear-gradient(135deg,var(--p) 0%,var(--a) 100%); opacity:.6; }
+.prof-pub-body { padding:0 20px 20px; }
+.prof-pub-av-wrap { margin-top:-45px; margin-bottom:12px; }
+.prof-pub-av { width:90px; height:90px; border-radius:50%; border:4px solid var(--c2); object-fit:cover; display:block; }
+.prof-pub-name { font-family:var(--font1); font-size:1.1rem; font-weight:700; color:var(--t1); margin-bottom:4px; }
+.prof-pub-bio { font-size:.83rem; color:var(--t2); margin:8px 0; line-height:1.5; }
+.prof-pub-stats { display:flex; gap:20px; margin:12px 0; }
+.pstat { display:flex; flex-direction:column; align-items:center; }
+.pstat-n { font-family:var(--font1); font-size:1.1rem; font-weight:700; color:var(--p); }
+.pstat-l { font-size:.7rem; color:var(--t3); }
+.prof-pub-actions { margin-top:12px; }
+.prof-pub-info { position:relative; }
+
+/* ═══════════════════════════════════
+   HERO BUTTONS WRAP
+   ═══════════════════════════════════ */
+.hero-btns { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; }
