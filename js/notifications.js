@@ -1,6 +1,8 @@
-// js/notifications.js — Notificaciones push tipo YouTube
+// js/notifications.js — FCM Push Notifications para todos los usuarios
 
-// ── Suscribir usuario a notificaciones ──
+const VAPID_PUBLIC = 'BEXfYf8_9AjuftZOT2jUdNM0yNaIEDqtKxno6Z6SUAr6ztpLpq_ye5tpoyA4jCZCNunt7xdiyEicn45xwKkZ9zk';
+
+// ── Suscribir usuario ──
 async function suscribirNotificaciones() {
   try {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -10,44 +12,35 @@ async function suscribirNotificaciones() {
 
     const permiso = await Notification.requestPermission();
     if (permiso !== 'granted') {
-      toast('Notificaciones bloqueadas. Actívalas en ajustes del navegador.', 'err');
+      toast('Activa las notificaciones en los ajustes de tu navegador', 'err');
       return false;
     }
 
     const reg = await navigator.serviceWorker.ready;
-
-    // Guardar suscripción en Firestore
     const sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(window.VAPID_PUBLIC_KEY || '')
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC)
     });
 
-    if (window._currentUser && window._fb) {
+    // Guardar suscripción en Firestore (disponible para todos, con o sin cuenta)
+    const subKey = btoa(JSON.stringify(sub.endpoint)).replace(/[^a-zA-Z0-9]/g, '').substring(0, 40);
+    if (window._fb) {
       const { db, doc, setDoc } = window._fb;
-      await setDoc(doc(db, 'subscriptions', window._currentUser.uid), {
+      await setDoc(doc(db, 'subscriptions', subKey), {
         subscription: JSON.stringify(sub),
-        uid: window._currentUser.uid,
-        email: window._currentUser.email,
-        createdAt: new Date()
+        uid: window._currentUser?.uid || 'anonymous',
+        createdAt: new Date().toISOString()
       });
     }
 
-    // Guardar local
-    localStorage.setItem('notif_sub', JSON.stringify(sub));
     localStorage.setItem('notif_enabled', 'true');
+    localStorage.setItem('notif_sub', JSON.stringify(sub));
     toast('🔔 Notificaciones activadas');
     updateNotifBtn();
     return true;
   } catch(e) {
-    // Sin VAPID key — usar notificaciones locales simples
-    const permiso = await Notification.requestPermission();
-    if (permiso === 'granted') {
-      localStorage.setItem('notif_enabled', 'true');
-      toast('🔔 Notificaciones activadas');
-      updateNotifBtn();
-      return true;
-    }
-    toast('Error activando notificaciones', 'err');
+    console.error('Error notif:', e);
+    toast('Error activando notificaciones: ' + e.message, 'err');
     return false;
   }
 }
@@ -67,70 +60,47 @@ function updateNotifBtn() {
   if (!btn) return;
   const on = notifActivadas();
   btn.textContent = on ? '🔔' : '🔕';
-  btn.title = on ? 'Notificaciones activadas' : 'Activar notificaciones';
+  btn.title = on ? 'Notificaciones activadas — toca para desactivar' : 'Toca para recibir notificaciones de nuevas apps';
   btn.classList.toggle('notif-on', on);
 }
 
-// ── Enviar notificación local cuando se publica ──
-// (se llama desde admin.js al crear post)
-async function notificarNuevaPublicacion(post) {
-  if (Notification.permission !== 'granted') return;
+function toggleNotif() {
+  if (notifActivadas()) desactivarNotificaciones();
+  else suscribirNotificaciones();
+}
+
+// Helper VAPID
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+
+// Iniciar botón al cargar
+window.addEventListener('authchange', () => setTimeout(updateNotifBtn, 500));
+window.addEventListener('load', () => setTimeout(updateNotifBtn, 1000));
+
+// ── Enviar notificación a TODOS los suscriptores ──
+// Llama al Cloudflare Worker que hace el envío masivo
+async function enviarNotifATodos(post) {
   try {
-    const reg = await navigator.serviceWorker.ready;
-    reg.showNotification(`⚡ ${post.title}`, {
-      body: post.description?.substring(0, 80) + '...' || '¡Nueva publicación en ASMODEO DEV!',
-      icon: '/icon-192x192.png',
-      badge: '/icon-192x192.png',
-      image: post.imageUrl || null,
-      data: { url: `/?post=${post.id}` },
-      vibrate: [200, 100, 200],
-      tag: 'asmodeo-new-post',
-      renotify: true
+    const cat = window.CATS?.[post.category];
+    const emoji = cat?.icon || '⚡';
+    await fetch('https://asmodeo-notif.asmodeotayson.workers.dev/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: `${emoji} ${post.title}`,
+        body: (post.description || '').substring(0, 100) + '...',
+        image: post.imageUrl || null,
+        url: `https://asmodeodev.netlify.app/?post=${post.id}`
+      })
     });
+    console.log('✅ Notificaciones enviadas');
   } catch(e) {
-    // Fallback: notificación normal del navegador
-    new Notification(`⚡ ${post.title}`, {
-      body: post.description?.substring(0, 80) + '...',
-      icon: '/icon-192x192.png'
-    });
+    console.error('Error enviando notificaciones:', e);
   }
 }
-
-// ── Escuchar nuevas publicaciones en tiempo real ──
-function escucharNuevasPublicaciones() {
-  if (!window._fb) return;
-  if (!notifActivadas()) return;
-
-  const { db, collection, query, orderBy, limit, onSnapshot } = window._fb;
-  let primeraVez = true;
-
-  onSnapshot(
-    query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(1)),
-    (snap) => {
-      if (primeraVez) { primeraVez = false; return; }
-      snap.docChanges().forEach(change => {
-        if (change.type === 'added') {
-          const post = { id: change.doc.id, ...change.doc.data() };
-          notificarNuevaPublicacion(post);
-        }
-      });
-    }
-  );
-}
-
-// Helper para VAPID
-function urlBase64ToUint8Array(base64String) {
-  try {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-    for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
-    return outputArray;
-  } catch(e) { return new Uint8Array(); }
-}
-
-// Iniciar listener cuando Firebase esté listo
-window.addEventListener('authchange', () => {
-  setTimeout(escucharNuevasPublicaciones, 2000);
-});

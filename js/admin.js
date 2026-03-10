@@ -166,7 +166,14 @@ async function savePost() {
       data.commentCount = 0;
       const docRef = await addDoc(collection(db, 'posts'), data);
       toast('🚀 Publicación creada');
-      notificarNuevaPublicacion({ id: docRef.id, ...data });
+      // Enviar notificación push a TODOS los suscriptores
+      enviarNotifATodos({
+        id: docRef.id,
+        title: data.title,
+        description: data.description,
+        imageUrl: data.imageUrl,
+        category: data.category
+      });
     }
     _formImg = '';
     window._adminForm = null;
