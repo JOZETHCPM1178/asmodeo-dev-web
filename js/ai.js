@@ -2,6 +2,12 @@
 
 import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
 
+// ════════════════════════════════════════
+// PEGA AQUÍ TU API KEY DE GEMINI
+// Consíguela gratis en: aistudio.google.com
+// ════════════════════════════════════════
+const API_KEY = "PEGA_AQUI_TU_API_KEY";
+
 const SYSTEM_INSTRUCTION = `Eres Chat Asmodeo TK, el asistente oficial de ASMODEO DEV.
 Tu objetivo es ayudar a la comunidad con APKs Mod, Juegos, Scripts y Tutoriales.
 Eres técnico, servicial y tienes un estilo hacker elegante.
@@ -14,7 +20,7 @@ let _aiMsgs = [{ role: 'a', text: '¡Hola! Soy <b>Chat Asmodeo TK</b> ⚡<br>¿E
 // ── Inicializar sesión de Gemini ──
 async function initGemini() {
   try {
-    const genAI = new GoogleGenerativeAI(window.GEMINI_API_KEY);
+    const genAI = new GoogleGenerativeAI(API_KEY);
     const model = genAI.getGenerativeModel({
       model: 'gemini-1.5-flash',
       systemInstruction: SYSTEM_INSTRUCTION
@@ -23,9 +29,8 @@ async function initGemini() {
       history: [],
       generationConfig: { maxOutputTokens: 800 }
     });
-    console.log('✅ Gemini inicializado');
   } catch(e) {
-    console.error('❌ Error iniciando Gemini:', e);
+    console.error('Error iniciando Gemini:', e);
   }
 }
 
@@ -38,14 +43,14 @@ async function sendMessageToGemini(userMessage) {
     return response.text();
   } catch(e) {
     console.error('Error Gemini:', e);
-    if (e.message?.includes('API_KEY') || e.message?.includes('invalid')) {
-      return '❌ API Key inválida. Verifica tu key en config.js';
+    if (e.message?.includes('API_KEY') || e.message?.includes('invalid') || e.message?.includes('key')) {
+      return '❌ API Key inválida. Verifica tu key de Gemini en ai.js';
     }
     return 'Lo siento, hubo un error. Intenta de nuevo.';
   }
 }
 
-// ── Toggle chat window ──
+// ── Toggle chat ──
 window.toggleAI = function() {
   _aiOpen = !_aiOpen;
   const win = document.getElementById('ai-win');
@@ -88,7 +93,7 @@ function renderAIChat() {
   if (msgs) msgs.scrollTop = msgs.scrollHeight;
 }
 
-// ── Enviar mensaje desde la UI ──
+// ── Enviar mensaje desde UI ──
 window.sendAI = async function() {
   const inp = document.getElementById('ai-input');
   const text = inp?.value?.trim();
@@ -132,5 +137,5 @@ window.sendAI = async function() {
   inp?.focus();
 };
 
-// ── Inicializar Gemini al cargar la página ──
+// ── Inicializar al cargar ──
 initGemini();
