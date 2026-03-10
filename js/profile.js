@@ -37,7 +37,10 @@ async function showUserProfile(uid) {
     const photo = u.photoURL || avatarUrl(u.displayName);
     const isMe = window._currentUser?.uid === uid;
     const isFollowing = await checkFollowing(uid);
-    const followerCount = await getFollowerCount(uid);
+    const realFollowers = await getFollowerCount(uid);
+    // Base de seguidores para el admin
+    const isAdmin = u.role === 'admin' || u.email === window.ADMIN_EMAIL;
+    const followerCount = isAdmin ? realFollowers + 10000 : realFollowers;
     const followingCount = await getFollowingCount(uid);
 
     // Posts del usuario

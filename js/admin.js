@@ -32,12 +32,14 @@ async function renderAdmin(tab = 'create') {
         <button class="tab ${tab === 'create' ? 'on' : ''}" onclick="renderAdmin('create')">${_editId ? '✏️ Editar' : '➕ Nueva'}</button>
         <button class="tab ${tab === 'posts' ? 'on' : ''}" onclick="renderAdmin('posts')">📋 Publicaciones (${_adminPosts.length})</button>
         <button class="tab ${tab === 'submissions' ? 'on' : ''}" onclick="renderAdmin('submissions')" id="sub-tab">📥 Revisión</button>
+        <button class="tab ${tab === 'users' ? 'on' : ''}" onclick="renderAdmin('users')">👥 Usuarios</button>
       </div>
       <div id="admin-body"></div>
     </div>`);
 
   if (tab === 'create') renderAdminForm();
   else if (tab === 'submissions') renderSubmissions();
+  else if (tab === 'users') renderAdminUsers();
   else renderAdminPosts();
 }
 
@@ -320,4 +322,127 @@ async function rejectSubmission(id) {
   await updateDoc(doc(db, 'submissions', id), { status: 'rejected' });
   toast('Publicación rechazada');
   renderAdmin('submissions');
+}
+
+// ── Panel de gestión de usuarios ──
+async function renderAdminUsers() {
+  const el = document.getElementById('admin-body');
+  if (!el) return;
+  el.innerHTML = `
+    <div style="margin-bottom:20px">
+      <h3 style="font-family:var(--font1);font-size:.95rem;margin-bottom:14px">👥 Gestionar Usuarios</h3>
+      <div class="form-card" style="margin-bottom:16px">
+        <p style="font-size:.82rem;color:var(--t3);margin-bottom:14px">Busca un usuario por correo para editar sus seguidores o rol</p>
+        <div style="display:flex;gap:8px">
+          <input class="inp" id="user-search-email" placeholder="correo@ejemplo.com" style="flex:1"/>
+          <button class="btn btn-primary btn-sm" onclick="searchUserByEmail()">🔍 Buscar</button>
+        </div>
+      </div>
+      <div id="user-result"></div>
+    </div>
+    <div>
+      <h3 style="font-family:var(--font1);font-size:.95rem;margin-bottom:14px">📋 Todos los usuarios</h3>
+      <div id="users-list"><div style="text-align:center;padding:30px"><div class="spin"></div></div></div>
+    </div>`;
+  loadAllUsers();
+}
+
+async function loadAllUsers() {
+  const el = document.getElementById('users-list');
+  if (!el) return;
+  try {
+    const { db, collection, getDocs, orderBy, query } = window._fb;
+    const snap = await getDocs(query(collection(db, 'users'), orderBy('createdAt', 'desc')));
+    const users = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (!users.length) { el.innerHTML = '<div class="empty"><span class="empty-ico">👤</span><h3>Sin usuarios</h3></div>'; return; }
+    el.innerHTML = users.map(u => `
+      <div class="post-row" style="align-items:center;gap:12px">
+        <img src="${u.photoURL || avatarUrl(u.displayName)}" style="width:42px;height:42px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.src='${avatarUrl(u.displayName)}'"/>
+        <div style="flex:1;min-width:0">
+          <div class="pr-title" style="font-size:.88rem">${u.username || u.displayName || 'Sin nombre'}</div>
+          <div style="font-size:.72rem;color:var(--t3)">${u.email}</div>
+          <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
+            <span class="badge ${u.role === 'admin' ? 'b-admin' : 'b-apk'}" style="font-size:.65rem">${u.role === 'admin' ? '🛡️ Admin' : '👤 Usuario'}</span>
+            <span style="font-size:.7rem;color:var(--t3)">⭐ ${u.fakeFollowers || 0} seguidores</span>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm" style="flex-shrink:0;font-size:.72rem" onclick="editUserFollowers('${u.id}','${(u.username || u.displayName || '').replace(/'/g,"\\'")}',${u.fakeFollowers || 0})">✏️ Editar</button>
+      </div>`).join('');
+  } catch(e) {
+    el.innerHTML = `<div class="empty"><span class="empty-ico">⚠️</span><h3>Error al cargar</h3></div>`;
+  }
+}
+
+async function searchUserByEmail() {
+  const email = document.getElementById('user-search-email')?.value?.trim();
+  if (!email) return toast('Ingresa un correo', 'err');
+  const el = document.getElementById('user-result');
+  el.innerHTML = `<div style="text-align:center;padding:20px"><div class="spin"></div></div>`;
+  try {
+    const { db, collection, query, where, getDocs } = window._fb;
+    const snap = await getDocs(query(collection(db, 'users'), where('email', '==', email)));
+    if (snap.empty) { el.innerHTML = `<div class="empty"><span class="empty-ico">🔍</span><h3>Usuario no encontrado</h3></div>`; return; }
+    const u = { id: snap.docs[0].id, ...snap.docs[0].data() };
+    el.innerHTML = `
+      <div class="form-card" style="border:1px solid var(--p)">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+          <img src="${u.photoURL || avatarUrl(u.displayName)}" style="width:50px;height:50px;border-radius:50%;object-fit:cover"/>
+          <div>
+            <div style="font-weight:700">${u.username || u.displayName}</div>
+            <div style="font-size:.78rem;color:var(--t3)">${u.email}</div>
+          </div>
+        </div>
+        <div class="fg">
+          <label class="lbl">Seguidores mostrados</label>
+          <input class="inp" type="number" id="edit-followers-${u.id}" value="${u.fakeFollowers || 0}" min="0"/>
+        </div>
+        <div class="fg">
+          <label class="lbl">Rol</label>
+          <select class="sel" id="edit-role-${u.id}">
+            <option value="user" ${u.role !== 'admin' ? 'selected' : ''}>👤 Usuario</option>
+            <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>🛡️ Admin</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px" onclick="saveUserEdit('${u.id}')">💾 Guardar cambios</button>
+      </div>`;
+  } catch(e) {
+    el.innerHTML = `<div class="empty"><span class="empty-ico">⚠️</span><h3>Error: ${e.message}</h3></div>`;
+  }
+}
+
+function editUserFollowers(uid, name, currentFollowers) {
+  const el = document.getElementById('user-result');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="form-card" style="border:1px solid var(--p);margin-bottom:16px">
+      <div style="font-weight:700;margin-bottom:14px">✏️ Editando: ${name}</div>
+      <div class="fg">
+        <label class="lbl">Seguidores mostrados</label>
+        <input class="inp" type="number" id="edit-followers-${uid}" value="${currentFollowers}" min="0"/>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary btn-sm" style="flex:1;justify-content:center" onclick="saveUserFollowers('${uid}')">💾 Guardar</button>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('user-result').innerHTML=''">Cancelar</button>
+      </div>
+    </div>`;
+  el.scrollIntoView({ behavior: 'smooth' });
+}
+
+async function saveUserFollowers(uid) {
+  const val = parseInt(document.getElementById(`edit-followers-${uid}`)?.value || 0);
+  const { db, doc, updateDoc } = window._fb;
+  await updateDoc(doc(db, 'users', uid), { fakeFollowers: val });
+  toast('✅ Seguidores actualizados');
+  document.getElementById('user-result').innerHTML = '';
+  loadAllUsers();
+}
+
+async function saveUserEdit(uid) {
+  const followers = parseInt(document.getElementById(`edit-followers-${uid}`)?.value || 0);
+  const role = document.getElementById(`edit-role-${uid}`)?.value;
+  const { db, doc, updateDoc } = window._fb;
+  await updateDoc(doc(db, 'users', uid), { fakeFollowers: followers, role });
+  toast('✅ Usuario actualizado');
+  document.getElementById('user-result').innerHTML = '';
+  loadAllUsers();
 }

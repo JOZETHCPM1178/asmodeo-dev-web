@@ -216,6 +216,8 @@ async function showProfile() {
         </div>
         <div class="fg"><label class="lbl">Nombre de usuario</label><input class="inp" id="prof-username" value="${data.username || u.displayName || ''}"/></div>
         <div class="fg"><label class="lbl">Bio</label><textarea class="txta" id="prof-bio" rows="3" placeholder="Cuéntanos algo de ti...">${data.bio || ''}</textarea></div>
+        <div class="fg"><label class="lbl">Seguidores mostrados en tu perfil</label><input class="inp" type="number" id="prof-followers" value="${data.fakeFollowers || 0}" min="0"/></div>
+        <div class="fg"><label class="lbl">Seguidores (número visible en tu perfil)</label><input class="inp" type="number" id="prof-followers" value="${data.fakeFollowers || 0}" min="0"/></div>
         <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px" onclick="saveProfile()">💾 Guardar cambios</button>
         <div style="margin-top:16px;text-align:center">
           <a style="font-size:.8rem;color:var(--t3);cursor:pointer" onclick="showForgotPassword()">🔐 Cambiar contraseña</a>
@@ -249,7 +251,8 @@ async function saveProfile() {
   if (!username) return toast('El nombre no puede estar vacío', 'err');
   try {
     const { db, doc, updateDoc, updateProfile, auth } = window._fb;
-    await updateDoc(doc(db, 'users', window._currentUser.uid), { username, bio });
+    const fakeFollowers = parseInt(document.getElementById('prof-followers')?.value || 0);
+    await updateDoc(doc(db, 'users', window._currentUser.uid), { username, bio, fakeFollowers });
     await updateProfile(auth.currentUser, { displayName: username });
     window._currentUser.username = username;
     window._currentUser.bio = bio;
