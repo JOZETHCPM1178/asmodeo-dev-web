@@ -20,11 +20,16 @@ self.addEventListener('push', e => {
     data: { url: d.url || '/' },
     vibrate: [200, 100, 200],
     tag: 'asmodeo-notif',
-    renotify: true
+    renotify: true,
+    actions: [
+      { action: 'open', title: '👀 Ver publicación' },
+      { action: 'close', title: 'Cerrar' }
+    ]
   }));
 });
 
 self.addEventListener('notificationclick', e => {
   e.notification.close();
+  if (e.action === 'close') return;
   e.waitUntil(clients.openWindow(e.notification.data?.url || '/'));
 });
