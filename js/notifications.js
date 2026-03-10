@@ -1,106 +1,76 @@
-// js/notifications.js — FCM Push Notifications para todos los usuarios
+// js/notifications.js — OneSignal Web Push
 
-const VAPID_PUBLIC = 'BEXfYf8_9AjuftZOT2jUdNM0yNaIEDqtKxno6Z6SUAr6ztpLpq_ye5tpoyA4jCZCNunt7xdiyEicn45xwKkZ9zk';
+const ONESIGNAL_APP_ID = '57488b36-1bd3-4f46-9d9b-2729c0055a23';
 
-// ── Suscribir usuario ──
-async function suscribirNotificaciones() {
-  try {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      toast('Tu navegador no soporta notificaciones', 'err');
-      return false;
-    }
-
-    const permiso = await Notification.requestPermission();
-    if (permiso !== 'granted') {
-      toast('Activa las notificaciones en los ajustes de tu navegador', 'err');
-      return false;
-    }
-
-    const reg = await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC)
-    });
-
-    // Guardar suscripción en Firestore (disponible para todos, con o sin cuenta)
-    const subKey = btoa(JSON.stringify(sub.endpoint)).replace(/[^a-zA-Z0-9]/g, '').substring(0, 40);
-    if (window._fb) {
-      const { db, doc, setDoc } = window._fb;
-      await setDoc(doc(db, 'subscriptions', subKey), {
-        subscription: JSON.stringify(sub),
-        uid: window._currentUser?.uid || 'anonymous',
-        createdAt: new Date().toISOString()
-      });
-    }
-
-    localStorage.setItem('notif_enabled', 'true');
-    localStorage.setItem('notif_sub', JSON.stringify(sub));
-    toast('🔔 Notificaciones activadas');
-    updateNotifBtn();
-    return true;
-  } catch(e) {
-    console.error('Error notif:', e);
-    toast('Error activando notificaciones: ' + e.message, 'err');
-    return false;
-  }
+// ── Inicializar OneSignal ──
+async function initOneSignal() {
+  if (typeof OneSignal === 'undefined') return;
+  await OneSignal.init({
+    appId: ONESIGNAL_APP_ID,
+    safari_web_id: '',
+    notifyButton: { enable: false }, // usamos nuestro propio botón
+    allowLocalhostAsSecureOrigin: true,
+  });
+  updateNotifBtn();
+  OneSignal.on('subscriptionChange', updateNotifBtn);
 }
 
-function desactivarNotificaciones() {
-  localStorage.setItem('notif_enabled', 'false');
-  toast('🔕 Notificaciones desactivadas');
+// ── Activar/desactivar notificaciones ──
+async function toggleNotif() {
+  if (typeof OneSignal === 'undefined') {
+    toast('Notificaciones no disponibles en este navegador', 'err');
+    return;
+  }
+  const enabled = await OneSignal.isPushNotificationsEnabled();
+  if (enabled) {
+    await OneSignal.setSubscription(false);
+    toast('🔕 Notificaciones desactivadas');
+  } else {
+    await OneSignal.registerForPushNotifications();
+    await OneSignal.setSubscription(true);
+    toast('🔔 Notificaciones activadas');
+  }
   updateNotifBtn();
 }
 
-function notifActivadas() {
-  return localStorage.getItem('notif_enabled') === 'true' && Notification.permission === 'granted';
-}
-
-function updateNotifBtn() {
+async function updateNotifBtn() {
   const btn = document.getElementById('notif-btn');
   if (!btn) return;
-  const on = notifActivadas();
-  btn.textContent = on ? '🔔' : '🔕';
-  btn.title = on ? 'Notificaciones activadas — toca para desactivar' : 'Toca para recibir notificaciones de nuevas apps';
-  btn.classList.toggle('notif-on', on);
+  if (typeof OneSignal === 'undefined') return;
+  const enabled = await OneSignal.isPushNotificationsEnabled();
+  btn.textContent = enabled ? '🔔' : '🔕';
+  btn.title = enabled ? 'Notificaciones activadas' : 'Activar notificaciones';
+  btn.classList.toggle('notif-on', enabled);
 }
 
-function toggleNotif() {
-  if (notifActivadas()) desactivarNotificaciones();
-  else suscribirNotificaciones();
-}
-
-// Helper VAPID
-function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
-  return outputArray;
-}
-
-// Iniciar botón al cargar
-window.addEventListener('authchange', () => setTimeout(updateNotifBtn, 500));
-window.addEventListener('load', () => setTimeout(updateNotifBtn, 1000));
-
-// ── Enviar notificación a TODOS los suscriptores ──
-// Llama al Cloudflare Worker que hace el envío masivo
+// ── Enviar notificación a todos (desde admin) ──
 async function enviarNotifATodos(post) {
   try {
     const cat = window.CATS?.[post.category];
     const emoji = cat?.icon || '⚡';
-    await fetch('https://asmodeo-notif.asmodeotayson.workers.dev/notify', {
+    const res = await fetch('https://onesignal.com/api/v1/notifications', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${window.ONESIGNAL_REST_KEY}`
+      },
       body: JSON.stringify({
-        title: `${emoji} ${post.title}`,
-        body: (post.description || '').substring(0, 100) + '...',
-        image: post.imageUrl || null,
-        url: `https://asmodeodev.netlify.app/?post=${post.id}`
+        app_id: ONESIGNAL_APP_ID,
+        included_segments: ['All'],
+        headings: { en: `${emoji} ${post.title}` },
+        contents: { en: (post.description || '').substring(0, 100) + '...' },
+        big_picture: post.imageUrl || undefined,
+        url: `https://asmodeo-dev-web.pages.dev/?post=${post.id}`,
+        chrome_web_icon: 'https://asmodeo-dev-web.pages.dev/icon-192x192.png',
+        firefox_icon: 'https://asmodeo-dev-web.pages.dev/icon-192x192.png',
       })
     });
-    console.log('✅ Notificaciones enviadas');
+    const data = await res.json();
+    console.log('OneSignal:', data);
   } catch(e) {
-    console.error('Error enviando notificaciones:', e);
+    console.error('Error notificación:', e);
   }
 }
+
+// Iniciar cuando cargue
+window.addEventListener('load', () => setTimeout(initOneSignal, 1000));

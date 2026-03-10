@@ -6,12 +6,12 @@
 // Correo del administrador
 window.ADMIN_EMAIL = "asmodeotayson@gmail.com";
 
-// API Key de Google Gemini (gratis en aistudio.google.com)
-window.GEMINI_API_KEY = "AIzaSyDXfpFOzU4fRhojl-jN9keg1Vnh3qsJXDg";
-
 // Cloudinary
 window.CLOUDINARY_CLOUD = "dcvofzfdf";
 window.CLOUDINARY_PRESET = "asmodeo-preset";
+
+// OneSignal REST API Key (Settings → Keys & IDs en dashboard.onesignal.com)
+window.ONESIGNAL_REST_KEY = "os_v2_app_k5eiwnq32nhunhm3e4u4abk2enrms2ijsr7upy4ejh76ld67v6kz4umo7capu4xor5o4h5bkfgydmgcngupu3dm6ycfccvm5de7gbaa";
 
 // Categorías
 window.CATS = {
