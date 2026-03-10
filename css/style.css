@@ -549,3 +549,29 @@ footer { background:var(--bg2); border-top:1px solid var(--border); padding:50px
   color: var(--t1);
   background: rgba(255,255,255,.08);
 }
+
+/* ═══════════════════════════════════
+   REDES SOCIALES
+   ═══════════════════════════════════ */
+.social-links { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0; }
+.social-btn {
+  display:flex; align-items:center; gap:7px;
+  padding:8px 14px; border-radius:20px;
+  font-size:.78rem; font-weight:700;
+  text-decoration:none; transition:var(--tr);
+  border:1px solid transparent;
+}
+.social-btn:hover { transform:translateY(-2px); opacity:.9; }
+.social-btn.youtube  { background:rgba(255,0,0,.15); color:#ff4444; border-color:rgba(255,0,0,.25); }
+.social-btn.tiktok   { background:rgba(255,255,255,.08); color:#f0f0ff; border-color:rgba(255,255,255,.15); }
+.social-btn.telegram { background:rgba(0,136,204,.15); color:#29b6f6; border-color:rgba(0,136,204,.25); }
+.social-btn.discord  { background:rgba(88,101,242,.15); color:#7289da; border-color:rgba(88,101,242,.25); }
+
+/* ═══════════════════════════════════
+   OK MESSAGE
+   ═══════════════════════════════════ */
+.ok-msg {
+  background:rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.3);
+  color:var(--green); padding:10px 14px; border-radius:var(--r);
+  font-size:.83rem; margin-bottom:14px;
+}
