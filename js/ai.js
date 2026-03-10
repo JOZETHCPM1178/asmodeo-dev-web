@@ -6,7 +6,7 @@ import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
 // PEGA AQUÍ TU API KEY DE GEMINI
 // Consíguela gratis en: aistudio.google.com
 // ════════════════════════════════════════
-const API_KEY = "PEGA_AQUI_TU_API_KEY";
+const API_KEY = "AIzaSyDXfpFOzU4fRhojl-jN9keg1Vnh3qsJXDg";
 
 const SYSTEM_INSTRUCTION = `Eres Chat Asmodeo TK, el asistente oficial de ASMODEO DEV.
 Tu objetivo es ayudar a la comunidad con APKs Mod, Juegos, Scripts y Tutoriales.
