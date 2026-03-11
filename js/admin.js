@@ -32,14 +32,14 @@ async function renderAdmin(tab = 'create') {
         <button class="tab ${tab === 'create' ? 'on' : ''}" onclick="renderAdmin('create')">${_editId ? '✏️ Editar' : '➕ Nueva'}</button>
         <button class="tab ${tab === 'posts' ? 'on' : ''}" onclick="renderAdmin('posts')">📋 Publicaciones (${_adminPosts.length})</button>
         <button class="tab ${tab === 'submissions' ? 'on' : ''}" onclick="renderAdmin('submissions')" id="sub-tab">📥 Revisión</button>
-        <button class="tab ${tab === 'users' ? 'on' : ''}" onclick="renderAdmin('users')">👥 Usuarios</button>
+        ${window._currentUser?.isAdmin ? `<button class="tab ${tab === 'users' ? 'on' : ''}" onclick="renderAdmin('users')">👥 Usuarios</button>` : ''}
       </div>
       <div id="admin-body"></div>
     </div>`);
 
   if (tab === 'create') renderAdminForm();
   else if (tab === 'submissions') renderSubmissions();
-  else if (tab === 'users') renderAdminUsers();
+  else if (tab === 'users') { if (window._currentUser?.isAdmin) renderAdminUsers(); else renderAdminPosts(); }
   else renderAdminPosts();
 }
 
@@ -399,9 +399,14 @@ async function searchUserByEmail() {
         <div class="fg">
           <label class="lbl">Rol</label>
           <select class="sel" id="edit-role-${u.id}">
-            <option value="user" ${u.role !== 'admin' ? 'selected' : ''}>👤 Usuario</option>
+            <option value="user" ${(!u.role || u.role === 'user') ? 'selected' : ''}>👤 Usuario</option>
+            <option value="admin_jr" ${u.role === 'admin_jr' ? 'selected' : ''}>⚡ Admin Jr</option>
             <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>🛡️ Admin</option>
           </select>
+        </div>
+        <div class="fg" id="custom-role-wrap-${u.id}">
+          <label class="lbl">Nombre personalizado del rol (ej: "Moderador", "Editor")</label>
+          <input class="inp" id="edit-customrole-${u.id}" value="${u.customRole || ''}" placeholder="Dejar vacío para usar el nombre por defecto"/>
         </div>
         <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px" onclick="saveUserEdit('${u.id}')">💾 Guardar cambios</button>
       </div>`;
@@ -438,10 +443,12 @@ async function saveUserFollowers(uid) {
 }
 
 async function saveUserEdit(uid) {
+  if (!window._currentUser?.isAdmin) return toast('Sin permisos para editar usuarios', 'err');
   const followers = parseInt(document.getElementById(`edit-followers-${uid}`)?.value || 0);
   const role = document.getElementById(`edit-role-${uid}`)?.value;
+  const customRole = document.getElementById(`edit-customrole-${uid}`)?.value?.trim() || '';
   const { db, doc, updateDoc } = window._fb;
-  await updateDoc(doc(db, 'users', uid), { fakeFollowers: followers, role });
+  await updateDoc(doc(db, 'users', uid), { fakeFollowers: followers, role, customRole });
   toast('✅ Usuario actualizado');
   document.getElementById('user-result').innerHTML = '';
   loadAllUsers();
