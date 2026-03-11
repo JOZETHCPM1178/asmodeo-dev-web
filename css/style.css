@@ -597,3 +597,22 @@ footer { background:var(--bg2); border-top:1px solid var(--border); padding:50px
    HERO BUTTONS WRAP
    ═══════════════════════════════════ */
 .hero-btns { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; }
+
+/* ═══════════════════════════════════
+   LIKE BUTTON
+   ═══════════════════════════════════ */
+.like-btn {
+  display:flex; align-items:center; gap:4px;
+  background:none; border:none; cursor:pointer;
+  font-size:.78rem; color:var(--t3); padding:4px 8px;
+  border-radius:20px; transition:var(--tr);
+}
+.like-btn:hover { background:rgba(239,68,68,.1); color:#ef4444; }
+.like-btn.liked { color:#ef4444; background:rgba(239,68,68,.1); }
+.like-btn.liked::before { content:''; }
+
+/* ═══════════════════════════════════
+   ADMIN JR BADGE + LANG SELECTOR
+   ═══════════════════════════════════ */
+.b-adminjr { background: rgba(245,158,11,.18); color: #f59e0b; border: 1px solid rgba(245,158,11,.35); }
+#lang-nav { gap: 4px; align-items: center; }
