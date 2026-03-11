@@ -6,7 +6,7 @@ function showSubmitPost() {
     <div class="container" style="max-width:700px;padding-top:40px;padding-bottom:80px">
       <div class="form-card">
         <h1 style="font-family:var(--font1);font-size:1.1rem;margin-bottom:6px">📤 Subir App</h1>
-        <p style="font-size:.83rem;color:var(--t3);margin-bottom:24px">Tu publicación será revisada por el admin antes de aparecer en la web</p>
+        <p style="font-size:.83rem;color:var(--t3);margin-bottom:24px">${window._currentUser?.isAdminJr ? 'Tu publicación se publicará directamente' : 'Tu publicación será revisada por el admin antes de aparecer en la web'}</p>
 
         <div class="form-grid2">
           <div class="fg"><label class="lbl">Título *</label><input class="inp" id="s-title" placeholder="Nombre de la app o juego"/></div>
@@ -95,10 +95,35 @@ async function submitPost() {
 
   try {
     const { db, collection, addDoc, serverTimestamp } = window._fb;
+
+    // Admin Jr publica directamente sin aprobación
+    if (u.isAdminJr) {
+      toast('🌍 Traduciendo publicación...');
+      const translations = await traducirPost(title, description);
+      const postData = {
+        title, category, description, downloadLink,
+        imageUrl: _submitImg,
+        featured: false, commentCount: 0, likes: 0,
+        submittedBy: u.uid,
+        submittedByName: u.username || u.displayName || 'Usuario',
+        authorId: u.uid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        ...(translations || {})
+      };
+      const docRef = await addDoc(collection(db, 'posts'), postData);
+      enviarNotifATodos({ id: docRef.id, title, description, imageUrl: _submitImg, category });
+      _submitImg = '';
+      toast('🚀 Publicación publicada directamente.');
+      goHome();
+      return;
+    }
+
+    // Usuario normal → va a revisión
     await addDoc(collection(db, 'submissions'), {
       title, category, description, downloadLink,
       imageUrl: _submitImg,
-      status: 'pending', // pending | approved | rejected
+      status: 'pending',
       submittedBy: u.uid,
       submittedByName: u.username || u.displayName || 'Usuario',
       submittedByEmail: u.email,
