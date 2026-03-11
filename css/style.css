@@ -616,3 +616,28 @@ footer { background:var(--bg2); border-top:1px solid var(--border); padding:50px
    ═══════════════════════════════════ */
 .b-adminjr { background: rgba(245,158,11,.18); color: #f59e0b; border: 1px solid rgba(245,158,11,.35); }
 #lang-nav { gap: 4px; align-items: center; }
+
+/* ── Carousel ── */
+.carousel-wrap { position:relative; overflow:hidden; width:100%; }
+.carousel-track {
+  display:flex;
+  transition: transform .35s cubic-bezier(.4,0,.2,1);
+  will-change: transform;
+}
+.carousel-item {
+  flex: 0 0 50%;
+  min-width: 50%;
+  padding: 0 8px;
+  box-sizing: border-box;
+}
+@media(max-width:600px){
+  .carousel-item { flex: 0 0 100%; min-width:100%; }
+}
+.carousel-dots {
+  display:flex; justify-content:center; gap:8px; margin-top:16px; padding-bottom:8px;
+}
+.cdot {
+  width:8px; height:8px; border-radius:50%;
+  background:var(--bord); border:none; cursor:pointer; padding:0; transition:.2s;
+}
+.cdot.active { background:var(--p); transform:scale(1.3); }
