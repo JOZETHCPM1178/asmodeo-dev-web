@@ -11,7 +11,7 @@ window.CLOUDINARY_CLOUD = "dcvofzfdf";
 window.CLOUDINARY_PRESET = "asmodeo-preset";
 
 // OneSignal REST API Key (Settings → Keys & IDs en dashboard.onesignal.com)
-window.ONESIGNAL_REST_KEY = "rms2ijsr7upy4ejh76ld67v6k";
+window.ONESIGNAL_REST_KEY = "os_v2_app_k5eiwnq32nhunhm3e4u4abk2enhd4hhrv4eekquijnincjjlmmdwptixxi3iyt7ybt4ldk4mqsaomemlb5p4dzmlfaevwn6tugk3jdy";
 
 // Categorías
 window.CATS = {
