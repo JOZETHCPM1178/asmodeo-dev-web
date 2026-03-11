@@ -247,7 +247,7 @@ async function showProfile() {
         <div class="fg"><label class="lbl">Bio</label><textarea class="txta" id="prof-bio" rows="3" placeholder="Cuéntanos algo de ti...">${data.bio || ''}</textarea></div>
 
         <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px" onclick="saveProfile()">${(window._t&&window._t['save'])||'Guardar cambios'}</button>
-        <button class="btn btn-ghost" style="width:100%;justify-content:center;padding:13px;margin-top:10px" onclick="shareProfile('${u.uid}','${(data.username||u.displayName||'').replace(/'/g,\'\\\'\')}')">🔗 Compartir mi perfil</button>
+        <button class="btn btn-ghost" style="width:100%;justify-content:center;padding:13px;margin-top:10px" onclick="shareProfile('${u.uid}')">🔗 Compartir mi perfil</button>
         <div style="margin-top:16px;text-align:center">
           <a style="font-size:.8rem;color:var(--t3);cursor:pointer" onclick="showForgotPassword()">🔐 Cambiar contraseña</a>
         </div>
