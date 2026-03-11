@@ -69,7 +69,7 @@ function updateNotifBtn() {
 // ── Enviar notificación a todos al publicar ──
 async function enviarNotifATodos(post) {
   const key = window.ONESIGNAL_REST_KEY;
-  if (!key || key === 'PEGA_AQUI_TU_REST_API_KEY') return;
+  if (!key || key === 'os_v2_app_k5eiwnq32nhunhm3e4u4abk2enhd4hhrv4eekquijnincjjlmmdwptixxi3iyt7ybt4ldk4mqsaomemlb5p4dzmlfaevwn6tugk3jdy') return;
   try {
     const cat = window.CATS?.[post.category];
     const emoji = cat?.icon || '⚡';
