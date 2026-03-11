@@ -196,10 +196,18 @@ async function doRegister() {
 async function showProfile() {
   const u = window._currentUser;
   if (!u) return showLogin();
-  const { db, doc, getDoc } = window._fb;
+  const { db, doc, getDoc, collection, query, where, getDocs } = window._fb;
   const snap = await getDoc(doc(db, 'users', u.uid));
   const data = snap.exists() ? snap.data() : {};
   const photo = data.photoURL || u.photoURL || avatarUrl(u.displayName);
+
+  // Contar seguidores y siguiendo
+  const [follSnap, ingSnap] = await Promise.all([
+    getDocs(query(collection(db, 'follows'), where('targetUid', '==', u.uid))),
+    getDocs(query(collection(db, 'follows'), where('followerUid', '==', u.uid)))
+  ]);
+  const totalFollowers = (data.fakeFollowers || 0) + follSnap.size;
+  const totalFollowing = ingSnap.size;
 
   setMain(`
     <div class="container" style="max-width:600px;padding-top:40px;padding-bottom:80px">
@@ -214,6 +222,20 @@ async function showProfile() {
           <div style="font-size:.78rem;color:var(--t3)">${u.email}</div>
           ${u.isAdmin ? `<span class='badge b-admin' style='margin-top:6px'>🛡️ ${data.customRole || 'Admin'}</span>` : u.isAdminJr ? `<span class='badge b-adminjr' style='margin-top:6px'>⚡ ${data.customRole || 'Admin Jr'}</span>` : ''}
         </div>
+
+        <!-- Stats de seguidores -->
+        <div style="display:flex;justify-content:center;gap:32px;margin-bottom:24px;padding:16px;background:rgba(255,255,255,.04);border-radius:12px;border:1px solid var(--bord)">
+          <div style="text-align:center;cursor:pointer" onclick="showMyFollowers('${u.uid}')">
+            <div style="font-family:var(--font1);font-size:1.4rem;font-weight:700;color:var(--p)">${totalFollowers}</div>
+            <div style="font-size:.75rem;color:var(--t3)">Seguidores</div>
+          </div>
+          <div style="width:1px;background:var(--bord)"></div>
+          <div style="text-align:center;cursor:pointer" onclick="showMyFollowing('${u.uid}')">
+            <div style="font-family:var(--font1);font-size:1.4rem;font-weight:700;color:var(--a)">${totalFollowing}</div>
+            <div style="font-size:.75rem;color:var(--t3)">Siguiendo</div>
+          </div>
+        </div>
+
         <div class="fg"><label class="lbl">Nombre de usuario</label><input class="inp" id="prof-username" value="${data.username || u.displayName || ''}"/></div>
         <div class="fg"><label class="lbl">Bio</label><textarea class="txta" id="prof-bio" rows="3" placeholder="Cuéntanos algo de ti...">${data.bio || ''}</textarea></div>
 
@@ -223,6 +245,62 @@ async function showProfile() {
         </div>
       </div>
     </div>`);
+}
+
+// ── Ver lista de seguidores propios ──
+async function showMyFollowers(uid) {
+  const { db, collection, query, where, getDocs, doc, getDoc } = window._fb;
+  const snap = await getDocs(query(collection(db, 'follows'), where('targetUid', '==', uid)));
+  if (snap.empty) return toast('Aún no tienes seguidores 😢');
+  const users = await Promise.all(snap.docs.map(async d => {
+    const uSnap = await getDoc(doc(db, 'users', d.data().followerUid)).catch(() => null);
+    return uSnap?.exists() ? { id: uSnap.id, ...uSnap.data() } : null;
+  }));
+  const valid = users.filter(Boolean);
+  showUserListModal('Tus seguidores', valid);
+}
+
+// ── Ver lista de a quién sigues ──
+async function showMyFollowing(uid) {
+  const { db, collection, query, where, getDocs, doc, getDoc } = window._fb;
+  const snap = await getDocs(query(collection(db, 'follows'), where('followerUid', '==', uid)));
+  if (snap.empty) return toast('No sigues a nadie aún 😢');
+  const users = await Promise.all(snap.docs.map(async d => {
+    const uSnap = await getDoc(doc(db, 'users', d.data().targetUid)).catch(() => null);
+    return uSnap?.exists() ? { id: uSnap.id, ...uSnap.data() } : null;
+  }));
+  const valid = users.filter(Boolean);
+  showUserListModal('Siguiendo', valid);
+}
+
+// ── Modal con lista de usuarios ──
+function showUserListModal(title, users) {
+  const existing = document.getElementById('user-list-modal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'user-list-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML = `
+    <div style="background:var(--c2);border-radius:var(--r2);border:1px solid var(--bord);width:100%;max-width:400px;max-height:80vh;overflow:hidden;display:flex;flex-direction:column">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--bord)">
+        <span style="font-family:var(--font1);font-size:.95rem;font-weight:700">${title} (${users.length})</span>
+        <button onclick="document.getElementById('user-list-modal').remove()" style="background:none;border:none;color:var(--t2);font-size:1.2rem;cursor:pointer">✕</button>
+      </div>
+      <div style="overflow-y:auto;padding:12px">
+        ${users.map(u => `
+          <div onclick="document.getElementById('user-list-modal').remove();showUserProfile('${u.id}')"
+            style="display:flex;align-items:center;gap:12px;padding:10px;border-radius:10px;cursor:pointer;transition:.2s"
+            onmouseover="this.style.background='rgba(255,255,255,.06)'" onmouseout="this.style.background='none'">
+            <img src="${u.photoURL || avatarUrl(u.displayName)}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.src='${avatarUrl(u.displayName)}'"/>
+            <div>
+              <div style="font-weight:600;font-size:.9rem">${u.username || u.displayName || 'Usuario'}</div>
+              ${u.bio ? `<div style="font-size:.75rem;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px">${u.bio}</div>` : ''}
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 }
 
 async function uploadProfilePhoto(file) {
