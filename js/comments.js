@@ -21,7 +21,7 @@ async function renderComments(postId) {
         <div class="cmt-text">${c.text || ''}</div>
         <div class="cmt-acts">
           <button class="cact" id="like-${c.id}" onclick="likeCmt('${postId}','${c.id}',${c.likes || 0})">❤️ ${c.likes || 0}</button>
-          ${depth === 0 ? `<button class="cact" onclick="toggleReply('${c.id}')">💬 Responder</button>` : ''}
+          ${depth === 0 ? `<button class="cact" onclick="toggleReply('${c.id}')">${t('reply')}</button>` : ''}
           ${u?.isAdmin ? `
             <button class="cact adm" onclick="pinCmt('${postId}','${c.id}',${c.pinned})">📌 ${c.pinned ? 'Desfijar' : 'Fijar'}</button>
             <button class="cact del" onclick="delCmt('${postId}','${c.id}')">🗑️</button>` : ''}
@@ -31,7 +31,7 @@ async function renderComments(postId) {
             <textarea class="txta" id="rt-${c.id}" rows="2" placeholder="Tu respuesta..."></textarea>
             <div style="display:flex;gap:8px">
               <button class="btn btn-primary btn-sm" onclick="sendReply('${postId}','${c.id}')">Enviar</button>
-              <button class="btn btn-ghost btn-sm" onclick="toggleReply('${c.id}')">Cancelar</button>
+              <button class="btn btn-ghost btn-sm" onclick="toggleReply('${c.id}')">Cancel</button>
             </div>
           </div>` : ''}
       </div>
@@ -42,11 +42,11 @@ async function renderComments(postId) {
     ? `<div class="new-cmt">
         <img src="${u.photoURL || avatarUrl(u.displayName)}" class="cmt-av" onerror="this.src='${avatarUrl(u.displayName)}'"/>
         <div class="cmt-inp-wrap">
-          <textarea class="txta" id="new-cmt-txt" rows="3" placeholder="Escribe un comentario..."></textarea>
-          <button class="btn btn-primary btn-sm" style="margin-top:7px" onclick="sendCmt('${postId}')">Publicar comentario</button>
+          <textarea class="txta" id="new-cmt-txt" rows="3" placeholder="${t('comment_placeholder')}"></textarea>
+          <button class="btn btn-primary btn-sm" style="margin-top:7px" onclick="sendCmt('${postId}')">${t('publish_comment')}</button>
         </div>
       </div>`
-    : `<div class="login-prompt">Inicia sesión para comentar · <a style="color:var(--p);cursor:pointer" onclick="showLogin()">Entrar</a></div>`;
+    : `<div class="login-prompt">${t('login_to_comment')} · <a style="color:var(--p);cursor:pointer" onclick="showLogin()">Entrar</a></div>`;
 
   root.innerHTML = `
     <div class="comments-sec">

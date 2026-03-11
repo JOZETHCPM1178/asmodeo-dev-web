@@ -8,29 +8,29 @@ async function goHome() {
     <section id="hero">
       <div class="hero-bg"><div class="orb orb1"></div><div class="orb orb2"></div><div class="grid-bg"></div></div>
       <div class="hero-inner fu">
-        <div class="hero-pill">⚡ La plataforma más completa de mods</div>
+        <div class="hero-pill">${t('platform_tag')}</div>
         <h1 class="hero-title">ASMODEO<b>DEV</b></h1>
-        <p class="hero-sub">APK Mod · Juegos · Scripts · Tutoriales</p>
-        <p class="hero-desc">Descarga las mejores apps y juegos modificados. Gratis, actualizados y seguros.</p>
+        <p class="hero-sub">APK Mod · ${t('btn_games').replace(/[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ ]/g,'').trim()} · Scripts · ${t('btn_tuts').replace(/[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ ]/g,'').trim()}</p>
+        <p class="hero-desc">${t('platform_desc')}</p>
         <div class="hero-btns">
-          <button class="btn btn-primary" onclick="showCat('apk')">📱 APK Mod</button>
-          <button class="btn btn-ghost" onclick="showCat('games')">🎮 Juegos</button>
-          <button class="btn btn-ghost" onclick="showCat('script')">⚙️ Scripts</button>
-          <button class="btn btn-ghost" onclick="showCat('tutorials')">📚 Tutoriales</button>
+          <button class="btn btn-primary" onclick="showCat('apk')">${t('btn_apk')}</button>
+          <button class="btn btn-ghost" onclick="showCat('games')">${t('btn_games')}</button>
+          <button class="btn btn-ghost" onclick="showCat('script')">${t('btn_scripts')}</button>
+          <button class="btn btn-ghost" onclick="showCat('tutorials')">${t('btn_tuts')}</button>
         </div>
         <div class="hero-stats">
-          <div><span class="stat-n" id="st-posts">...</span><span class="stat-l">Publicaciones</span></div>
+          <div><span class="stat-n" id="st-posts">...</span><span class="stat-l">${t('pubs')}</span></div>
           <div class="stat-div"></div>
-          <div><span class="stat-n">100%</span><span class="stat-l">Gratis</span></div>
+          <div><span class="stat-n">100%</span><span class="stat-l">${t('all_free')}</span></div>
           <div class="stat-div"></div>
-          <div><span class="stat-n">0</span><span class="stat-l">Tiempo de espera</span></div>
+          <div><span class="stat-n">0</span><span class="stat-l">${t('no_wait')}</span></div>
         </div>
       </div>
     </section>
 
     <section class="sec">
       <div class="container">
-        <div class="sec-head"><h2 class="sec-title">🗂️ Categorías</h2><p class="sec-sub">Explora todo el contenido</p></div>
+        <div class="sec-head"><h2 class="sec-title">🗂️ ${t('categories')}</h2><p class="sec-sub">Explora todo el contenido</p></div>
         <div class="cat-grid">
           ${Object.entries(window.CATS).map(([id, c]) => `
             <div class="cat-card" onclick="showCat('${id}')">
@@ -42,14 +42,22 @@ async function goHome() {
       </div>
     </section>
 
+    <section class="sec">
+      <div class="container">
+        <div class="sec-head"><h2 class="sec-title">${t('popular')}</h2><p class="sec-sub">Las apps con más likes</p></div>
+        <div id="popular-posts"><div style="text-align:center;padding:30px"><div class="spin"></div></div></div>
+      </div>
+    </section>
+
     <section class="sec sec-dark">
       <div class="container">
-        <div class="sec-head"><h2 class="sec-title">🔥 Lo más reciente</h2></div>
+        <div class="sec-head"><h2 class="sec-title">${t('recent')}</h2></div>
         <div id="home-posts"><div style="text-align:center;padding:50px"><div class="spin"></div></div></div>
       </div>
     </section>`);
 
   cargarHomePosts();
+  cargarPopulares();
 }
 
 // ─── CARGAR POSTS CON REINTENTOS ───
@@ -265,4 +273,27 @@ async function deletePost(id) {
   await deleteDoc(doc(db, 'posts', id));
   toast('Publicación eliminada');
   goHome();
+}
+
+// ── Cargar posts más populares (más likes) ──
+async function cargarPopulares() {
+  const el = document.getElementById('popular-posts');
+  if (!el) return;
+  try {
+    if (!window._fb) return;
+    const { db, collection, query, orderBy, limit, getDocs } = window._fb;
+    const snap = await getDocs(query(
+      collection(db, 'posts'),
+      orderBy('likes', 'desc'),
+      limit(6)
+    ));
+    const posts = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => (p.likes || 0) > 0);
+    if (!posts.length) {
+      el.innerHTML = `<p style="text-align:center;color:var(--t3);padding:20px;font-size:.85rem">Aún no hay likes — ¡sé el primero! ❤️</p>`;
+      return;
+    }
+    el.innerHTML = `<div class="posts-grid">${posts.map((p, i) => postCardHTML(p, i)).join('')}</div>`;
+  } catch(e) {
+    el.innerHTML = '';
+  }
 }

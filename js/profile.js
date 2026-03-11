@@ -65,16 +65,16 @@ async function showUserProfile(uid) {
               ${u.isAdmin || u.role === 'admin' ? '<span class="badge b-admin">🛡️ Admin</span>' : ''}
               ${u.bio ? `<div class="prof-pub-bio">${u.bio}</div>` : ''}
               <div class="prof-pub-stats">
-                <div class="pstat"><span class="pstat-n">${followerCount}</span><span class="pstat-l">Seguidores</span></div>
-                <div class="pstat"><span class="pstat-n">${followingCount}</span><span class="pstat-l">Siguiendo</span></div>
-                <div class="pstat"><span class="pstat-n">${posts.length}</span><span class="pstat-l">Publicaciones</span></div>
+                <div class="pstat"><span class="pstat-n">${followerCount}</span><span class="pstat-l">${t('followers')}</span></div>
+                <div class="pstat"><span class="pstat-n">${followingCount}</span><span class="pstat-l">${t('following')}</span></div>
+                <div class="pstat"><span class="pstat-n">${posts.length}</span><span class="pstat-l">${t('publications')}</span></div>
               </div>
             </div>
             <div class="prof-pub-actions" style="display:flex;gap:8px;flex-wrap:wrap">
               ${isMe
                 ? `<button class="btn btn-ghost btn-sm" onclick="showProfile()">✏️ Editar perfil</button>`
                 : `<button class="btn ${isFollowing ? 'btn-ghost' : 'btn-primary'} btn-sm" id="follow-btn" onclick="toggleFollow('${uid}')">
-                    ${isFollowing ? '✓ Siguiendo' : '+ Seguir'}
+                    ${isFollowing ? t('unfollow') : t('follow')}
                   </button>`
               }
               <button class="btn btn-ghost btn-sm" onclick="shareProfile('${uid}','${(u.username || u.displayName || '').replace(/'/g,"\\'")}')" style="font-size:.75rem">🔗 Compartir</button>
@@ -139,7 +139,7 @@ async function toggleFollow(targetUid) {
   if (isFollowing) {
     await deleteDoc(doc(db, 'follows', followId));
     toast('Dejaste de seguir a este usuario');
-    if (btn) { btn.textContent = '+ Seguir'; btn.className = 'btn btn-primary btn-sm'; }
+    if (btn) { btn.textContent = t('follow'); btn.className = 'btn btn-primary btn-sm'; }
   } else {
     await setDoc(doc(db, 'follows', followId), {
       followerUid: myUid,
@@ -147,7 +147,7 @@ async function toggleFollow(targetUid) {
       createdAt: new Date().toISOString()
     });
     toast('✅ Ahora sigues a este usuario');
-    if (btn) { btn.textContent = '✓ Siguiendo'; btn.className = 'btn btn-ghost btn-sm'; }
+    if (btn) { btn.textContent = t('unfollow'); btn.className = 'btn btn-ghost btn-sm'; }
   }
 }
 
