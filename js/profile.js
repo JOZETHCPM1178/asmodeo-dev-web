@@ -70,13 +70,14 @@ async function showUserProfile(uid) {
                 <div class="pstat"><span class="pstat-n">${posts.length}</span><span class="pstat-l">Publicaciones</span></div>
               </div>
             </div>
-            <div class="prof-pub-actions">
+            <div class="prof-pub-actions" style="display:flex;gap:8px;flex-wrap:wrap">
               ${isMe
                 ? `<button class="btn btn-ghost btn-sm" onclick="showProfile()">✏️ Editar perfil</button>`
                 : `<button class="btn ${isFollowing ? 'btn-ghost' : 'btn-primary'} btn-sm" id="follow-btn" onclick="toggleFollow('${uid}')">
                     ${isFollowing ? '✓ Siguiendo' : '+ Seguir'}
                   </button>`
               }
+              <button class="btn btn-ghost btn-sm" onclick="shareProfile('${uid}','${(u.username || u.displayName || '').replace(/'/g,"\\'")}')" style="font-size:.75rem">🔗 Compartir</button>
             </div>
           </div>
         </div>
@@ -147,5 +148,17 @@ async function toggleFollow(targetUid) {
     });
     toast('✅ Ahora sigues a este usuario');
     if (btn) { btn.textContent = '✓ Siguiendo'; btn.className = 'btn btn-ghost btn-sm'; }
+  }
+}
+
+// ── Compartir perfil de usuario ──
+function shareProfile(uid, name) {
+  const url = `${location.origin}${location.pathname}?user=${uid}`;
+  if (navigator.share) {
+    navigator.share({ title: `${name} — ASMODEO DEV`, url }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(url)
+      .then(() => toast('¡Link del perfil copiado! 🔗'))
+      .catch(() => toast('Copia el link: ' + url));
   }
 }

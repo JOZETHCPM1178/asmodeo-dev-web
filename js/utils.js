@@ -55,6 +55,9 @@ function postCardHTML(p, i = 0) {
             ${p.submittedByName ? `<span style="font-size:.7rem;color:var(--t3);display:block;margin-top:2px">👤 ${p.submittedByName}</span>` : ''}
           </div>
           <div class="pcard-actions">
+            <button class="like-btn ${p._liked ? 'liked' : ''}" onclick="toggleLikePost(event,'${p.id}',this)">
+              <span class="like-icon">❤️</span> <span class="like-count">${p.likes || 0}</span>
+            </button>
             <button class="share-ico" onclick="sharePost(event,'${p.id}','${(p.title || '').replace(/'/g, "\\'")}')">🔗</button>
             <span style="font-size:.73rem;color:var(--t3)">💬 ${p.commentCount || 0}</span>
           </div>
@@ -109,5 +112,46 @@ function toggleNotif() {
     desactivarNotificaciones();
   } else {
     suscribirNotificaciones();
+  }
+}
+
+// ── Like a publicación ──
+function getLikeIcon() {
+  const u = window._currentUser;
+  if (!u) return '❤️';
+  if ((u.isAdmin || u.isAdminJr) && u.photoURL) {
+    return `<img src="${u.photoURL}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:2px" onerror="this.style.display='none'"/>`;
+  }
+  return '❤️';
+}
+
+async function toggleLikePost(e, postId, btn) {
+  e.stopPropagation();
+  if (!window._currentUser) { toast('Inicia sesión para dar like', 'err'); return; }
+  if (!window._fb) return;
+  const { db, doc, getDoc, setDoc, deleteDoc, updateDoc, increment } = window._fb;
+  const likeId = `${window._currentUser.uid}_${postId}`;
+  const likeRef = doc(db, 'postLikes', likeId);
+  const snap = await getDoc(likeRef);
+  const countEl = btn.querySelector('.like-count');
+  if (snap.exists()) {
+    await deleteDoc(likeRef);
+    await updateDoc(doc(db, 'posts', postId), { likes: increment(-1) });
+    btn.classList.remove('liked');
+    if (countEl) countEl.textContent = Math.max(0, parseInt(countEl.textContent) - 1);
+  } else {
+    const u = window._currentUser;
+    const likeData = {
+      uid: u.uid, postId, createdAt: new Date().toISOString(),
+      isAdmin: u.isAdmin || false, isAdminJr: u.isAdminJr || false,
+      likerPhoto: u.photoURL || null, likerName: u.username || u.displayName || ''
+    };
+    await setDoc(likeRef, likeData);
+    await updateDoc(doc(db, 'posts', postId), { likes: increment(1) });
+    btn.classList.add('liked');
+    // Update icon to admin photo if applicable
+    const iconEl = btn.querySelector('.like-icon');
+    if (iconEl) iconEl.innerHTML = getLikeIcon();
+    if (countEl) countEl.textContent = parseInt(countEl.textContent) + 1;
   }
 }

@@ -37,9 +37,14 @@ onAuthStateChanged(auth, async (user) => {
         ...user,
         role,
         isAdmin: role === "admin",
+        isAdminJr: role === "admin_jr",
+        isStaff: role === "admin" || role === "admin_jr",
+        customRole: data.customRole || null,
         username: data.username || user.displayName || '',
         bio: data.bio || '',
-        photoURL: data.photoURL || user.photoURL || ''
+        photoURL: data.photoURL || user.photoURL || '',
+        fakeFollowers: data.fakeFollowers || 0,
+        customLikeImg: data.customLikeImg || null
       };
     } catch {
       window._currentUser = { ...user, role: "user", isAdmin: user.email === window.ADMIN_EMAIL };

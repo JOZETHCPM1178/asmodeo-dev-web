@@ -44,8 +44,10 @@ function handleURL() {
   const params = new URLSearchParams(location.search);
   const postId = params.get('post');
   const cat = params.get('cat');
+  const userId = params.get('user');
   if (postId) showPost(postId);
   else if (cat) showCat(cat);
+  else if (userId) showUserProfile(userId);
   else goHome();
 }
 

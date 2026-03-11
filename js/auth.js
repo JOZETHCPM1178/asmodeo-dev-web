@@ -20,18 +20,18 @@ function renderNavAuth() {
         <div class="av-drop" id="av-drop" style="display:none">
           <div class="av-head">
             <div class="av-email">${u.email}</div>
-            ${u.isAdmin ? '<span class="badge b-admin">Admin</span>' : ''}
+            ${u.isAdmin ? `<span class='badge b-admin'>🛡️ ${u.customRole || 'Admin'}</span>` : u.isAdminJr ? `<span class='badge b-adminjr'>⚡ ${u.customRole || 'Admin Jr'}</span>` : ''}
           </div>
           <button class="av-item" onclick="showProfile()">👤 Mi Perfil</button>
           <button class="av-item" onclick="showSubmitPost()">📤 Subir App</button>
-          ${u.isAdmin ? '<button class="av-item" onclick="showAdmin()">🛡️ Panel Admin</button>' : ''}
+          ${u.isAdmin || u.isAdminJr ? '<button class="av-item" onclick="showAdmin()">🛡️ Panel Admin</button>' : ''}
           <button class="av-item red" onclick="doLogout()">🚪 Cerrar Sesión</button>
         </div>
       </div>`;
     if (mob) mob.innerHTML = `
       <button class="mob-link" onclick="showProfile()">👤 Mi Perfil</button>
       <button class="mob-link" onclick="showSubmitPost()">📤 Subir App</button>
-      ${u.isAdmin ? '<button class="mob-link" onclick="showAdmin()">🛡️ Panel Admin</button>' : ''}`;
+      ${u.isAdmin || u.isAdminJr ? '<button class="mob-link" onclick="showAdmin()">🛡️ Panel Admin</button>' : ''}`;
   } else {
     el.innerHTML = `
       <div class="auth-btns" style="display:flex;gap:8px">
@@ -212,12 +212,11 @@ async function showProfile() {
           </div>
           <div style="margin-top:10px;font-family:var(--font1);font-size:.9rem">${data.username || u.displayName}</div>
           <div style="font-size:.78rem;color:var(--t3)">${u.email}</div>
-          ${u.isAdmin ? '<span class="badge b-admin" style="margin-top:6px">🛡️ Admin</span>' : ''}
+          ${u.isAdmin ? `<span class='badge b-admin' style='margin-top:6px'>🛡️ ${data.customRole || 'Admin'}</span>` : u.isAdminJr ? `<span class='badge b-adminjr' style='margin-top:6px'>⚡ ${data.customRole || 'Admin Jr'}</span>` : ''}
         </div>
         <div class="fg"><label class="lbl">Nombre de usuario</label><input class="inp" id="prof-username" value="${data.username || u.displayName || ''}"/></div>
         <div class="fg"><label class="lbl">Bio</label><textarea class="txta" id="prof-bio" rows="3" placeholder="Cuéntanos algo de ti...">${data.bio || ''}</textarea></div>
-        <div class="fg"><label class="lbl">Seguidores mostrados en tu perfil</label><input class="inp" type="number" id="prof-followers" value="${data.fakeFollowers || 0}" min="0"/></div>
-        <div class="fg"><label class="lbl">Seguidores (número visible en tu perfil)</label><input class="inp" type="number" id="prof-followers" value="${data.fakeFollowers || 0}" min="0"/></div>
+
         <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px" onclick="saveProfile()">💾 Guardar cambios</button>
         <div style="margin-top:16px;text-align:center">
           <a style="font-size:.8rem;color:var(--t3);cursor:pointer" onclick="showForgotPassword()">🔐 Cambiar contraseña</a>
@@ -230,35 +229,46 @@ async function uploadProfilePhoto(file) {
   if (!file || !window._currentUser) return;
   toast('Subiendo foto...');
   try {
-    const { storage, ref, uploadBytes, getDownloadURL, db, doc, updateDoc } = window._fb;
-    const storageRef = ref(storage, `avatars/${window._currentUser.uid}`);
-    await uploadBytes(storageRef, file);
-    const url = await getDownloadURL(storageRef);
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('upload_preset', window.CLOUDINARY_PRESET);
+    const res = await fetch(
+      `https://api.cloudinary.com/v1_1/${window.CLOUDINARY_CLOUD}/image/upload`,
+      { method: 'POST', body: fd }
+    );
+    const json = await res.json();
+    if (json.error) throw new Error(json.error.message);
+    const url = json.secure_url;
+    const { db, doc, updateDoc, updateProfile, auth } = window._fb;
     await updateDoc(doc(db, 'users', window._currentUser.uid), { photoURL: url });
-    await window._fb.updateProfile(window._fb.auth.currentUser, { photoURL: url });
+    if (auth.currentUser) await updateProfile(auth.currentUser, { photoURL: url });
     window._currentUser.photoURL = url;
-    document.getElementById('prof-photo').src = url;
-    toast('✅ Foto actualizada');
+    const el = document.getElementById('prof-photo');
+    if (el) el.src = url + '?t=' + Date.now();
     renderNavAuth();
+    toast('✅ Foto actualizada');
   } catch(e) {
-    toast('Error subiendo foto', 'err');
+    console.error('uploadProfilePhoto error:', e);
+    toast('Error subiendo foto: ' + e.message, 'err');
   }
 }
 
 async function saveProfile() {
   const username = document.getElementById('prof-username')?.value?.trim();
-  const bio = document.getElementById('prof-bio')?.value?.trim();
+  const bio = document.getElementById('prof-bio')?.value?.trim() || '';
   if (!username) return toast('El nombre no puede estar vacío', 'err');
   try {
     const { db, doc, updateDoc, updateProfile, auth } = window._fb;
-    const fakeFollowers = parseInt(document.getElementById('prof-followers')?.value || 0);
-    await updateDoc(doc(db, 'users', window._currentUser.uid), { username, bio, fakeFollowers });
-    await updateProfile(auth.currentUser, { displayName: username });
+    await updateDoc(doc(db, 'users', window._currentUser.uid), { username, bio, displayName: username });
+    if (auth.currentUser) await updateProfile(auth.currentUser, { displayName: username });
     window._currentUser.username = username;
+    window._currentUser.displayName = username;
     window._currentUser.bio = bio;
     toast('✅ Perfil actualizado');
     renderNavAuth();
+    setTimeout(() => showProfile(), 400);
   } catch(e) {
-    toast('Error guardando perfil', 'err');
+    console.error('saveProfile error:', e);
+    toast('Error guardando perfil: ' + e.message, 'err');
   }
 }
