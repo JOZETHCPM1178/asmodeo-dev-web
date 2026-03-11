@@ -8,34 +8,34 @@ async function goHome() {
     <section id="hero">
       <div class="hero-bg"><div class="orb orb1"></div><div class="orb orb2"></div><div class="grid-bg"></div></div>
       <div class="hero-inner fu">
-        <div class="hero-pill">${t('platform_tag')}</div>
+        <div class="hero-pill">${(window._t&&window._t['platform_tag'])||''}</div>
         <h1 class="hero-title">ASMODEO<b>DEV</b></h1>
-        <p class="hero-sub">APK Mod · ${t('btn_games').replace(/[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ ]/g,'').trim()} · Scripts · ${t('btn_tuts').replace(/[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ ]/g,'').trim()}</p>
-        <p class="hero-desc">${t('platform_desc')}</p>
+        <p class="hero-sub">APK Mod · Juegos · Scripts · Tutoriales</p>
+        <p class="hero-desc">${(window._t&&window._t['platform_desc'])||''}</p>
         <div class="hero-btns">
-          <button class="btn btn-primary" onclick="showCat('apk')">${t('btn_apk')}</button>
-          <button class="btn btn-ghost" onclick="showCat('games')">${t('btn_games')}</button>
-          <button class="btn btn-ghost" onclick="showCat('script')">${t('btn_scripts')}</button>
-          <button class="btn btn-ghost" onclick="showCat('tutorials')">${t('btn_tuts')}</button>
+          <button class="btn btn-primary" onclick="showCat('apk')">${(window._t&&window._t['btn_apk'])||''}</button>
+          <button class="btn btn-ghost" onclick="showCat('games')">${(window._t&&window._t['btn_games'])||''}</button>
+          <button class="btn btn-ghost" onclick="showCat('script')">${(window._t&&window._t['btn_scripts'])||''}</button>
+          <button class="btn btn-ghost" onclick="showCat('tutorials')">${(window._t&&window._t['btn_tuts'])||''}</button>
         </div>
         <div class="hero-stats">
-          <div><span class="stat-n" id="st-posts">...</span><span class="stat-l">${t('pubs')}</span></div>
+          <div><span class="stat-n" id="st-posts">...</span><span class="stat-l">${(window._t&&window._t['pubs'])||''}</span></div>
           <div class="stat-div"></div>
-          <div><span class="stat-n">100%</span><span class="stat-l">${t('all_free')}</span></div>
+          <div><span class="stat-n">100%</span><span class="stat-l">${(window._t&&window._t['all_free'])||''}</span></div>
           <div class="stat-div"></div>
-          <div><span class="stat-n">0</span><span class="stat-l">${t('no_wait')}</span></div>
+          <div><span class="stat-n">0</span><span class="stat-l">${(window._t&&window._t['no_wait'])||''}</span></div>
         </div>
       </div>
     </section>
 
     <section class="sec">
       <div class="container">
-        <div class="sec-head"><h2 class="sec-title">🗂️ ${t('categories')}</h2><p class="sec-sub">Explora todo el contenido</p></div>
+        <div class="sec-head"><h2 class="sec-title">🗂️ ${(window._t&&window._t['categories'])||''}</h2><p class="sec-sub">Explora todo el contenido</p></div>
         <div class="cat-grid">
-          ${Object.entries(window.CATS).map(([id, c]) => `
+          ${Object.entries(window.CATS).map(([id, cat]) => `
             <div class="cat-card" onclick="showCat('${id}')">
-              <div class="cat-ico" style="background:${c.bg};border:1px solid ${c.border}">${c.icon}</div>
-              <div><div class="cat-name">${c.label}</div><div class="cat-desc">Ver publicaciones</div></div>
+              <div class="cat-ico" style="background:${cat.bg};border:1px solid ${cat.border}">${cat.icon}</div>
+              <div><div class="cat-name">${cat.label}</div><div class="cat-desc">Ver publicaciones</div></div>
               <div class="cat-arr">→</div>
             </div>`).join('')}
         </div>
@@ -44,14 +44,14 @@ async function goHome() {
 
     <section class="sec">
       <div class="container">
-        <div class="sec-head"><h2 class="sec-title">${t('popular')}</h2><p class="sec-sub">Las apps con más likes</p></div>
+        <div class="sec-head"><h2 class="sec-title">${(window._t&&window._t['popular'])||''}</h2><p class="sec-sub">Las apps con más likes</p></div>
         <div id="popular-posts"><div style="text-align:center;padding:30px"><div class="spin"></div></div></div>
       </div>
     </section>
 
     <section class="sec sec-dark">
       <div class="container">
-        <div class="sec-head"><h2 class="sec-title">${t('recent')}</h2></div>
+        <div class="sec-head"><h2 class="sec-title">${(window._t&&window._t['recent'])||''}</h2></div>
         <div id="home-posts"><div style="text-align:center;padding:50px"><div class="spin"></div></div></div>
       </div>
     </section>`);

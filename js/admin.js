@@ -32,7 +32,7 @@ async function renderAdmin(tab = 'create') {
         <button class="tab ${tab === 'create' ? 'on' : ''}" onclick="renderAdmin('create')">${_editId ? '✏️ Editar' : t('new_tab')}</button>
         <button class="tab ${tab === 'posts' ? 'on' : ''}" onclick="renderAdmin('posts')">📋 Publicaciones (${_adminPosts.length})</button>
         <button class="tab ${tab === 'submissions' ? 'on' : ''}" onclick="renderAdmin('submissions')" id="sub-tab">📥 Revisión</button>
-        ${window._currentUser?.isAdmin ? `<button class="tab ${tab === 'users' ? 'on' : ''}" onclick="renderAdmin('users')">${t('users_tab')}</button>` : ''}
+        ${window._currentUser?.isAdmin ? `<button class="tab ${tab === 'users' ? 'on' : ''}" onclick="renderAdmin('users')">${(window._t&&window._t['users_tab'])||''}</button>` : ''}
       </div>
       <div id="admin-body"></div>
     </div>`);
@@ -266,8 +266,8 @@ async function renderSubmissions() {
         </div>
         ${s.status === 'pending' ? `
           <div style="display:flex;gap:8px">
-            <button class="btn btn-primary btn-sm" style="flex:1;justify-content:center" onclick="approveSubmission('${s.id}')">${t('approve')}</button>
-            <button class="btn btn-danger btn-sm" style="flex:1;justify-content:center" onclick="rejectSubmission('${s.id}')">${t('reject')}</button>
+            <button class="btn btn-primary btn-sm" style="flex:1;justify-content:center" onclick="approveSubmission('${s.id}')">${(window._t&&window._t['approve'])||''}</button>
+            <button class="btn btn-danger btn-sm" style="flex:1;justify-content:center" onclick="rejectSubmission('${s.id}')">${(window._t&&window._t['reject'])||''}</button>
           </div>` : ''}
       </div>`).join('');
   } catch(e) {

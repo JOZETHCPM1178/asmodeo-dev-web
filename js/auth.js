@@ -22,25 +22,25 @@ function renderNavAuth() {
             <div class="av-email">${u.email}</div>
             ${u.isAdmin ? `<span class='badge b-admin'>🛡️ ${u.customRole || 'Admin'}</span>` : u.isAdminJr ? `<span class='badge b-adminjr'>⚡ ${u.customRole || 'Admin Jr'}</span>` : ''}
           </div>
-          <button class="av-item" onclick="showProfile()">${t('profile')}</button>
-          <button class="av-item" onclick="showSubmitPost()">${t('upload')}</button>
-          ${u.isAdmin || u.isAdminJr ? '<button class="av-item" onclick="showAdmin()">${t('admin')}</button>' : ''}
-          <button class="av-item red" onclick="doLogout()">🚪 Cerrar Sesión</button>
+          <button class="av-item" onclick="showProfile()">${(window._t&&window._t['profile'])||''}</button>
+          <button class="av-item" onclick="showSubmitPost()">${(window._t&&window._t['upload'])||''}</button>
+          ${u.isAdmin || u.isAdminJr ? `<button class="av-item" onclick="showAdmin()">${(window._t&&window._t['admin'])||''}</button>` : ''}
+          <button class="av-item red" onclick="doLogout()">🚪 ${(window._t&&window._t['logout'])||''}</button>
         </div>
       </div>`;
     if (mob) mob.innerHTML = `
-      <button class="mob-link" onclick="showProfile()">${t('profile')}</button>
-      <button class="mob-link" onclick="showSubmitPost()">${t('upload')}</button>
-      ${u.isAdmin || u.isAdminJr ? '<button class="mob-link" onclick="showAdmin()">${t('admin')}</button>' : ''}`;
+      <button class="mob-link" onclick="showProfile()">${(window._t&&window._t['profile'])||''}</button>
+      <button class="mob-link" onclick="showSubmitPost()">${(window._t&&window._t['upload'])||''}</button>
+      ${u.isAdmin || u.isAdminJr ? '<button class="mob-link" onclick="showAdmin()">${(window._t&&window._t['admin'])||''}</button>' : ''}`;
   } else {
     el.innerHTML = `
       <div class="auth-btns" style="display:flex;gap:8px">
-        <button class="btn btn-ghost btn-sm" onclick="showLogin()">${t('login')}</button>
-        <button class="btn btn-primary btn-sm" onclick="showRegister()">${t('register')}</button>
+        <button class="btn btn-ghost btn-sm" onclick="showLogin()">${(window._t&&window._t['login'])||''}</button>
+        <button class="btn btn-primary btn-sm" onclick="showRegister()">${(window._t&&window._t['register'])||''}</button>
       </div>`;
     if (mob) mob.innerHTML = `
-      <button class="mob-link" onclick="showLogin()">${t('login')}</button>
-      <button class="mob-link" onclick="showRegister()">${t('register')}</button>`;
+      <button class="mob-link" onclick="showLogin()">${(window._t&&window._t['login'])||''}</button>
+      <button class="mob-link" onclick="showRegister()">${(window._t&&window._t['register'])||''}</button>`;
   }
 }
 
@@ -64,7 +64,7 @@ function showLogin(err = '') {
       <div class="orb orb2" style="position:fixed"></div>
       <div class="auth-card">
         <div class="auth-logo2"><span style="font-size:1.6rem">⚡</span><br><span class="logo-t">ASMODEO<b>DEV</b></span></div>
-        <h1 class="auth-title2">${t('login')}</h1>
+        <h1 class="auth-title2">${(window._t&&window._t['login'])||''}</h1>
         <p class="auth-sub2">Accede a todo el contenido</p>
         <button class="g-btn" onclick="loginGoogle()">${GOOGLE_SVG} Continuar con Google</button>
         <div class="divider">o con tu correo</div>
@@ -77,7 +77,7 @@ function showLogin(err = '') {
         <div style="text-align:right;margin-bottom:14px">
           <a style="font-size:.8rem;color:var(--p);cursor:pointer" onclick="showForgotPassword()">¿Olvidaste tu contraseña?</a>
         </div>
-        <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px" onclick="doLogin()">${t('login')}</button>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px" onclick="doLogin()">${(window._t&&window._t['login'])||''}</button>
         <div class="auth-foot">¿No tienes cuenta? <a onclick="showRegister()">Regístrate gratis</a></div>
       </div>
     </div>`);
@@ -151,7 +151,7 @@ function showRegister(err = '') {
       <div class="orb orb2" style="position:fixed"></div>
       <div class="auth-card">
         <div class="auth-logo2"><span style="font-size:1.6rem">⚡</span><br><span class="logo-t">ASMODEO<b>DEV</b></span></div>
-        <h1 class="auth-title2">${t('register')}</h1>
+        <h1 class="auth-title2">${(window._t&&window._t['register'])||''}</h1>
         <p class="auth-sub2">Únete a la comunidad</p>
         <button class="g-btn" onclick="loginGoogle()">${GOOGLE_SVG} Registrarse con Google</button>
         <div class="divider">o con tu correo</div>
@@ -227,19 +227,19 @@ async function showProfile() {
         <div style="display:flex;justify-content:center;gap:32px;margin-bottom:24px;padding:16px;background:rgba(255,255,255,.04);border-radius:12px;border:1px solid var(--bord)">
           <div style="text-align:center;cursor:pointer" onclick="showMyFollowers('${u.uid}')">
             <div style="font-family:var(--font1);font-size:1.4rem;font-weight:700;color:var(--p)">${totalFollowers}</div>
-            <div style="font-size:.75rem;color:var(--t3)">${t('followers')}</div>
+            <div style="font-size:.75rem;color:var(--t3)">${(window._t&&window._t['followers'])||''}</div>
           </div>
           <div style="width:1px;background:var(--bord)"></div>
           <div style="text-align:center;cursor:pointer" onclick="showMyFollowing('${u.uid}')">
             <div style="font-family:var(--font1);font-size:1.4rem;font-weight:700;color:var(--a)">${totalFollowing}</div>
-            <div style="font-size:.75rem;color:var(--t3)">${t('following')}</div>
+            <div style="font-size:.75rem;color:var(--t3)">${(window._t&&window._t['following'])||''}</div>
           </div>
         </div>
 
         <div class="fg"><label class="lbl">Username</label><input class="inp" id="prof-username" value="${data.username || u.displayName || ''}"/></div>
         <div class="fg"><label class="lbl">Bio</label><textarea class="txta" id="prof-bio" rows="3" placeholder="Cuéntanos algo de ti...">${data.bio || ''}</textarea></div>
 
-        <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px" onclick="saveProfile()">${t('save')}</button>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px" onclick="saveProfile()">${(window._t&&window._t['save'])||''}</button>
         <div style="margin-top:16px;text-align:center">
           <a style="font-size:.8rem;color:var(--t3);cursor:pointer" onclick="showForgotPassword()">🔐 Cambiar contraseña</a>
         </div>

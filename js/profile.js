@@ -65,9 +65,9 @@ async function showUserProfile(uid) {
               ${u.isAdmin || u.role === 'admin' ? '<span class="badge b-admin">🛡️ Admin</span>' : ''}
               ${u.bio ? `<div class="prof-pub-bio">${u.bio}</div>` : ''}
               <div class="prof-pub-stats">
-                <div class="pstat"><span class="pstat-n">${followerCount}</span><span class="pstat-l">${t('followers')}</span></div>
-                <div class="pstat"><span class="pstat-n">${followingCount}</span><span class="pstat-l">${t('following')}</span></div>
-                <div class="pstat"><span class="pstat-n">${posts.length}</span><span class="pstat-l">${t('publications')}</span></div>
+                <div class="pstat"><span class="pstat-n">${followerCount}</span><span class="pstat-l">${(window._t&&window._t['followers'])||''}</span></div>
+                <div class="pstat"><span class="pstat-n">${followingCount}</span><span class="pstat-l">${(window._t&&window._t['following'])||''}</span></div>
+                <div class="pstat"><span class="pstat-n">${posts.length}</span><span class="pstat-l">${(window._t&&window._t['publications'])||''}</span></div>
               </div>
             </div>
             <div class="prof-pub-actions" style="display:flex;gap:8px;flex-wrap:wrap">
