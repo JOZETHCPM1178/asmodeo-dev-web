@@ -434,12 +434,18 @@ function editUserFollowers(uid, name, currentFollowers) {
 }
 
 async function saveUserFollowers(uid) {
-  const val = parseInt(document.getElementById(`edit-followers-${uid}`)?.value || 0);
-  const { db, doc, updateDoc } = window._fb;
-  await updateDoc(doc(db, 'users', uid), { fakeFollowers: val });
-  toast('✅ Seguidores actualizados');
-  document.getElementById('user-result').innerHTML = '';
-  loadAllUsers();
+  try {
+    const val = parseInt(document.getElementById(`edit-followers-${uid}`)?.value || 0);
+    const { db, doc, updateDoc } = window._fb;
+    await updateDoc(doc(db, 'users', uid), { fakeFollowers: val });
+    toast('✅ Seguidores actualizados');
+    const el = document.getElementById('user-result');
+    if (el) el.innerHTML = '';
+    loadAllUsers();
+  } catch(e) {
+    console.error('saveUserFollowers error:', e);
+    toast('Error al guardar: ' + e.message, 'err');
+  }
 }
 
 async function saveUserEdit(uid) {
@@ -447,9 +453,16 @@ async function saveUserEdit(uid) {
   const followers = parseInt(document.getElementById(`edit-followers-${uid}`)?.value || 0);
   const role = document.getElementById(`edit-role-${uid}`)?.value;
   const customRole = document.getElementById(`edit-customrole-${uid}`)?.value?.trim() || '';
-  const { db, doc, updateDoc } = window._fb;
-  await updateDoc(doc(db, 'users', uid), { fakeFollowers: followers, role, customRole });
-  toast('✅ Usuario actualizado');
-  document.getElementById('user-result').innerHTML = '';
-  loadAllUsers();
+  if (!role) return toast('Selecciona un rol', 'err');
+  try {
+    const { db, doc, updateDoc } = window._fb;
+    await updateDoc(doc(db, 'users', uid), { fakeFollowers: followers, role, customRole });
+    toast('✅ Usuario actualizado');
+    const el = document.getElementById('user-result');
+    if (el) el.innerHTML = '';
+    loadAllUsers();
+  } catch(e) {
+    console.error('saveUserEdit error:', e);
+    toast('Error al guardar: ' + e.message, 'err');
+  }
 }
