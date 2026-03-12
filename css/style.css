@@ -503,7 +503,8 @@ footer { background:var(--bg2); border-top:1px solid var(--border); padding:50px
 /* ═══════════════════════════════════════════
    NOTIFICACIONES — Botón campana
    ═══════════════════════════════════════════ */
-.notif-fab {
+.notif-fab { display:none !important; }
+.notif-fab-old {
   position: fixed;
   bottom: 88px;
   left: 22px;
