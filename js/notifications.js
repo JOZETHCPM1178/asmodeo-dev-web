@@ -9,13 +9,34 @@ async function toggleNotif() {
     if (isSubscribed) {
       await OneSignal.User.PushSubscription.optOut();
       toast('🔕 Notificaciones desactivadas');
+      // Borrar player ID del usuario
+      if (window._currentUser && window._fb) {
+        const { db, doc, updateDoc } = window._fb;
+        try { await updateDoc(doc(db, 'users', window._currentUser.uid), { oneSignalId: null }); } catch(e) {}
+      }
     } else {
       await OneSignal.User.PushSubscription.optIn();
       toast('🔔 Notificaciones activadas');
+      // Guardar player ID en Firestore
+      await saveOneSignalId();
     }
     updateNotifBtn();
   } catch(e) { toast('Error con notificaciones', 'err'); }
 }
+
+async function saveOneSignalId() {
+  if (!window._currentUser || !window._fb) return;
+  try {
+    // Esperar un momento para que OneSignal registre el ID
+    await new Promise(r => setTimeout(r, 2000));
+    const playerId = OneSignal.User?.PushSubscription?.id;
+    if (!playerId) return;
+    const { db, doc, updateDoc } = window._fb;
+    await updateDoc(doc(db, 'users', window._currentUser.uid), { oneSignalId: playerId });
+    window._currentUser.oneSignalId = playerId;
+  } catch(e) {}
+}
+window.saveOneSignalId = saveOneSignalId;
 
 function updateNotifBtn() {
   const btn = document.getElementById('notif-btn');
@@ -32,19 +53,42 @@ function updateNotifBtn() {
 // ── Crear notificación de actividad ──
 async function createNotification(toUid, type, data = {}) {
   if (!toUid || !window._currentUser || toUid === window._currentUser.uid) return;
+  const fromName = window._currentUser.username || window._currentUser.displayName || 'Alguien';
   try {
     const { db, collection, addDoc, serverTimestamp } = window._fb;
     await addDoc(collection(db, 'notifications'), {
-      type, // 'follow' | 'like_post' | 'comment' | 'report_response'
+      type,
       toUid,
       fromUid: window._currentUser.uid,
-      fromName: window._currentUser.username || window._currentUser.displayName || 'Alguien',
+      fromName,
       fromPhoto: window._currentUser.photoURL || '',
       read: false,
       createdAt: serverTimestamp(),
       ...data
     });
   } catch(e) {}
+  // Mandar push al celular según el tipo
+  const pushTitles = {
+    follow:      `👤 ${fromName} empezó a seguirte`,
+    like_post:   `❤️ ${fromName} le dio like a tu publicación`,
+    comment:     `💬 ${fromName} comentó en tu publicación`,
+    report_response: '📋 Respuesta a tu reporte en ASMODEO DEV'
+  };
+  const pushMsgs = {
+    follow:      'Toca para ver su perfil',
+    like_post:   data.postTitle || '',
+    comment:     data.postTitle || '',
+    report_response: data.response || ''
+  };
+  const pushUrls = {
+    follow:      `https://asmodeo-dev-web.pages.dev/?user=${window._currentUser.uid}`,
+    like_post:   `https://asmodeo-dev-web.pages.dev/?post=${data.postId || ''}`,
+    comment:     `https://asmodeo-dev-web.pages.dev/?post=${data.postId || ''}`,
+    report_response: 'https://asmodeo-dev-web.pages.dev'
+  };
+  if (pushTitles[type]) {
+    enviarPushUsuario(toUid, pushTitles[type], pushMsgs[type], pushUrls[type]);
+  }
 }
 window.createNotification = createNotification;
 
@@ -162,6 +206,26 @@ window.updateNotifBtn = updateNotifBtn;
 window.loadActivityNotifications = loadActivityNotifications;
 window.createNotification = createNotification;
 window.notifyPostLike = notifyPostLike;
+
+// ── Enviar push a usuario específico por su Player ID ──
+async function enviarPushUsuario(toUid, title, message, url) {
+  try {
+    if (!toUid) return;
+    // Obtener el oneSignalId del usuario destinatario
+    const { db, doc, getDoc } = window._fb;
+    const snap = await getDoc(doc(db, 'users', toUid));
+    if (!snap.exists()) return;
+    const playerId = snap.data().oneSignalId;
+    if (!playerId) return; // Usuario no tiene push activado
+    // Mandar al worker
+    await fetch('https://asmodeo-notif.asmodeotayson.workers.dev/push-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerId, title, message, url: url || 'https://asmodeo-dev-web.pages.dev' })
+    });
+  } catch(e) {}
+}
+window.enviarPushUsuario = enviarPushUsuario;
 
 // ── Enviar notificación push a todos (OneSignal) al publicar ──
 async function enviarNotifATodos({ id, title, description, imageUrl, category }) {

@@ -57,4 +57,8 @@ onAuthStateChanged(auth, async (user) => {
   if (window._currentUser && typeof loadActivityNotifications === 'function') {
     setTimeout(loadActivityNotifications, 1500);
   }
+  // Auto-guardar OneSignal ID si ya tiene push activado
+  if (window._currentUser && typeof saveOneSignalId === 'function') {
+    setTimeout(saveOneSignalId, 3000);
+  }
 });
