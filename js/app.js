@@ -1,3 +1,25 @@
+// ── OneSignal init ──
+window.OneSignalDeferred = window.OneSignalDeferred || [];
+OneSignalDeferred.push(async function(OneSignal) {
+  await OneSignal.init({
+    appId: "57488b36-1bd3-4f46-9d9b-2729c0055a23",
+    serviceWorkerPath: "/OneSignalSDKWorker.js",
+    notifyButton: { enable: false }, // Usamos nuestro propio botón
+    promptOptions: {
+      slidedown: {
+        enabled: true,
+        actionMessage: "ASMODEO DEV quiere enviarte notificaciones de nuevas apps",
+        acceptButtonText: "Activar",
+        cancelButtonText: "Ahora no"
+      }
+    }
+  });
+  // Actualizar botón después de init
+  if (typeof updateNotifBtn === 'function') updateNotifBtn();
+  // Guardar player ID si está suscrito
+  if (typeof saveOneSignalId === 'function') setTimeout(saveOneSignalId, 2000);
+});
+
 // js/app.js
 
 if ('serviceWorker' in navigator) {
