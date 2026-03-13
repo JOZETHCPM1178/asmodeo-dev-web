@@ -648,6 +648,7 @@ function showReportResponseForm(reportId, reportedBy) {
 async function sendReportResponse(reportId, reportedByUid) {
   const txt = document.getElementById(`resp-txt-${reportId}`)?.value?.trim();
   if (!txt) return toast('Escribe una respuesta', 'err');
+  if (!reportedByUid || reportedByUid === 'undefined') return toast('Error: UID del usuario no encontrado', 'err');
   try {
     const { db, doc, updateDoc, collection, addDoc, serverTimestamp } = window._fb;
     // Marcar reporte como revisado con respuesta
