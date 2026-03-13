@@ -54,14 +54,13 @@ async function loadActivityNotifications() {
   if (!u) return { notifs: [], unread: 0 };
   try {
     const { db, collection, query, where, orderBy, limit, getDocs } = window._fb;
-    // Sin orderBy para evitar error de índice compuesto — ordenamos en cliente
     const snap = await getDocs(query(
       collection(db, 'notifications'),
       where('toUid', '==', u.uid),
-      limit(50)
+      orderBy('createdAt', 'desc'),
+      limit(30)
     ));
-    const notifs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    const notifs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     const unread = notifs.filter(n => !n.read).length;
     const badge = document.getElementById('notif-badge');
     if (badge) {
@@ -83,10 +82,10 @@ async function showNotificationsPanel() {
   // Marcar todas como leídas
   try {
     const { db, collection, query, where, getDocs, writeBatch } = window._fb;
-    const snap = await getDocs(query(collection(db, 'notifications'), where('toUid', '==', u.uid)));
+    const snap = await getDocs(query(collection(db, 'notifications'), where('toUid', '==', u.uid), where('read', '==', false)));
     if (!snap.empty) {
       const batch = writeBatch(db);
-      snap.docs.filter(d => !d.data().read).forEach(d => batch.update(d.ref, { read: true }));
+      snap.docs.forEach(d => batch.update(d.ref, { read: true }));
       await batch.commit();
     }
   } catch(e) {}
