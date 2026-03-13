@@ -599,7 +599,7 @@ async function renderAdminReports() {
   if (!el) return;
   el.innerHTML = `<div style="text-align:center;padding:30px"><div class="spin"></div></div>`;
   try {
-    const { db, collection, getDocs, query, orderBy } = window._fb;
+    const { db, collection, getDocs, query, orderBy, doc, updateDoc } = window._fb;
     const snap = await getDocs(query(collection(db, 'reports'), orderBy('createdAt', 'desc')));
     const reports = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (!reports.length) { el.innerHTML = '<div class="empty"><span class="empty-ico">✅</span><h3>Sin reportes pendientes</h3></div>'; return; }
@@ -607,61 +607,23 @@ async function renderAdminReports() {
     el.innerHTML = `
       <h3 style="font-family:var(--font1);font-size:.95rem;margin-bottom:16px">🚩 Reportes (${reports.length})</h3>
       ${reports.map(r => `
-        <div class="post-row" style="flex-direction:column;gap:8px;align-items:flex-start;margin-bottom:12px">
+        <div class="post-row" style="flex-direction:column;gap:8px;align-items:flex-start">
           <div style="display:flex;gap:8px;align-items:center;width:100%">
             <span style="font-size:1.2rem">${typeIcon[r.type]||'⚠️'}</span>
             <div style="flex:1">
               <div style="font-size:.85rem;font-weight:700">${r.type === 'post' ? 'Publicación' : r.type === 'comment' ? 'Comentario' : 'Perfil'}</div>
               <div style="font-size:.75rem;color:var(--t3)">Por: ${r.reportedByName} · ${r.reason}</div>
-              ${r.adminResponse ? `<div style="font-size:.75rem;color:var(--p);margin-top:4px">📋 Respuesta enviada: ${r.adminResponse}</div>` : ''}
             </div>
             <span class="badge ${r.status === 'pending' ? 'b-apk' : 'b-admin'}" style="font-size:.65rem">${r.status === 'pending' ? '⏳ Pendiente' : '✅ Revisado'}</span>
           </div>
-          <div style="display:flex;gap:6px;width:100%;flex-wrap:wrap">
-            ${r.type === 'post' ? `<button class="btn btn-ghost btn-sm" onclick="showPost('${r.targetId}')">👁️ Ver</button>` : ''}
-            ${r.type === 'profile' ? `<button class="btn btn-ghost btn-sm" onclick="showUserProfile('${r.targetId}')">👁️ Ver perfil</button>` : ''}
-            <button class="btn btn-ghost btn-sm" onclick="showReportResponseForm('${r.id}','${r.reportedBy}')">📋 Responder</button>
-            <button class="btn btn-ghost btn-sm" onclick="markReportDone('${r.id}')">✅ Revisado</button>
+          <div style="display:flex;gap:8px;width:100%">
+            ${r.type === 'post' ? `<button class="btn btn-ghost btn-sm" onclick="showPost('${r.targetId}')">Ver publicación</button>` : ''}
+            ${r.type === 'profile' ? `<button class="btn btn-ghost btn-sm" onclick="showUserProfile('${r.targetId}')">Ver perfil</button>` : ''}
+            <button class="btn btn-ghost btn-sm" onclick="markReportDone('${r.id}')">✅ Marcar revisado</button>
             <button class="btn btn-ghost btn-sm" style="color:#ef4444" onclick="banReportedUser('${r.targetId}','${r.id}')">🔨 Banear</button>
-          </div>
-          <div id="resp-form-${r.id}" style="display:none;width:100%">
-            <textarea class="txta" id="resp-txt-${r.id}" rows="2" placeholder="Escribe tu respuesta al usuario..."></textarea>
-            <div style="display:flex;gap:8px;margin-top:6px">
-              <button class="btn btn-primary btn-sm" onclick="sendReportResponse('${r.id}','${r.reportedBy}')">📤 Enviar</button>
-              <button class="btn btn-ghost btn-sm" onclick="document.getElementById('resp-form-${r.id}').style.display='none'">Cancelar</button>
-            </div>
           </div>
         </div>`).join('')}`;
   } catch(e) { el.innerHTML = `<div class="empty"><span class="empty-ico">⚠️</span><h3>Error: ${e.message}</h3></div>`; }
-}
-
-function showReportResponseForm(reportId, reportedBy) {
-  const form = document.getElementById(`resp-form-${reportId}`);
-  if (form) form.style.display = form.style.display === 'none' ? 'flex' : 'none';
-  if (form) form.style.flexDirection = 'column';
-}
-
-async function sendReportResponse(reportId, reportedByUid) {
-  const txt = document.getElementById(`resp-txt-${reportId}`)?.value?.trim();
-  if (!txt) return toast('Escribe una respuesta', 'err');
-  try {
-    const { db, doc, updateDoc, collection, addDoc, serverTimestamp } = window._fb;
-    // Marcar reporte como revisado con respuesta
-    await updateDoc(doc(db, 'reports', reportId), { status: 'reviewed', adminResponse: txt });
-    // Enviar notificación al usuario que reportó
-    await addDoc(collection(db, 'notifications'), {
-      type: 'report_response',
-      toUid: reportedByUid,
-      fromUid: window._currentUser.uid,
-      fromName: 'ASMODEO DEV Admin',
-      fromPhoto: window._currentUser.photoURL || '',
-      response: txt,
-      read: false,
-      createdAt: serverTimestamp()
-    });
-    toast('✅ Respuesta enviada al usuario');
-    renderAdminReports();
-  } catch(e) { toast('Error: ' + e.message, 'err'); }
 }
 
 async function markReportDone(reportId) {
