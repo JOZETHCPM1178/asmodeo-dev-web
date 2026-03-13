@@ -80,6 +80,16 @@ function renderAdminForm() {
         </div>
         <input type="file" id="f-img" accept="image/*" style="display:none" onchange="uploadImg(this.files[0])"/>
       </div>
+      <div style="display:flex;gap:10px">
+        <div class="fg" style="flex:1"><label class="lbl">Versión (opcional)</label><input class="inp" id="f-version" placeholder="ej: 2.5.1" value="${f.version || ''}"/></div>
+        <div class="fg" style="flex:1"><label class="lbl">Estado</label>
+          <select class="sel" id="f-stability">
+            <option value="stable" ${(!f.stability || f.stability === 'stable') ? 'selected' : ''}>✅ Estable</option>
+            <option value="beta" ${f.stability === 'beta' ? 'selected' : ''}>🧪 Beta</option>
+            <option value="experimental" ${f.stability === 'experimental' ? 'selected' : ''}>⚠️ Experimental</option>
+          </select>
+        </div>
+      </div>
       <div class="fg"><label class="check-row"><input type="checkbox" id="f-feat" ${f.featured ? 'checked' : ''}/><span>⭐ Marcar como destacado</span></label></div>
       <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px" onclick="savePost()">
         ${_editId ? '✅ Actualizar' : '🚀 Publicar ahora'}
@@ -164,7 +174,9 @@ async function savePost() {
   const downloadLink = document.getElementById('f-link')?.value?.trim() || '';
   const featured = document.getElementById('f-feat')?.checked || false;
   if (!title || !description) return toast('Título y descripción son requeridos', 'err');
-  const data = { title, category, description, downloadLink, imageUrl: _formImg, featured, updatedAt: window._fb.serverTimestamp() };
+  const version = document.getElementById('f-version')?.value?.trim() || '';
+  const stability = document.getElementById('f-stability')?.value || 'stable';
+  const data = { title, category, description, downloadLink, imageUrl: _formImg, featured, version, stability, updatedAt: window._fb.serverTimestamp() };
   const { db, collection, addDoc, doc, updateDoc, serverTimestamp } = window._fb;
   try {
     if (_editId) {
@@ -205,7 +217,7 @@ async function editPost(id) {
   if (!post) return;
   _editId = id;
   _formImg = post.imageUrl || '';
-  window._adminForm = { title: post.title || '', category: post.category || 'apk', description: post.description || '', downloadLink: post.downloadLink || '', featured: post.featured || false };
+  window._adminForm = { title: post.title || '', category: post.category || 'apk', description: post.description || '', downloadLink: post.downloadLink || '', featured: post.featured || false, version: post.version || '', stability: post.stability || 'stable' };
   renderAdmin('create');
 }
 
