@@ -166,7 +166,7 @@ window.notifyPostLike = notifyPostLike;
 // ── Enviar notificación push a todos (OneSignal) al publicar ──
 async function enviarNotifATodos({ id, title, description, imageUrl, category }) {
   try {
-    const workerUrl = 'https://asmodeo-notif.asmodeotayson.workers.dev/notify';
+    const workerUrl = 'https://asmodeo-notif.asmodeotayson.workers.dev';
     await fetch(workerUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

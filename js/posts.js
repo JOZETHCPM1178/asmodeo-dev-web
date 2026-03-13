@@ -405,3 +405,8 @@ async function followFromPost(targetUid, btn) {
     toast('✅ Ahora sigues a este usuario');
   }
 }
+
+window.followFromPost = followFromPost;
+window.showPost = showPost;
+window.showCat = showCat;
+window.compartirPost = compartirPost;

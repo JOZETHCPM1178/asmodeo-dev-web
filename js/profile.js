@@ -189,3 +189,10 @@ function shareProfile(uid, name) {
       .catch(() => toast('Copia el link: ' + url));
   }
 }
+
+window.showUserProfile = showUserProfile;
+window.toggleFollow = toggleFollow;
+window.shareProfile = shareProfile;
+window.checkFollowing = checkFollowing;
+window.getFollowerCount = getFollowerCount;
+window.getFollowingCount = getFollowingCount;
