@@ -166,7 +166,7 @@ async function toggleFollow(targetUid) {
         type: 'follow',
         toUid: targetUid,
         fromUid: myUid,
-        fromName: window._currentUser.displayName || 'Alguien',
+        fromName: window._currentUser.username || window._currentUser.displayName || 'Alguien',
         fromPhoto: window._currentUser.photoURL || '',
         message: 'empezó a seguirte',
         read: false,
