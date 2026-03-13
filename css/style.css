@@ -302,8 +302,9 @@ nav.scrolled {
 .admin-page { max-width:960px; margin:0 auto; padding:90px 20px 80px; }
 .admin-h1 { font-family:var(--font1); font-size:1.6rem; font-weight:900; margin-bottom:4px; }
 .admin-s { color:var(--t3); font-size:.85rem; }
-.tabs { display:flex; gap:2px; border-bottom:1px solid var(--border); margin-bottom:24px; }
-.tab { padding:11px 18px; background:none; border:none; border-bottom:2px solid transparent; color:var(--t3); font-family:var(--font2); font-size:.85rem; font-weight:700; cursor:pointer; transition:var(--tr); margin-bottom:-1px; }
+.tabs { display:flex; gap:2px; border-bottom:1px solid var(--border); margin-bottom:24px; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+.tabs::-webkit-scrollbar { display:none; }
+.tab { padding:11px 14px; background:none; border:none; border-bottom:2px solid transparent; color:var(--t3); font-family:var(--font2); font-size:.78rem; font-weight:700; cursor:pointer; transition:var(--tr); margin-bottom:-1px; white-space:nowrap; flex-shrink:0; }
 .tab:hover { color:var(--t1); }
 .tab.on { color:var(--p); border-bottom-color:var(--p); }
 .form-card { background:var(--card); border:1px solid var(--border); border-radius:var(--r2); padding:28px; }
