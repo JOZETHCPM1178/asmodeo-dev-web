@@ -31,14 +31,14 @@ function renderNavAuth() {
           </div>
           <button class="av-item" onclick="showProfile()">👤 ${T.profile||'Mi Perfil'}</button>
           <button class="av-item" onclick="showSubmitPost()">📤 ${T.upload||'Subir App'}</button>
-          ${u.isAdmin || u.isAdminJr ? `<button class="av-item" onclick="showAdmin()">🛡️ ${T.admin||'Panel Admin'}</button>` : ''}
+          ${u.isAdmin ? `<button class="av-item" onclick="showAdmin()">🛡️ ${T.admin||'Panel Admin'}</button>` : u.isAdminJr ? `<button class="av-item" onclick="renderAdminJr()">⚡ Panel Admin JR</button>` : ''}
           <button class="av-item red" onclick="doLogout()">🚪 ${T.logout||'Cerrar Sesión'}</button>
         </div>
       </div>`;
     if (mob) mob.innerHTML = `
       <button class="mob-link" onclick="showProfile()">👤 ${T.profile||'Mi Perfil'}</button>
       <button class="mob-link" onclick="showSubmitPost()">📤 ${T.upload||'Subir App'}</button>
-      ${u.isAdmin || u.isAdminJr ? `<button class="mob-link" onclick="showAdmin()">🛡️ ${T.admin||'Panel Admin'}</button>` : ''}`;
+      ${u.isAdmin ? `<button class="mob-link" onclick="showAdmin()">🛡️ ${T.admin||'Panel Admin'}</button>` : u.isAdminJr ? `<button class="mob-link" onclick="renderAdminJr()">⚡ Panel Admin JR</button>` : ''}`;
   } else {
     el.innerHTML = `
       <div class="auth-btns" style="display:flex;gap:8px">
