@@ -1,0 +1,117 @@
+// firestore.rules
+// ════════════════════════════════════════
+//  FIRESTORE SECURITY RULES
+//  Copia esto en Firebase Console → Firestore → Rules
+// ════════════════════════════════════════
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── HELPERS ───
+    function isAuth() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return isAuth() && request.auth.uid == uid;
+    }
+    function getUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function isAdmin() {
+      return isAuth() && getUser().role == 'admin';
+    }
+    function isStaff() {
+      return isAuth() && (getUser().role == 'admin' || getUser().role == 'admin_jr');
+    }
+    function isNotBanned() {
+      return isAuth() && getUser().banned != true;
+    }
+
+    // ─── USERS ───
+    match /users/{uid} {
+      allow read: if true;
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ─── POSTS ───
+    match /posts/{postId} {
+      allow read: if true;
+      allow create: if isAuth() && isNotBanned();
+      allow update: if isStaff() ||
+        (isAuth() && resource.data.authorId == request.auth.uid &&
+          !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['likes','downloads','views','status','featured','verified']));
+      allow delete: if isStaff() ||
+        (isAuth() && resource.data.authorId == request.auth.uid);
+
+      // ─── LIKES (subcolección) ───
+      match /likes/{userId} {
+        allow read: if true;
+        allow write: if isOwner(userId) && isNotBanned();
+      }
+
+      // ─── COMMENTS (subcolección) ───
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isAuth() && isNotBanned() &&
+          request.resource.data.userId == request.auth.uid &&
+          request.resource.data.text.size() <= 500;
+        allow delete: if isStaff() ||
+          (isAuth() && resource.data.userId == request.auth.uid);
+        allow update: if false; // no editar comentarios
+      }
+    }
+
+    // ─── FOLLOWS ───
+    match /follows/{followId} {
+      allow read: if true;
+      allow create: if isAuth() && isNotBanned() &&
+        request.resource.data.followerId == request.auth.uid;
+      allow delete: if isAuth() &&
+        resource.data.followerId == request.auth.uid;
+    }
+
+    // ─── NOTIFICATIONS ───
+    match /notifications/{notifId} {
+      allow read: if isAuth() && resource.data.userId == request.auth.uid;
+      allow create: if isAuth();  // cualquier usuario puede crear notificaciones (follows, likes, etc.)
+      allow update: if isAuth() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuth() && resource.data.userId == request.auth.uid;
+    }
+
+    // ─── GLOBAL CHAT ───
+    match /globalChat/{msgId} {
+      allow read: if true;
+      allow create: if isAuth() && isNotBanned() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.text.size() <= 300;
+      allow delete: if isStaff() ||
+        (isAuth() && resource.data.userId == request.auth.uid);
+      allow update: if false;
+    }
+
+    // ─── REPORTS ───
+    match /reports/{reportId} {
+      allow read: if isStaff();
+      allow create: if isAuth() && isNotBanned();
+      allow update: if isStaff();
+      allow delete: if isAdmin();
+    }
+
+    // ─── CONFIG (chat status, etc.) ───
+    match /config/{doc} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    // ─── ADMIN LOGS ───
+    match /adminLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isStaff();
+      allow update, delete: if false;
+    }
+  }
+}
