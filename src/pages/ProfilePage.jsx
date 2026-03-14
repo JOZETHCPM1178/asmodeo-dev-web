@@ -36,39 +36,66 @@ export default function ProfilePage() {
   async function loadProfile() {
     setLoading(true)
     try {
-      const [p, userPosts] = await Promise.all([
-        getUserProfile(uid),
-        getUserPosts(uid),
-      ])
-      // Si el perfil viene null (usuario antiguo sin documento),
-      // construimos uno mínimo desde Firebase Auth
-      if (!p && isOwn && me) {
-        setProfile({
-          id: me.uid,
-          uid: me.uid,
-          displayName: me.displayName || me.username || 'Usuario',
+      // Intentar obtener el perfil de Firestore
+      let p = await getUserProfile(uid)
+
+      // Si no existe y es mi propio perfil, construirlo desde el contexto
+      if (!p && me && me.uid === uid) {
+        p = {
+          id: uid,
+          uid,
+          displayName: me.displayName || me.username || me.email?.split('@')[0] || 'Usuario',
           username: me.username || me.displayName || 'Usuario',
           photoURL: me.photoURL || '',
-          bio: me.bio || '',
+          bio: '',
           role: me.role || 'user',
-          followers: me.followers || 0,
-          following: me.following || 0,
+          followers: 0,
+          following: 0,
           verified: me.verified || false,
+          email: me.email || '',
+        }
+      }
+
+      setProfile(p)
+      setFollowers(p?.followers || 0)
+
+      // Cargar posts por separado para que un error aquí no rompa el perfil
+      try {
+        const userPosts = await getUserPosts(uid)
+        setPosts(userPosts || [])
+      } catch {
+        setPosts([])
+      }
+
+    } catch (e) {
+      console.error('Error cargando perfil:', e)
+      // Si es mi propio perfil y hay error, usar datos del contexto
+      if (me && me.uid === uid) {
+        setProfile({
+          id: uid,
+          uid,
+          displayName: me.displayName || 'Usuario',
+          username: me.username || 'Usuario',
+          photoURL: me.photoURL || '',
+          bio: '',
+          role: me.role || 'user',
+          followers: 0,
+          following: 0,
+          verified: false,
         })
       } else {
-        setProfile(p)
+        toast.error('Error cargando perfil')
       }
-      setPosts(userPosts || [])
-      setFollowers(p?.followers || me?.followers || 0)
-    } catch (e) {
-      toast.error('Error cargando perfil')
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    if (me !== undefined) loadProfile()
+    // Esperar a que el contexto de auth esté listo (me !== undefined)
+    if (me !== undefined) {
+      loadProfile()
+    }
   }, [uid, me?.uid])
 
   if (loading) return (
