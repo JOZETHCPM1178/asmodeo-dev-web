@@ -4,7 +4,7 @@
 // ════════════════════════════════════════
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY
-const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`
+const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`
 
 /**
  * Llama a la API de Gemini con un prompt

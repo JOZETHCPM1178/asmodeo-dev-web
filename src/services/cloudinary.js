@@ -30,10 +30,8 @@ export async function uploadImage(file, options = {}) {
   formData.append('file', file)
   formData.append('upload_preset', PRESET)
   formData.append('folder', folder)
-  // Transformaciones automáticas en el preset o aquí
-  formData.append('transformation', JSON.stringify([
-    { width: maxWidth, crop: 'limit', quality, fetch_format: 'auto' }
-  ]))
+  // Transformaciones como string simple — compatible con presets unsigned
+  formData.append('transformation', `w_${maxWidth},c_limit,q_auto,f_auto`)
 
   const res = await fetch(`${BASE_URL}/image/upload`, {
     method: 'POST',
