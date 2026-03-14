@@ -1,0 +1,107 @@
+/* src/components/ui/NotificationBell.module.css */
+.wrap { position: relative; }
+
+.bell {
+  position: relative;
+  background: rgba(255,255,255,.05);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.4rem 0.55rem;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: var(--tr);
+  color: var(--t1);
+}
+.bell:hover { border-color: var(--border2); background: rgba(124,58,237,.1); }
+
+.badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: var(--red);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 2px solid var(--bg);
+}
+
+.panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 320px;
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: var(--r2);
+  box-shadow: 0 16px 48px rgba(0,0,0,.5);
+  animation: scaleIn .18s ease;
+  overflow: hidden;
+  z-index: 901;
+}
+
+.header {
+  padding: 0.75rem 1rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+
+.markAll {
+  background: none;
+  border: none;
+  color: var(--p2);
+  font-size: 0.75rem;
+  cursor: pointer;
+  font-family: var(--font2);
+}
+
+.list {
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--t3);
+  font-size: 0.85rem;
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: var(--tr);
+  border-bottom: 1px solid rgba(255,255,255,.03);
+  position: relative;
+}
+.item:hover { background: rgba(255,255,255,.03); }
+.item.unread { background: rgba(124,58,237,.06); }
+
+.icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 2px; }
+
+.content { flex: 1; min-width: 0; }
+.msg { font-size: 0.82rem; color: var(--t1); line-height: 1.4; }
+.msg strong { color: var(--p2); }
+.time { font-size: 0.72rem; color: var(--t3); margin-top: 0.2rem; }
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--p);
+  flex-shrink: 0;
+  margin-top: 6px;
+}

@@ -1,0 +1,195 @@
+/* src/components/ui/InboxPanel.module.css */
+
+/* ─── Panel container ─── */
+.panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 360px;
+  height: 520px;
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: var(--r2);
+  box-shadow: 0 20px 60px rgba(0,0,0,.65);
+  z-index: 950;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: scaleIn .18s ease;
+}
+
+/* ─── Header ─── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  gap: 0.5rem;
+  min-height: 52px;
+}
+.panelTitle {
+  font-family: var(--font1);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+.closeBtn {
+  background: none; border: none; color: var(--t3);
+  font-size: 1rem; cursor: pointer; padding: 4px 6px;
+  border-radius: 6px; transition: var(--tr);
+}
+.closeBtn:hover { color: var(--t1); background: rgba(255,255,255,.06); }
+
+.backBtn {
+  background: none; border: none; color: var(--p2);
+  font-size: 0.82rem; font-weight: 700; cursor: pointer;
+  padding: 4px 8px; border-radius: 6px; transition: var(--tr);
+  white-space: nowrap; flex-shrink: 0;
+}
+.backBtn:hover { background: rgba(124,58,237,.1); }
+
+.convHeaderInfo {
+  display: flex; align-items: center; gap: 0.6rem; flex: 1;
+}
+.convHeaderName { font-weight: 700; font-size: 0.9rem; }
+
+/* ─── Tabs ─── */
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.tabBtn {
+  flex: 1; padding: 0.6rem; background: none; border: none;
+  color: var(--t3); font-family: var(--font2); font-size: 0.82rem;
+  font-weight: 600; cursor: pointer; transition: var(--tr);
+  display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+  border-bottom: 2px solid transparent;
+}
+.tabBtn:hover { color: var(--t1); background: rgba(255,255,255,.03); }
+.tabBtn.tabActive { color: var(--p2); border-bottom-color: var(--p2); background: transparent; }
+
+.tabBadge {
+  background: var(--red); color: #fff;
+  font-size: 0.62rem; font-weight: 700;
+  min-width: 16px; height: 16px; border-radius: 20px;
+  display: flex; align-items: center; justify-content: center; padding: 0 3px;
+}
+
+/* ─── Scrollable body ─── */
+.scrollBody {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.markAllBtn {
+  padding: 0.45rem 1rem; background: none; border: none;
+  border-bottom: 1px solid var(--border); color: var(--p2);
+  font-size: 0.76rem; font-family: var(--font2); cursor: pointer;
+  text-align: left; transition: background 0.15s; flex-shrink: 0;
+}
+.markAllBtn:hover { background: rgba(124,58,237,.05); }
+
+/* ─── Notification row ─── */
+.notifRow {
+  display: flex; align-items: flex-start; gap: 0.65rem;
+  padding: 0.7rem 1rem; cursor: pointer; transition: background 0.15s;
+  border-bottom: 1px solid rgba(255,255,255,.025);
+}
+.notifRow:hover { background: rgba(255,255,255,.03); }
+.notifRow.unread { background: rgba(124,58,237,.05); }
+
+.notifIcon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+.notifBody { flex: 1; min-width: 0; }
+.notifMsg { font-size: 0.82rem; color: var(--t1); line-height: 1.4; word-break: break-word; }
+.notifMsg strong { color: var(--p2); }
+.notifTime { font-size: 0.7rem; color: var(--t3); margin-top: 0.2rem; display: block; }
+.unreadDot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--p); flex-shrink: 0; margin-top: 5px;
+}
+
+/* ─── Conversation row ─── */
+.convRow {
+  display: flex; align-items: center; gap: 0.7rem;
+  padding: 0.75rem 1rem; cursor: pointer; transition: background 0.15s;
+  border-bottom: 1px solid rgba(255,255,255,.025);
+}
+.convRow:hover { background: rgba(255,255,255,.03); }
+
+.avatarFb {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--p), var(--p2));
+  color: #fff; font-weight: 700; font-size: 1rem;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+
+.convInfo { flex: 1; min-width: 0; }
+.convName { font-weight: 700; font-size: 0.875rem; }
+.convLast {
+  font-size: 0.78rem; color: var(--t3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 0.1rem;
+}
+.convMeta { display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem; flex-shrink: 0; }
+.convTime { font-size: 0.68rem; color: var(--t3); }
+.convBadge {
+  background: var(--p); color: #fff;
+  font-size: 0.65rem; font-weight: 700;
+  min-width: 18px; height: 18px; border-radius: 20px;
+  display: flex; align-items: center; justify-content: center; padding: 0 4px;
+}
+
+/* ─── DM Messages ─── */
+.dmMessages {
+  flex: 1; overflow-y: auto;
+  padding: 0.75rem; display: flex; flex-direction: column; gap: 0.45rem;
+}
+
+.bubble {
+  max-width: 80%; padding: 0.5rem 0.8rem;
+  border-radius: 16px; display: flex; flex-direction: column; gap: 0.15rem;
+  word-break: break-word;
+}
+.bubbleOwn {
+  align-self: flex-end;
+  background: var(--p); color: #fff;
+  border-bottom-right-radius: 4px;
+}
+.bubbleOther {
+  align-self: flex-start;
+  background: var(--bg2); border: 1px solid var(--border);
+  color: var(--t1); border-bottom-left-radius: 4px;
+}
+.bubbleText { font-size: 0.85rem; line-height: 1.4; }
+.bubbleTime { font-size: 0.65rem; opacity: 0.55; align-self: flex-end; }
+
+/* ─── DM Input ─── */
+.dmInputRow {
+  display: flex; gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* ─── Empty state ─── */
+.emptyState {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 0.5rem; color: var(--t3); font-size: 0.85rem;
+  padding: 2rem; text-align: center;
+}
+
+/* ─── Mobile: full screen ─── */
+@media (max-width: 480px) {
+  .panel {
+    position: fixed;
+    top: var(--nav-h);
+    left: 0; right: 0; bottom: 0;
+    width: 100%; height: auto;
+    border-radius: 0;
+    border: none;
+  }
+}

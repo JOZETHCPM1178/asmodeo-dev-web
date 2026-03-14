@@ -1,0 +1,22 @@
+/* src/pages/FeedPage.module.css */
+.page { padding: 2rem 0; }
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.title { font-family: var(--font1); font-size: 1.5rem; font-weight: 900; }
+.sub { color: var(--t2); font-size: 0.9rem; margin-top: 0.3rem; }
+
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.75rem;
+}

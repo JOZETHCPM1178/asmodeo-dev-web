@@ -1,0 +1,171 @@
+// firestore.rules — v3
+// ════════════════════════════════════════
+//  REGLAS DE SEGURIDAD FIRESTORE
+//  Copia TODO este contenido en:
+//  Firebase Console → Firestore → Rules → Publicar
+// ════════════════════════════════════════
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── HELPERS ───────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+    function myUid() {
+      return request.auth.uid;
+    }
+    // Obtener datos del usuario actual (usa cache implícita de Firestore)
+    function myData() {
+      return get(/databases/$(database)/documents/users/$(myUid())).data;
+    }
+    function myRole() {
+      return isAuth() ? myData().get('role', 'user') : 'guest';
+    }
+    function isAdmin() {
+      return isAuth() && myRole() == 'admin';
+    }
+    function isAdminJr() {
+      return isAuth() && myRole() == 'admin_jr';
+    }
+    function isStaff() {
+      return isAdmin() || isAdminJr();
+    }
+    function notBanned() {
+      return isAuth() && myData().get('banned', false) == false;
+    }
+
+    // ════════════════════════════════════════
+    //  USUARIOS
+    // ════════════════════════════════════════
+    match /users/{userId} {
+      allow read: if true;
+      // Crear: solo el propio usuario crea su documento al registrarse
+      allow create: if isAuth() && myUid() == userId;
+      // Actualizar: el propio usuario O un admin
+      allow update: if isAuth() && (myUid() == userId || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // ════════════════════════════════════════
+    //  POSTS
+    // ════════════════════════════════════════
+    match /posts/{postId} {
+      allow read: if true;
+      allow create: if isAuth() && notBanned();
+
+      // Actualizar:
+      // - Staff puede todo
+      // - El autor puede editar su post pero NO cambiar campos protegidos
+      allow update: if isStaff() || (
+        isAuth() &&
+        notBanned() &&
+        resource.data.authorId == myUid() &&
+        !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['likes', 'downloads', 'views', 'status', 'featured', 'verified', 'score'])
+      );
+
+      allow delete: if isStaff() || (isAuth() && resource.data.authorId == myUid());
+
+      // ─── LIKES (subcolección) ───
+      // Cualquier usuario autenticado puede dar/quitar like a su propio documento
+      match /likes/{likeUserId} {
+        allow read: if true;
+        allow create: if isAuth() && notBanned() && myUid() == likeUserId;
+        allow delete: if isAuth() && myUid() == likeUserId;
+        allow update: if false;
+      }
+
+      // ─── COMENTARIOS (subcolección) ───
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isAuth() && notBanned()
+          && request.resource.data.userId == myUid()
+          && request.resource.data.text.size() <= 500;
+        allow delete: if isStaff() || (isAuth() && resource.data.userId == myUid());
+        allow update: if false;
+      }
+    }
+
+    // ════════════════════════════════════════
+    //  FOLLOWS
+    // ════════════════════════════════════════
+    match /follows/{followId} {
+      allow read: if true;
+      // Cualquier usuario autenticado puede seguir (crear) o dejar de seguir (borrar)
+      allow create: if isAuth() && notBanned()
+        && request.resource.data.followerId == myUid();
+      allow delete: if isAuth() && resource.data.followerId == myUid();
+      allow update: if false;
+    }
+
+    // ════════════════════════════════════════
+    //  NOTIFICACIONES
+    // ════════════════════════════════════════
+    match /notifications/{notifId} {
+      // Solo el destinatario puede leer sus notificaciones
+      allow read: if isAuth() && resource.data.userId == myUid();
+      // Cualquier usuario autenticado puede crear notificaciones (para follows, likes, etc.)
+      allow create: if isAuth();
+      // Solo el destinatario puede marcarlas como leídas
+      allow update: if isAuth() && resource.data.userId == myUid();
+      allow delete: if isAuth() && resource.data.userId == myUid();
+    }
+
+    // ════════════════════════════════════════
+    //  CHAT GLOBAL
+    // ════════════════════════════════════════
+    match /globalChat/{msgId} {
+      allow read: if true;
+      allow create: if isAuth() && notBanned()
+        && request.resource.data.userId == myUid()
+        && request.resource.data.text.size() <= 300;
+      allow delete: if isStaff() || (isAuth() && resource.data.userId == myUid());
+      allow update: if false;
+    }
+
+    // ════════════════════════════════════════
+    //  REPORTES
+    // ════════════════════════════════════════
+    match /reports/{reportId} {
+      allow read: if isStaff();
+      allow create: if isAuth();
+      allow update: if isStaff();
+      allow delete: if isAdmin();
+    }
+
+    // ════════════════════════════════════════
+    //  CONFIG (estado del chat, etc.)
+    // ════════════════════════════════════════
+    match /config/{docId} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    // ════════════════════════════════════════
+    //  LOGS DE ADMIN
+    // ════════════════════════════════════════
+    match /adminLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isStaff();
+      allow update, delete: if false;
+    }
+
+    // ─── MENSAJES PRIVADOS ───
+    match /conversations/{convId} {
+      allow read: if isAuth() && request.auth.uid in resource.data.participants;
+      allow create: if isAuth() && request.auth.uid in request.resource.data.participants;
+      allow update: if isAuth() && request.auth.uid in resource.data.participants;
+
+      match /messages/{msgId} {
+        allow read: if isAuth() &&
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(convId)).data.participants;
+        allow create: if isAuth() &&
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(convId)).data.participants &&
+          request.resource.data.senderId == request.auth.uid;
+        allow update, delete: if false;
+      }
+    }
+  }
+}

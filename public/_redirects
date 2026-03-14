@@ -1,0 +1,3 @@
+# public/_redirects
+# Necesario para React Router (SPA) en Netlify / Cloudflare Pages
+/*  /index.html  200

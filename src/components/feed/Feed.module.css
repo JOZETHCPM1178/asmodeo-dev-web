@@ -1,0 +1,50 @@
+/* src/components/feed/Feed.module.css */
+.feedWrap { display: flex; flex-direction: column; gap: 1.5rem; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 2), 1fr);
+  gap: 1.25rem;
+}
+
+@media (max-width: 700px) {
+  .grid { grid-template-columns: 1fr !important; }
+}
+
+.bottom {
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem 0;
+}
+
+.loadingMore {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--t3);
+  font-size: 0.875rem;
+}
+
+.endMsg {
+  color: var(--t3);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+/* Skeleton */
+.skeleton {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  overflow: hidden;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.skTop { height: 40px; background: var(--bg2); }
+.skMedia { height: 200px; background: var(--card2); }
+.skBody { padding: 1rem; display: flex; flex-direction: column; gap: 0.6rem; }
+.skLine {
+  height: 14px;
+  background: var(--bg2);
+  border-radius: 6px;
+}
