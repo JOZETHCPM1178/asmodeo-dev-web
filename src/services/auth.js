@@ -102,23 +102,76 @@ export async function resetPassword(email) {
 }
 
 // ─── OBTENER PERFIL DE USUARIO ───
+// Si no existe el documento en Firestore, lo crea automáticamente
 export async function getUserProfile(uid) {
-  const snap = await getDoc(doc(db, 'users', uid))
-  if (!snap.exists()) return null
-  return { id: snap.id, ...snap.data() }
+  const ref = doc(db, 'users', uid)
+  const snap = await getDoc(ref)
+
+  if (snap.exists()) {
+    return { id: snap.id, ...snap.data() }
+  }
+
+  // Documento no existe — intentar crearlo desde Firebase Auth
+  // (usuarios registrados antes del nuevo sistema)
+  const currentUser = auth.currentUser
+  if (currentUser && currentUser.uid === uid) {
+    const role = currentUser.email === import.meta.env.VITE_ADMIN_EMAIL
+      ? ROLES.ADMIN
+      : ROLES.USER
+    const profileData = {
+      uid,
+      email: currentUser.email || '',
+      username: currentUser.displayName || currentUser.email?.split('@')[0] || 'Usuario',
+      displayName: currentUser.displayName || currentUser.email?.split('@')[0] || 'Usuario',
+      role,
+      photoURL: currentUser.photoURL || '',
+      bio: '',
+      followers: 0,
+      following: 0,
+      posts: 0,
+      verified: false,
+      banned: false,
+      createdAt: serverTimestamp(),
+    }
+    await setDoc(ref, profileData)
+    return { id: uid, ...profileData }
+  }
+
+  return null
 }
 
 // ─── ACTUALIZAR PERFIL ───
 export async function updateUserProfile(uid, updates) {
-  await updateDoc(doc(db, 'users', uid), {
-    ...updates,
-    updatedAt: serverTimestamp(),
-  })
+  const ref = doc(db, 'users', uid)
+  const snap = await getDoc(ref)
+
+  if (snap.exists()) {
+    await updateDoc(ref, { ...updates, updatedAt: serverTimestamp() })
+  } else {
+    // Crear el documento si no existe
+    await setDoc(ref, {
+      uid,
+      email: auth.currentUser?.email || '',
+      username: updates.displayName || '',
+      displayName: updates.displayName || '',
+      role: ROLES.USER,
+      photoURL: updates.photoURL || '',
+      bio: updates.bio || '',
+      followers: 0,
+      following: 0,
+      posts: 0,
+      verified: false,
+      banned: false,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    })
+  }
+
   if (updates.displayName || updates.photoURL) {
     await updateProfile(auth.currentUser, {
       displayName: updates.displayName,
       photoURL: updates.photoURL,
-    })
+    }).catch(() => {})
   }
 }
 
