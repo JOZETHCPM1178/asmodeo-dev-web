@@ -17,14 +17,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  position: fixed;
 }
 .fab:hover { background: var(--p2); transform: scale(1.08); }
 
 .fabBadge {
   position: absolute;
-  top: -4px;
-  right: -4px;
+  top: -4px; right: -4px;
   background: var(--red);
   color: #fff;
   font-size: 0.65rem;
@@ -53,6 +51,7 @@
   display: flex;
   flex-direction: column;
   animation: fadeUp .25s ease;
+  overflow: hidden;
 }
 
 .header {
@@ -62,26 +61,33 @@
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  gap: 0.5rem;
 }
 
 .headerLeft {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
+}
+
+.headerTitle {
   font-weight: 700;
   font-size: 0.85rem;
+  white-space: nowrap;
 }
 
 .liveTag {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: var(--green);
   background: rgba(16,185,129,.1);
   padding: 2px 8px;
   border-radius: 20px;
+  white-space: nowrap;
 }
 
 .closedTag {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: var(--gold);
   background: rgba(245,158,11,.1);
   padding: 2px 8px;
@@ -102,8 +108,10 @@
   color: var(--t3);
   font-size: 0.82rem;
   padding: 2rem;
+  margin: auto;
 }
 
+/* Mensajes */
 .msg {
   display: flex;
   align-items: flex-start;
@@ -114,8 +122,7 @@
 }
 
 .avatarFb {
-  width: 28px;
-  height: 28px;
+  width: 28px; height: 28px;
   border-radius: 50%;
   background: var(--p);
   color: #fff;
@@ -131,7 +138,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
-  max-width: 80%;
+  max-width: 78%;
 }
 
 .msgUser {
@@ -151,17 +158,17 @@
   line-height: 1.4;
 }
 .own .msgBubble {
-  background: rgba(124,58,237,.2);
-  border-color: rgba(124,58,237,.3);
+  background: rgba(124,58,237,.22);
+  border-color: rgba(124,58,237,.35);
 }
 
 .msgTime {
-  font-size: 0.68rem;
+  font-size: 0.67rem;
   color: var(--t3);
-  align-self: flex-end;
 }
-.own .msgTime { align-self: flex-start; }
+.own .msgTime { text-align: right; }
 
+/* Input */
 .inputRow {
   display: flex;
   align-items: center;
@@ -179,12 +186,8 @@
   border-top: 1px solid var(--border);
 }
 
+/* Mobile */
 @media (max-width: 480px) {
-  .panel {
-    right: 0.5rem;
-    left: 0.5rem;
-    width: auto;
-    bottom: 4.5rem;
-  }
+  .panel { right: 0.5rem; left: 0.5rem; width: auto; bottom: 4.5rem; }
   .fab { right: 1rem; bottom: 1rem; }
 }
