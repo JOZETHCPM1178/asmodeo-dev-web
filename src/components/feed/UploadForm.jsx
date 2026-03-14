@@ -5,7 +5,6 @@ import { toast } from 'react-hot-toast'
 import { useAuth } from '../../context/AuthContext'
 import { createPost } from '../../services/posts'
 import { uploadImage } from '../../services/cloudinary'
-import { publishToTelegram } from '../../services/notifications'
 import styles from './UploadForm.module.css'
 
 const CATS = {
@@ -21,19 +20,13 @@ export default function UploadForm() {
   const fileRef = useRef(null)
 
   const [form, setForm] = useState({
-    name: '',
-    description: '',
-    category: 'apk',
-    downloadUrl: '',
-    youtubeUrl: '',
-    version: '',
-    size: '',
-    tags: '',
+    name: '', description: '', category: 'apk',
+    downloadUrl: '', youtubeUrl: '', version: '', size: '', tags: '',
   })
-  const [imageFile, setImageFile] = useState(null)
+  const [imageFile, setImageFile]     = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [step, setStep] = useState('')
+  const [loading, setLoading]         = useState(false)
+  const [progress, setProgress]       = useState(0) // 0-100
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -41,6 +34,7 @@ export default function UploadForm() {
     const file = e.target.files?.[0]
     if (!file) return
     if (file.size > 10 * 1024 * 1024) { toast.error('Imagen máximo 10MB'); return }
+    if (!file.type.startsWith('image/')) { toast.error('Solo imágenes'); return }
     setImageFile(file)
     const reader = new FileReader()
     reader.onload = ev => setImagePreview(ev.target.result)
@@ -49,54 +43,57 @@ export default function UploadForm() {
 
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!form.name.trim()) { toast.error('El nombre es obligatorio'); return }
+    if (!form.name.trim())        { toast.error('El nombre es obligatorio'); return }
     if (!form.downloadUrl.trim()) { toast.error('El link de descarga es obligatorio'); return }
-    if (!imageFile) { toast.error('La imagen es obligatoria'); return }
+    if (!imageFile)               { toast.error('Sube una imagen'); return }
 
     setLoading(true)
+    setProgress(10)
+
     try {
-      // 1. Subir imagen
-      setStep('Subiendo imagen...')
-      const imageData = await uploadImage(imageFile, { folder: 'posts' })
+      // 1. Subir imagen a Cloudinary
+      setProgress(20)
+      let imageData
+      try {
+        imageData = await uploadImage(imageFile, { folder: 'posts' })
+      } catch (imgErr) {
+        throw new Error('Error subiendo imagen: ' + imgErr.message)
+      }
+      setProgress(60)
 
       // 2. Procesar tags
       const tagsArray = form.tags
-        .split(',')
-        .map(t => t.trim().toLowerCase())
-        .filter(Boolean)
-        .slice(0, 8)
+        .split(',').map(t => t.trim().toLowerCase()).filter(Boolean).slice(0, 8)
 
-      // 3. Crear post en Firestore (incluye análisis de seguridad Gemini)
-      setStep('Analizando contenido con IA...')
+      // 3. Crear post
+      setProgress(80)
       const postData = {
-        name: form.name.trim(),
+        name:        form.name.trim(),
         description: form.description.trim(),
-        category: form.category,
+        category:    form.category,
         downloadUrl: form.downloadUrl.trim(),
-        youtubeUrl: form.youtubeUrl.trim(),
-        version: form.version.trim(),
-        size: form.size.trim(),
-        tags: tagsArray,
-        imageUrl: imageData.url,
-        imageThumb: imageData.thumbnailUrl,
-        authorId: user.uid,
-        authorName: user.displayName || user.username,
+        youtubeUrl:  form.youtubeUrl.trim(),
+        version:     form.version.trim(),
+        size:        form.size.trim(),
+        tags:        tagsArray,
+        imageUrl:    imageData.url,
+        imageThumb:  imageData.thumbnailUrl,
+        authorId:    user.uid,
+        authorName:  user.displayName || user.username || 'Usuario',
         authorPhoto: user.photoURL || '',
       }
 
-      setStep('Publicando...')
       const postId = await createPost(postData, user.uid)
-
-      // 4. Publicar en Telegram (no bloquea)
-      publishToTelegram({ id: postId, ...postData }).catch(() => {})
+      setProgress(100)
 
       toast.success('¡Publicación creada! 🎉')
       navigate(`/post/${postId}`)
     } catch (err) {
-      toast.error(err.message || 'Error al publicar')
+      console.error('Upload error:', err)
+      toast.error(err.message || 'Error al publicar. Intenta de nuevo.')
     } finally {
       setLoading(false)
-      setStep('')
+      setProgress(0)
     }
   }
 
@@ -111,13 +108,16 @@ export default function UploadForm() {
         {/* Columna izquierda */}
         <div className={styles.col}>
           {/* Imagen */}
-          <div className={styles.imageUpload} onClick={() => fileRef.current?.click()}>
+          <div
+            className={styles.imageUpload}
+            onClick={() => !loading && fileRef.current?.click()}
+          >
             {imagePreview ? (
               <img src={imagePreview} alt="preview" className={styles.imagePreview} />
             ) : (
               <div className={styles.imagePlaceholder}>
-                <span className={styles.uploadIcon}>🖼️</span>
-                <span>Click para subir imagen</span>
+                <span style={{ fontSize: '2.5rem' }}>🖼️</span>
+                <span>Toca para subir imagen</span>
                 <span className={styles.imageHint}>JPG, PNG, WebP • máx 10MB</span>
               </div>
             )}
@@ -129,13 +129,10 @@ export default function UploadForm() {
               style={{ display: 'none' }}
             />
           </div>
-          {imagePreview && (
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => { setImageFile(null); setImagePreview(null) }}
-            >
-              Cambiar imagen
+          {imagePreview && !loading && (
+            <button type="button" className="btn btn-ghost btn-sm"
+              onClick={() => { setImageFile(null); setImagePreview(null) }}>
+              🔄 Cambiar imagen
             </button>
           )}
 
@@ -144,12 +141,9 @@ export default function UploadForm() {
             <label className="inp-label">Categoría</label>
             <div className={styles.catGrid}>
               {Object.entries(CATS).map(([id, cat]) => (
-                <button
-                  key={id}
-                  type="button"
+                <button key={id} type="button"
                   className={`${styles.catBtn} ${form.category === id ? styles.catActive : ''}`}
-                  onClick={() => set('category', id)}
-                >
+                  onClick={() => set('category', id)} disabled={loading}>
                   {cat.icon} {cat.label}
                 </button>
               ))}
@@ -159,104 +153,73 @@ export default function UploadForm() {
 
         {/* Columna derecha */}
         <div className={styles.col}>
-          {/* Nombre */}
           <div className="inp-group">
             <label className="inp-label">Nombre de la app *</label>
-            <input
-              className="inp"
-              placeholder="Ej: Minecraft PE Mod v1.20"
-              value={form.name}
-              onChange={e => set('name', e.target.value)}
-              required maxLength={100}
-            />
+            <input className="inp" placeholder="Ej: Minecraft PE Mod v1.20"
+              value={form.name} onChange={e => set('name', e.target.value)}
+              required maxLength={100} disabled={loading} />
           </div>
 
-          {/* Descripción */}
           <div className="inp-group">
-            <label className="inp-label">Descripción *</label>
-            <textarea
-              className="inp"
+            <label className="inp-label">Descripción</label>
+            <textarea className="inp"
               placeholder="Describe qué hace esta app, qué tiene de especial..."
-              value={form.description}
-              onChange={e => set('description', e.target.value)}
-              rows={4}
-              maxLength={1000}
-              style={{ resize: 'vertical' }}
-            />
+              value={form.description} onChange={e => set('description', e.target.value)}
+              rows={4} maxLength={1000} style={{ resize: 'vertical' }} disabled={loading} />
           </div>
 
-          {/* Link de descarga */}
+          {/* Link descarga — SIN type="url" para aceptar cualquier link */}
           <div className="inp-group">
             <label className="inp-label">Link de descarga *</label>
-            <input
-              className="inp"
-              type="url"
-              placeholder="https://drive.google.com/..."
-              value={form.downloadUrl}
-              onChange={e => set('downloadUrl', e.target.value)}
-              required
-            />
+            <input className="inp"
+              placeholder="https://mega.nz/... o cualquier link"
+              value={form.downloadUrl} onChange={e => set('downloadUrl', e.target.value)}
+              required disabled={loading} />
           </div>
 
-          {/* YouTube */}
           <div className="inp-group">
-            <label className="inp-label">Video preview YouTube (opcional)</label>
-            <input
-              className="inp"
-              type="url"
+            <label className="inp-label">Video YouTube (opcional)</label>
+            <input className="inp"
               placeholder="https://www.youtube.com/watch?v=..."
-              value={form.youtubeUrl}
-              onChange={e => set('youtubeUrl', e.target.value)}
-            />
+              value={form.youtubeUrl} onChange={e => set('youtubeUrl', e.target.value)}
+              disabled={loading} />
           </div>
 
-          {/* Versión y tamaño */}
           <div className={styles.row2}>
             <div className="inp-group">
               <label className="inp-label">Versión</label>
-              <input
-                className="inp"
-                placeholder="v1.20.0"
-                value={form.version}
-                onChange={e => set('version', e.target.value)}
-                maxLength={20}
-              />
+              <input className="inp" placeholder="v1.21" value={form.version}
+                onChange={e => set('version', e.target.value)} maxLength={20} disabled={loading} />
             </div>
             <div className="inp-group">
               <label className="inp-label">Tamaño</label>
-              <input
-                className="inp"
-                placeholder="45 MB"
-                value={form.size}
-                onChange={e => set('size', e.target.value)}
-                maxLength={20}
-              />
+              <input className="inp" placeholder="414 MB" value={form.size}
+                onChange={e => set('size', e.target.value)} maxLength={20} disabled={loading} />
             </div>
           </div>
 
-          {/* Tags */}
           <div className="inp-group">
             <label className="inp-label">Tags (separados por coma)</label>
-            <input
-              className="inp"
-              placeholder="android, gratis, mod, aventura..."
-              value={form.tags}
-              onChange={e => set('tags', e.target.value)}
-            />
+            <input className="inp" placeholder="minecraft, mod, gratis..."
+              value={form.tags} onChange={e => set('tags', e.target.value)} disabled={loading} />
           </div>
         </div>
       </div>
 
-      {/* Info de seguridad */}
-      <div className={styles.infoBox}>
-        🛡️ Tu publicación será analizada automáticamente por IA para garantizar la seguridad de la comunidad.
-        El contenido sospechoso será marcado para revisión.
-      </div>
+      {/* Barra de progreso */}
+      {loading && (
+        <div className={styles.progressWrap}>
+          <div className={styles.progressBar} style={{ width: `${progress}%` }} />
+          <span className={styles.progressText}>
+            {progress < 60 ? '📤 Subiendo imagen...' : progress < 90 ? '💾 Guardando publicación...' : '✅ Casi listo...'}
+          </span>
+        </div>
+      )}
 
-      {/* Submit */}
-      <button className="btn btn-primary btn-lg" type="submit" disabled={loading} style={{ width: '100%' }}>
+      <button className="btn btn-primary btn-lg" type="submit"
+        disabled={loading || !imageFile} style={{ width: '100%' }}>
         {loading
-          ? <><span className="spinner" style={{ width: 18, height: 18 }} /> {step || 'Publicando...'}</>
+          ? <><span className="spinner" style={{ width: 18, height: 18 }} /> Publicando...</>
           : '🚀 Publicar ahora'}
       </button>
     </form>

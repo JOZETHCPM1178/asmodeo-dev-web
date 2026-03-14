@@ -119,12 +119,29 @@
   gap: 0.75rem;
 }
 
-.infoBox {
-  background: rgba(16,185,129,.08);
-  border: 1px solid rgba(16,185,129,.2);
+.progressWrap {
+  position: relative;
+  height: 40px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
   border-radius: var(--r);
-  padding: 0.75rem 1rem;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.progressBar {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  background: linear-gradient(90deg, var(--p), var(--p2));
+  transition: width 0.4s ease;
+  border-radius: var(--r);
+}
+.progressText {
+  position: relative;
+  z-index: 1;
   font-size: 0.82rem;
-  color: var(--green);
-  line-height: 1.5;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0,0,0,.5);
 }
