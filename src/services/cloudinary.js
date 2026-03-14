@@ -1,32 +1,23 @@
 // src/services/cloudinary.js
 // ════════════════════════════════════════
-//  CLOUDINARY SERVICE — Subida y optimización de imágenes
+//  CLOUDINARY SERVICE — Sin transformation en upload
 // ════════════════════════════════════════
 
 const CLOUD = import.meta.env.VITE_CLOUDINARY_CLOUD
 const PRESET = import.meta.env.VITE_CLOUDINARY_PRESET
 const BASE_URL = `https://api.cloudinary.com/v1_1/${CLOUD}`
 
-/**
- * Sube una imagen a Cloudinary con compresión automática
- */
 export async function uploadImage(file, options = {}) {
   const { folder = 'posts' } = options
 
-  // Validar tamaño (máx 10MB)
-  if (file.size > 10 * 1024 * 1024) {
-    throw new Error('La imagen no puede superar 10MB')
-  }
-
-  // Validar tipo
-  if (!file.type.startsWith('image/')) {
-    throw new Error('El archivo debe ser una imagen')
-  }
+  if (file.size > 10 * 1024 * 1024) throw new Error('La imagen no puede superar 10MB')
+  if (!file.type.startsWith('image/')) throw new Error('El archivo debe ser una imagen')
 
   const formData = new FormData()
   formData.append('file', file)
   formData.append('upload_preset', PRESET)
   formData.append('folder', folder)
+  // Sin transformation — el preset de Cloudinary la maneja
 
   const res = await fetch(`${BASE_URL}/image/upload`, {
     method: 'POST',
@@ -40,10 +31,10 @@ export async function uploadImage(file, options = {}) {
 
   const data = await res.json()
 
-  // Generar miniatura via URL (no en el upload)
+  // Miniatura via URL transform (no en el upload)
   const thumbnailUrl = data.secure_url.replace(
     '/upload/',
-    '/upload/w_300,h_300,c_fill,q_auto,f_auto/'
+    '/upload/w_600,h_338,c_fill,g_center,q_auto,f_auto/'
   )
 
   return {
@@ -55,20 +46,14 @@ export async function uploadImage(file, options = {}) {
   }
 }
 
-/**
- * Sube avatar de usuario
- */
 export async function uploadAvatar(file) {
   return uploadImage(file, { folder: 'avatars' })
 }
 
-/**
- * Construye una URL optimizada de Cloudinary
- */
-export function optimizeUrl(url, { width, height, quality = 'auto' } = {}) {
+export function optimizeUrl(url, { width, height, crop = 'fill', quality = 'auto' } = {}) {
   if (!url || !url.includes('cloudinary.com')) return url
   const transforms = [`q_${quality}`, 'f_auto']
   if (width) transforms.push(`w_${width}`)
-  if (height) transforms.push(`h_${height},c_fill`)
+  if (height) transforms.push(`h_${height},c_${crop},g_center`)
   return url.replace('/upload/', `/upload/${transforms.join(',')}/`)
 }
