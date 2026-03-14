@@ -1,7 +1,7 @@
 // firestore.rules
 // ════════════════════════════════════════
-//  FIRESTORE SECURITY RULES
-//  Copia esto en Firebase Console → Firestore → Rules
+//  FIRESTORE SECURITY RULES v2
+//  Copia en: Firebase Console → Firestore → Rules → Publicar
 // ════════════════════════════════════════
 
 rules_version = '2';
@@ -12,97 +12,103 @@ service cloud.firestore {
     function isAuth() {
       return request.auth != null;
     }
-    function isOwner(uid) {
-      return isAuth() && request.auth.uid == uid;
+    function uid() {
+      return request.auth.uid;
     }
-    function getUser() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    function isOwner(userId) {
+      return isAuth() && uid() == userId;
+    }
+    // Leer rol sin causar bucles infinitos
+    function userRole() {
+      return get(/databases/$(database)/documents/users/$(uid())).data.get('role', 'user');
     }
     function isAdmin() {
-      return isAuth() && getUser().role == 'admin';
+      return isAuth() && userRole() == 'admin';
     }
     function isStaff() {
-      return isAuth() && (getUser().role == 'admin' || getUser().role == 'admin_jr');
+      return isAuth() && userRole() in ['admin', 'admin_jr'];
     }
-    function isNotBanned() {
-      return isAuth() && getUser().banned != true;
+    function notBanned() {
+      return isAuth() && get(/databases/$(database)/documents/users/$(uid())).data.get('banned', false) == false;
     }
 
     // ─── USERS ───
-    match /users/{uid} {
+    // Crear perfil al registrarse: cualquier usuario autenticado puede crear SU perfil
+    match /users/{userId} {
       allow read: if true;
-      allow create: if isOwner(uid);
-      allow update: if isOwner(uid) || isAdmin();
+      // Crear: el usuario solo puede crear su propio documento
+      allow create: if isOwner(userId);
+      // Actualizar: el propio usuario o un admin
+      allow update: if isOwner(userId) || isAdmin();
       allow delete: if isAdmin();
     }
 
     // ─── POSTS ───
     match /posts/{postId} {
       allow read: if true;
-      allow create: if isAuth() && isNotBanned();
-      allow update: if isStaff() ||
-        (isAuth() && resource.data.authorId == request.auth.uid &&
-          !request.resource.data.diff(resource.data).affectedKeys()
-            .hasAny(['likes','downloads','views','status','featured','verified']));
-      allow delete: if isStaff() ||
-        (isAuth() && resource.data.authorId == request.auth.uid);
+      allow create: if isAuth() && notBanned();
+      // Actualizar: staff o el propio autor (no puede cambiar likes/downloads/status)
+      allow update: if isStaff() || (
+        isAuth() &&
+        resource.data.authorId == uid() &&
+        !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['likes', 'downloads', 'views', 'status', 'featured', 'verified', 'score'])
+      );
+      allow delete: if isStaff() || (isAuth() && resource.data.authorId == uid());
 
-      // ─── LIKES (subcolección) ───
-      match /likes/{userId} {
+      // Likes
+      match /likes/{likeUserId} {
         allow read: if true;
-        allow write: if isOwner(userId) && isNotBanned();
+        allow write: if isOwner(likeUserId);
       }
 
-      // ─── COMMENTS (subcolección) ───
+      // Comentarios
       match /comments/{commentId} {
         allow read: if true;
-        allow create: if isAuth() && isNotBanned() &&
-          request.resource.data.userId == request.auth.uid &&
-          request.resource.data.text.size() <= 500;
-        allow delete: if isStaff() ||
-          (isAuth() && resource.data.userId == request.auth.uid);
-        allow update: if false; // no editar comentarios
+        allow create: if isAuth() && notBanned()
+          && request.resource.data.userId == uid()
+          && request.resource.data.text.size() <= 500;
+        allow delete: if isStaff() || (isAuth() && resource.data.userId == uid());
+        allow update: if false;
       }
     }
 
     // ─── FOLLOWS ───
     match /follows/{followId} {
       allow read: if true;
-      allow create: if isAuth() && isNotBanned() &&
-        request.resource.data.followerId == request.auth.uid;
-      allow delete: if isAuth() &&
-        resource.data.followerId == request.auth.uid;
+      allow create: if isAuth() && notBanned()
+        && request.resource.data.followerId == uid();
+      allow delete: if isAuth() && resource.data.followerId == uid();
     }
 
-    // ─── NOTIFICATIONS ───
+    // ─── NOTIFICACIONES ───
     match /notifications/{notifId} {
-      allow read: if isAuth() && resource.data.userId == request.auth.uid;
-      allow create: if isAuth();  // cualquier usuario puede crear notificaciones (follows, likes, etc.)
-      allow update: if isAuth() && resource.data.userId == request.auth.uid;
-      allow delete: if isAuth() && resource.data.userId == request.auth.uid;
+      allow read: if isAuth() && resource.data.userId == uid();
+      allow create: if isAuth();
+      allow update: if isAuth() && resource.data.userId == uid();
+      allow delete: if isAuth() && resource.data.userId == uid();
     }
 
-    // ─── GLOBAL CHAT ───
+    // ─── CHAT GLOBAL ───
     match /globalChat/{msgId} {
       allow read: if true;
-      allow create: if isAuth() && isNotBanned() &&
-        request.resource.data.userId == request.auth.uid &&
-        request.resource.data.text.size() <= 300;
-      allow delete: if isStaff() ||
-        (isAuth() && resource.data.userId == request.auth.uid);
+      allow create: if isAuth() && notBanned()
+        && request.resource.data.userId == uid()
+        && request.resource.data.text.size() <= 300;
+      allow delete: if isStaff() || (isAuth() && resource.data.userId == uid());
       allow update: if false;
     }
 
-    // ─── REPORTS ───
+    // ─── REPORTES ───
     match /reports/{reportId} {
       allow read: if isStaff();
-      allow create: if isAuth() && isNotBanned();
+      allow create: if isAuth();
       allow update: if isStaff();
       allow delete: if isAdmin();
     }
 
-    // ─── CONFIG (chat status, etc.) ───
-    match /config/{doc} {
+    // ─── CONFIG (estado del chat, etc.) ───
+    match /config/{docId} {
       allow read: if true;
       allow write: if isStaff();
     }
