@@ -9,12 +9,9 @@ const BASE_URL = `https://api.cloudinary.com/v1_1/${CLOUD}`
 
 /**
  * Sube una imagen a Cloudinary con compresión automática
- * @param {File} file - Archivo de imagen
- * @param {Object} options - Opciones de transformación
- * @returns {Promise<{url: string, thumbnailUrl: string, publicId: string}>}
  */
 export async function uploadImage(file, options = {}) {
-  const { folder = 'posts', maxWidth = 1200, quality = 'auto' } = options
+  const { folder = 'posts' } = options
 
   // Validar tamaño (máx 10MB)
   if (file.size > 10 * 1024 * 1024) {
@@ -30,8 +27,6 @@ export async function uploadImage(file, options = {}) {
   formData.append('file', file)
   formData.append('upload_preset', PRESET)
   formData.append('folder', folder)
-  // Transformaciones como string simple — compatible con presets unsigned
-  formData.append('transformation', `w_${maxWidth},c_limit,q_auto,f_auto`)
 
   const res = await fetch(`${BASE_URL}/image/upload`, {
     method: 'POST',
@@ -45,7 +40,7 @@ export async function uploadImage(file, options = {}) {
 
   const data = await res.json()
 
-  // Generar URL de miniatura (300x300, recortada al centro)
+  // Generar miniatura via URL (no en el upload)
   const thumbnailUrl = data.secure_url.replace(
     '/upload/',
     '/upload/w_300,h_300,c_fill,q_auto,f_auto/'
@@ -61,10 +56,10 @@ export async function uploadImage(file, options = {}) {
 }
 
 /**
- * Sube avatar de usuario (cuadrado, 200x200)
+ * Sube avatar de usuario
  */
 export async function uploadAvatar(file) {
-  return uploadImage(file, { folder: 'avatars', maxWidth: 400 })
+  return uploadImage(file, { folder: 'avatars' })
 }
 
 /**
