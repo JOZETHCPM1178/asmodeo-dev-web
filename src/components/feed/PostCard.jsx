@@ -1,6 +1,6 @@
 // src/components/feed/PostCard.jsx
 import { useState, useEffect, useCallback } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -25,47 +25,48 @@ function getYouTubeId(url) {
 
 export default function PostCard({ post, compact = false }) {
   const { user } = useAuth()
-  const [liked, setLiked] = useState(false)
-  const [likeCount, setLikeCount] = useState(post.likes || 0)
+  const [liked, setLiked]           = useState(false)
+  const [likeCount, setLikeCount]   = useState(post.likes || 0)
   const [likeLoading, setLikeLoading] = useState(false)
   const [showComments, setShowComments] = useState(false)
-  const [showVideo, setShowVideo] = useState(false)
-  const [likeAnim, setLikeAnim] = useState(false)
+  const [showVideo, setShowVideo]   = useState(false)
+  const [likeAnim, setLikeAnim]     = useState(false)
 
-  const cat = CATS[post.category] || CATS.apk
-  const ytId = getYouTubeId(post.youtubeUrl)
+  const cat    = CATS[post.category] || CATS.apk
+  const ytId   = getYouTubeId(post.youtubeUrl)
   const thumbUrl = post.imageUrl ? optimizeUrl(post.imageUrl, { width: 600, height: 338 }) : null
 
   const createdAgo = post.createdAt?.toDate
     ? formatDistanceToNow(post.createdAt.toDate(), { addSuffix: true, locale: es })
     : ''
 
-  // ─── Cargar estado inicial del like ───
+  // Nombre del autor — usa el que venga en el post
+  // Si el usuario actualizó su nombre, se verá en nuevos posts
+  const authorName  = post.authorName  || 'Usuario'
+  const authorPhoto = post.authorPhoto || null
+
   useEffect(() => {
     if (!user?.uid || !post.id) return
     let cancelled = false
     hasLiked(post.id, user.uid)
-      .then(result => { if (!cancelled) setLiked(result) })
+      .then(r => { if (!cancelled) setLiked(r) })
       .catch(() => {})
     return () => { cancelled = true }
   }, [user?.uid, post.id])
 
+  // ─── LIKE ───
   const handleLike = useCallback(async () => {
     if (!user) { toast.error('Inicia sesión para dar like'); return }
     if (likeLoading) return
     setLikeLoading(true)
     setLikeAnim(true)
     setTimeout(() => setLikeAnim(false), 600)
-
     const wasLiked = liked
-    // Optimistic update
     setLiked(!wasLiked)
     setLikeCount(c => wasLiked ? c - 1 : c + 1)
-
     try {
       await toggleLike(post.id, user.uid)
-    } catch (err) {
-      // Revertir si falla
+    } catch {
       setLiked(wasLiked)
       setLikeCount(c => wasLiked ? c + 1 : c - 1)
       toast.error('Error al procesar like')
@@ -74,16 +75,50 @@ export default function PostCard({ post, compact = false }) {
     }
   }, [user, liked, likeLoading, post.id])
 
+  // ─── DESCARGA ───
   const handleDownload = useCallback(async () => {
-    if (!post.downloadUrl) { toast.error('Link de descarga no disponible'); return }
+    if (!post.downloadUrl) { toast.error('Link no disponible'); return }
     await registerDownload(post.id).catch(() => {})
     window.open(post.downloadUrl, '_blank', 'noopener,noreferrer')
   }, [post])
 
+  // ─── COMPARTIR ───
+  const handleShare = useCallback(async () => {
+    const url  = `${window.location.origin}/post/${post.id}`
+    const text = `${post.name} — Descárgalo en AsmodeoDev`
+
+    if (navigator.share) {
+      // Web Share API — funciona en móvil
+      try {
+        await navigator.share({ title: post.name, text, url })
+        return
+      } catch {
+        // Cancelado por usuario, no hacer nada
+        return
+      }
+    }
+
+    // Fallback — copiar al portapapeles
+    try {
+      await navigator.clipboard.writeText(url)
+      toast.success('🔗 Link copiado al portapapeles')
+    } catch {
+      // Último fallback
+      const el = document.createElement('input')
+      el.value = url
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+      toast.success('🔗 Link copiado')
+    }
+  }, [post])
+
+  // ─── REPORTAR ───
   const handleReport = useCallback(async () => {
     if (!user) { toast.error('Inicia sesión para reportar'); return }
     const reason = window.prompt('¿Por qué reportas esta publicación?')
-    if (!reason) return
+    if (!reason?.trim()) return
     try {
       await reportPost(post.id, user.uid, reason)
       toast.success('Reporte enviado ✅')
@@ -94,21 +129,15 @@ export default function PostCard({ post, compact = false }) {
 
   return (
     <article className={`${styles.card} ${compact ? styles.compact : ''}`}>
-      {/* Top badges */}
+      {/* Top row */}
       <div className={styles.topRow}>
         <span className={styles.catPill} style={{ color: cat.color }}>
           {cat.icon} {cat.label}
         </span>
         <div className={styles.topRight}>
-          {post.featured && <span className="badge badge-gold">⭐ Destacado</span>}
-          {post.verified && <span className="badge badge-cyan">✓ Verificado</span>}
-          <button
-            className={`${styles.moreBtn}`}
-            title="Reportar publicación"
-            onClick={handleReport}
-          >
-            ⋯
-          </button>
+          {post.featured && <span className="badge badge-gold">⭐</span>}
+          {post.verified && <span className="badge badge-cyan">✓</span>}
+          <button className={styles.moreBtn} onClick={handleReport} title="Reportar">⋯</button>
         </div>
       </div>
 
@@ -116,7 +145,7 @@ export default function PostCard({ post, compact = false }) {
       <div
         className={styles.media}
         onClick={() => ytId && !showVideo && setShowVideo(true)}
-        style={{ cursor: ytId ? 'pointer' : 'default' }}
+        style={{ cursor: ytId && !showVideo ? 'pointer' : 'default' }}
       >
         {showVideo && ytId ? (
           <iframe
@@ -128,18 +157,11 @@ export default function PostCard({ post, compact = false }) {
           />
         ) : (
           <>
-            {thumbUrl && (
-              <img
-                src={thumbUrl}
-                alt={post.name}
-                className={styles.thumb}
-                loading="lazy"
-              />
-            )}
-            {!thumbUrl && (
-              <div className={styles.noMedia}>{cat.icon}</div>
-            )}
-            {ytId && !showVideo && (
+            {thumbUrl
+              ? <img src={thumbUrl} alt={post.name} className={styles.thumb} loading="lazy" />
+              : <div className={styles.noMedia}>{cat.icon}</div>
+            }
+            {ytId && (
               <div className={styles.playOverlay}>
                 <div className={styles.playBtn}>▶</div>
                 <span>Ver preview</span>
@@ -151,29 +173,23 @@ export default function PostCard({ post, compact = false }) {
 
       {/* Body */}
       <div className={styles.body}>
-        {/* Autor */}
         <Link to={`/profile/${post.authorId}`} className={styles.author}>
-          {post.authorPhoto
-            ? <img src={optimizeUrl(post.authorPhoto, { width: 60, height: 60 })} alt="" className="avatar avatar-sm" />
-            : <div className={styles.avatarFb}>{(post.authorName || 'U')[0].toUpperCase()}</div>
+          {authorPhoto
+            ? <img src={optimizeUrl(authorPhoto, { width: 60, height: 60 })} alt="" className="avatar avatar-sm" />
+            : <div className={styles.avatarFb}>{authorName[0].toUpperCase()}</div>
           }
           <div>
-            <div className={styles.authorName}>{post.authorName || 'Usuario'}</div>
+            <div className={styles.authorName}>{authorName}</div>
             {createdAgo && <div className={styles.date}>{createdAgo}</div>}
           </div>
         </Link>
 
-        {/* Título */}
-        <Link to={`/post/${post.id}`} className={styles.title}>
-          {post.name}
-        </Link>
+        <Link to={`/post/${post.id}`} className={styles.title}>{post.name}</Link>
 
-        {/* Descripción */}
         {!compact && post.description && (
           <p className={styles.desc}>{post.description}</p>
         )}
 
-        {/* Tags */}
         {post.tags?.length > 0 && (
           <div className={styles.tags}>
             {post.tags.slice(0, 4).map(t => (
@@ -190,7 +206,6 @@ export default function PostCard({ post, compact = false }) {
           className={`${styles.actionBtn} ${liked ? styles.liked : ''}`}
           onClick={handleLike}
           disabled={likeLoading}
-          title={liked ? 'Quitar like' : 'Dar like'}
         >
           <span className={likeAnim ? styles.heartPop : ''}>
             {liked ? '❤️' : '🤍'}
@@ -202,27 +217,24 @@ export default function PostCard({ post, compact = false }) {
         <button
           className={`${styles.actionBtn} ${showComments ? styles.activeAction : ''}`}
           onClick={() => setShowComments(o => !o)}
-          title="Ver comentarios"
         >
           💬 <span>{post.commentCount || 0}</span>
         </button>
 
-        {/* Descargas stat */}
-        <span className={styles.statPill}>
-          ⬇️ {post.downloads || 0}
-        </span>
+        {/* Compartir */}
+        <button className={styles.actionBtn} onClick={handleShare} title="Compartir">
+          🔗
+        </button>
+
+        {/* Descargas */}
+        <span className={styles.statPill}>⬇️ {post.downloads || 0}</span>
 
         {/* Botón descargar */}
-        <button
-          className="btn btn-primary btn-sm"
-          onClick={handleDownload}
-          style={{ marginLeft: 'auto' }}
-        >
+        <button className="btn btn-primary btn-sm" onClick={handleDownload} style={{ marginLeft: 'auto' }}>
           Descargar
         </button>
       </div>
 
-      {/* Panel comentarios — sin X redundante, se cierra tocando el botón 💬 */}
       {showComments && (
         <CommentsPanel postId={post.id} onClose={() => setShowComments(false)} />
       )}
