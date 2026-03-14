@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#7c3aed"/>
+<meta name="description" content="ASMODEO DEV - APKs Mod, Juegos Mod, Scripts y Tutoriales gratis"/>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="ASMODEO DEV"/>
+<meta property="og:title" content="ASMODEO DEV - APKs Mod & Juegos Gratis"/>
+<meta property="og:description" content="La plataforma definitiva de APKs Mod, Juegos Mod, Scripts y Tutoriales. Todo gratis."/>
+<meta property="og:image" content="https://asmodeodev.netlify.app/icon-512x512.png"/>
+<meta property="og:image:width" content="512"/>
+<meta property="og:image:height" content="512"/>
+<meta property="og:url" content="https://asmodeodev.netlify.app"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="ASMODEO DEV - APKs Mod & Juegos"/>
+<meta name="twitter:description" content="APKs Mod, Juegos Mod, Scripts y Tutoriales. Todo gratis."/>
+<meta name="twitter:image" content="https://asmodeodev.netlify.app/icon-512x512.png"/>
+<link rel="manifest" href="manifest.json"/>
+<title>ASMODEO DEV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/style.css"/>
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+</head>
+<body>
+
+<div id="app">
+  <nav id="nav">
+    <div class="nav-logo" onclick="goHome()">
+      <em>⚡</em>ASMODEO<span>DEV</span>
+    </div>
+    <div class="nav-links">
+      <button class="nav-link" onclick="showCat('apk')">📱 APK Mod</button>
+      <button class="nav-link" onclick="showCat('games')">🎮 Juegos</button>
+      <button class="nav-link" onclick="showCat('script')">⚙️ Scripts</button>
+      <button class="nav-link" onclick="showCat('tutorials')">📚 Tutoriales</button>
+    </div>
+    <div class="nav-right">
+      <div id="lang-nav" style="display:flex;gap:4px;align-items:center" id="lang-nav-wrap"></div>
+      <button onclick="showGlobalChat()" title="Chat Global" style="background:none;border:none;color:var(--t2);cursor:pointer;font-size:1.2rem;padding:6px;border-radius:8px;transition:.2s" onmouseover="this.style.color='var(--p)'" onmouseout="this.style.color='var(--t2)'">💬</button>
+    <div id="nav-auth"></div>
+      <button class="hamburger" onclick="toggleMenu()">
+        <span class="hline"></span><span class="hline"></span><span class="hline"></span>
+      </button>
+    </div>
+  </nav>
+
+  <div class="mob-menu" id="mob-menu">
+    <button class="mob-link" onclick="showCat('apk')">📱 APK Mod</button>
+    <button class="mob-link" onclick="showCat('games')">🎮 Juegos Mod</button>
+    <button class="mob-link" onclick="showCat('script')">⚙️ Scripts</button>
+    <button class="mob-link" onclick="showCat('tutorials')">📚 Tutoriales</button>
+    <div id="mob-auth-links"></div>
+    <button class="mob-link" onclick="showNotificationsPanel()" style="position:relative;display:flex;align-items:center;gap:8px">
+      🔔 Notificaciones
+      <span id="notif-badge" style="display:none;background:#ef4444;color:#fff;border-radius:50%;min-width:18px;height:18px;font-size:.65rem;align-items:center;justify-content:center;font-weight:700;padding:0 4px"></span>
+    </button>
+    <button class="mob-link" id="notif-btn" onclick="toggleNotif()">🔕 Activar notificaciones push</button>
+  </div>
+
+  <main id="main"></main>
+
+  <footer>
+    <div class="container">
+      <div class="foot-grid">
+        <div>
+          <div class="foot-logo">⚡ ASMODEO<b>DEV</b></div>
+          <p class="foot-desc">La plataforma definitiva para APKs Mod, Juegos, Scripts y Tutoriales. Todo gratis.</p>
+          <!-- Redes Sociales -->
+          <div class="social-links">
+            <a class="social-btn youtube" href="https://www.youtube.com/@ASMODEOTK" target="_blank" rel="noopener">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M23.5 6.2s-.2-1.6-1-2.3c-.9-1-2-1-2.4-1C17.1 2.7 12 2.7 12 2.7s-5.1 0-8.1.2c-.5.1-1.5.1-2.4 1-.7.7-1 2.3-1 2.3S.3 8 .3 9.8v1.7c0 1.8.2 3.6.2 3.6s.2 1.6 1 2.3c.9 1 2.1.9 2.7 1 1.9.2 8.2.2 8.2.2s5.1 0 8.1-.2c.5-.1 1.5-.1 2.4-1 .7-.7 1-2.3 1-2.3s.2-1.8.2-3.6V9.8c-.1-1.8-.3-3.6-.3-3.6zM9.7 15.5V8.4l6.5 3.6-6.5 3.5z"/></svg>
+              YouTube
+            </a>
+            <a class="social-btn tiktok" href="https://tiktok.com/@.asmodeotk" target="_blank" rel="noopener">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19.6 3.3A4.9 4.9 0 0 1 14.7 0h-3.6v16.5a2.9 2.9 0 0 1-2.9 2.6 2.9 2.9 0 0 1-2.9-2.9 2.9 2.9 0 0 1 2.9-2.9c.3 0 .5 0 .8.1V9.7a6.5 6.5 0 0 0-.8-.1 6.5 6.5 0 0 0-6.5 6.5A6.5 6.5 0 0 0 8.2 22.6a6.5 6.5 0 0 0 6.5-6.5V8.2a8.4 8.4 0 0 0 4.9 1.6V6.2a4.9 4.9 0 0 1-3.3-2.9h3.3z"/></svg>
+              TikTok
+            </a>
+            <a class="social-btn telegram" href="https://t.me/+UCKFffJZwKs4NTkx" target="_blank" rel="noopener">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm5.9 8.2-2 9.4c-.1.6-.5.8-.9.5l-2.5-1.8-1.2 1.1c-.1.1-.3.2-.6.2l.2-2.6 4.9-4.5c.2-.2 0-.3-.3-.1L6.8 15.5 4.4 14.8c-.6-.2-.6-.6.1-.8l11.5-4.5c.5-.2 1 .1.8.7z"/></svg>
+              Telegram
+            </a>
+            <a class="social-btn discord" href="https://discord.gg/daJQPFmUF" target="_blank" rel="noopener">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3c-.2.4-.5.9-.7 1.3a18.3 18.3 0 0 0-5.5 0C9 3.9 8.7 3.4 8.5 3A19.7 19.7 0 0 0 3.6 4.4C.5 9.1-.3 13.7.1 18.2a20 20 0 0 0 6.1 3.1 15 15 0 0 0 1.3-2.1 13 13 0 0 1-2-.9l.5-.4a14.2 14.2 0 0 0 12.2 0l.5.4a13 13 0 0 1-2 .9 15 15 0 0 0 1.3 2.1 19.9 19.9 0 0 0 6.1-3.1c.5-5.1-.8-9.7-3.8-13.8zM8 15.4c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4zm8 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4z"/></svg>
+              Discord
+            </a>
+          </div>
+          <div class="foot-wm">ASMODEO DEV © 2025</div>
+        </div>
+        <div>
+          <div class="foot-h">Categorías</div>
+          <a class="foot-a" onclick="showCat('apk')">📱 APK Mod</a>
+          <a class="foot-a" onclick="showCat('games')">🎮 Juegos Mod</a>
+          <a class="foot-a" onclick="showCat('script')">⚙️ Scripts</a>
+          <a class="foot-a" onclick="showCat('tutorials')">📚 Tutoriales</a>
+        </div>
+        <div>
+          <div class="foot-h">Comunidad</div>
+          <a class="foot-a" onclick="showLogin()">🔑 Iniciar Sesión</a>
+          <a class="foot-a" onclick="showRegister()">✨ Registrarse</a>
+          <a class="foot-a" onclick="showSubmitPost()">📤 Subir App</a>
+        </div>
+      </div>
+      <div class="foot-bottom">
+        <p class="foot-copy">© 2025 ASMODEO DEV · Solo con fines educativos.</p>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<div id="toasts"></div>
+<div id="wm">ASMODEO DEV</div>
+
+
+<script type="module" src="js/firebase-init.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/moderation.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/posts.js"></script>
+<script src="js/comments.js"></script>
+<script src="js/translate.js"></script>
+<script src="js/notifications.js"></script>
+<script src="js/profile.js"></script>
+<script src="js/submit.js"></script>
+<script src="js/admin.js"></script>
+<script src="js/admin-jr.js"></script>
+<script src="js/chat.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
