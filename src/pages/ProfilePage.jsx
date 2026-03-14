@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
 import { getUserProfile, updateUserProfile } from '../services/auth'
-import { getFeed } from '../services/posts'
+import { getUserPosts } from '../services/posts'
 import { useAuth } from '../context/AuthContext'
 import FollowButton from '../components/social/FollowButton'
 import PostCard from '../components/feed/PostCard'
@@ -23,12 +23,12 @@ export default function ProfilePage() {
 
   async function loadProfile() {
     try {
-      const [p, feed] = await Promise.all([
+      const [p, userPosts] = await Promise.all([
         getUserProfile(uid),
-        getFeed({ pageSize: 50 }).then(r => r.posts.filter(p => p.authorId === uid))
+        getUserPosts(uid),
       ])
       setProfile(p)
-      setPosts(feed)
+      setPosts(userPosts)
       setFollowers(p?.followers || 0)
     } catch {
       toast.error('Error cargando perfil')
