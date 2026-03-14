@@ -2,6 +2,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './context/AuthContext'
+import { useAuth } from './context/AuthContext'
 import Layout from './components/ui/Layout'
 import ProtectedRoute from './components/ui/ProtectedRoute'
 
@@ -14,6 +15,13 @@ import UploadPage from './pages/UploadPage'
 import SearchPage from './pages/SearchPage'
 import AdminPage from './pages/AdminPage'
 import NotFoundPage from './pages/NotFoundPage'
+
+// Redirige /settings → perfil propio
+function SettingsRedirect() {
+  const { user } = useAuth()
+  if (!user) return <Navigate to="/" replace />
+  return <Navigate to={`/profile/${user.uid}`} replace />
+}
 
 export default function App() {
   return (
@@ -47,6 +55,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <UploadPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <SettingsRedirect />
                 </ProtectedRoute>
               }
             />
