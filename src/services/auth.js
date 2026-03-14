@@ -102,42 +102,48 @@ export async function resetPassword(email) {
 }
 
 // ─── OBTENER PERFIL DE USUARIO ───
-// Si no existe el documento en Firestore, lo crea automáticamente
 export async function getUserProfile(uid) {
-  const ref = doc(db, 'users', uid)
-  const snap = await getDoc(ref)
+  if (!uid) return null
+  try {
+    const ref = doc(db, 'users', uid)
+    const snap = await getDoc(ref)
 
-  if (snap.exists()) {
-    return { id: snap.id, ...snap.data() }
-  }
-
-  // Documento no existe — intentar crearlo desde Firebase Auth
-  // (usuarios registrados antes del nuevo sistema)
-  const currentUser = auth.currentUser
-  if (currentUser && currentUser.uid === uid) {
-    const role = currentUser.email === import.meta.env.VITE_ADMIN_EMAIL
-      ? ROLES.ADMIN
-      : ROLES.USER
-    const profileData = {
-      uid,
-      email: currentUser.email || '',
-      username: currentUser.displayName || currentUser.email?.split('@')[0] || 'Usuario',
-      displayName: currentUser.displayName || currentUser.email?.split('@')[0] || 'Usuario',
-      role,
-      photoURL: currentUser.photoURL || '',
-      bio: '',
-      followers: 0,
-      following: 0,
-      posts: 0,
-      verified: false,
-      banned: false,
-      createdAt: serverTimestamp(),
+    if (snap.exists()) {
+      return { id: snap.id, ...snap.data() }
     }
-    await setDoc(ref, profileData)
-    return { id: uid, ...profileData }
-  }
 
-  return null
+    // Documento no existe — intentar crearlo si es el usuario actual
+    const currentUser = auth.currentUser
+    if (currentUser && currentUser.uid === uid) {
+      const role = currentUser.email === ADMIN_EMAIL ? ROLES.ADMIN : ROLES.USER
+      const profileData = {
+        uid,
+        email: currentUser.email || '',
+        username: currentUser.displayName || currentUser.email?.split('@')[0] || 'Usuario',
+        displayName: currentUser.displayName || currentUser.email?.split('@')[0] || 'Usuario',
+        role,
+        photoURL: currentUser.photoURL || '',
+        bio: '',
+        followers: 0,
+        following: 0,
+        posts: 0,
+        verified: false,
+        banned: false,
+        createdAt: serverTimestamp(),
+      }
+      try {
+        await setDoc(ref, profileData)
+      } catch (e) {
+        console.warn('No se pudo crear perfil en Firestore:', e.message)
+      }
+      return { id: uid, ...profileData }
+    }
+
+    return null
+  } catch (e) {
+    console.error('getUserProfile error:', e.message)
+    return null
+  }
 }
 
 // ─── ACTUALIZAR PERFIL ───
