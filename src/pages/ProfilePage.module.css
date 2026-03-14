@@ -2,44 +2,67 @@
 .page { display: flex; flex-direction: column; padding-bottom: 4rem; }
 
 .banner {
-  height: 200px;
-  background: linear-gradient(135deg, rgba(124,58,237,.3), rgba(6,182,212,.2));
+  height: 180px;
+  background: linear-gradient(135deg, rgba(124,58,237,.35) 0%, rgba(6,182,212,.2) 100%);
   position: relative;
+  flex-shrink: 0;
 }
 
-.inner { max-width: 1000px; margin: 0 auto; padding: 0 1rem; width: 100%; }
+.inner {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  width: 100%;
+}
 
+/* Profile card */
 .profileCard {
   display: flex;
   align-items: flex-start;
-  gap: 2rem;
+  gap: 1.5rem;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--r2);
-  padding: 1.5rem 2rem;
-  margin-top: -60px;
-  flex-wrap: wrap;
+  padding: 1.25rem 1.5rem;
+  margin-top: -50px;
   position: relative;
   z-index: 1;
+  flex-wrap: wrap;
 }
 
+/* Avatar */
 .avatarWrap { position: relative; flex-shrink: 0; }
-.avatar { width: 100px !important; height: 100px !important; border: 3px solid var(--card) !important; }
-.avatarFb {
-  width: 100px; height: 100px; border-radius: 50%;
-  background: var(--p); color: #fff;
-  font-size: 2.5rem; font-weight: 900;
-  display: flex; align-items: center; justify-content: center;
+.avatar {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  object-fit: cover;
   border: 3px solid var(--card);
+  box-shadow: 0 0 0 2px var(--p);
+  display: block;
+}
+.avatarFb {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--p), var(--p2));
+  color: #fff;
+  font-size: 2.2rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid var(--card);
+  box-shadow: 0 0 0 2px var(--p);
 }
 .verifiedBadge {
   position: absolute;
   bottom: 2px; right: 2px;
-  width: 26px; height: 26px;
+  width: 24px; height: 24px;
   border-radius: 50%;
   background: var(--cyan);
   color: #fff;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -47,17 +70,156 @@
   border: 2px solid var(--card);
 }
 
-.profileInfo { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 0.85rem; }
-.nameRow { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
-.username { font-family: var(--font1); font-size: 1.4rem; font-weight: 900; }
-.bio { color: var(--t2); font-size: 0.9rem; line-height: 1.5; }
+/* Info */
+.profileInfo {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.username {
+  font-family: var(--font1);
+  font-size: 1.3rem;
+  font-weight: 900;
+  line-height: 1;
+}
+.bio {
+  color: var(--t2);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
 
-.stats { display: flex; gap: 2rem; }
+/* Stats */
+.statsRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
 .stat { text-align: center; }
-.statN { display: block; font-family: var(--font1); font-size: 1.3rem; font-weight: 900; color: var(--p2); }
-.statL { display: block; font-size: 0.72rem; color: var(--t3); text-transform: uppercase; letter-spacing: 0.05em; }
+.statN {
+  display: block;
+  font-family: var(--font1);
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: var(--p2);
+}
+.statL {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--t3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.statDivider {
+  width: 1px;
+  height: 32px;
+  background: var(--border2);
+}
 
-.actions { display: flex; gap: 0.5rem; }
+.actionRow { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 
-.postsSection { margin-top: 2rem; }
-.postsTitle { font-family: var(--font1); font-size: 1.1rem; margin-bottom: 1.25rem; }
+/* Posts */
+.postsSection { margin-top: 1.75rem; }
+.postsTitle {
+  font-family: var(--font1);
+  font-size: 1.05rem;
+  margin-bottom: 1.25rem;
+}
+
+/* Edit modal */
+.editModal { max-width: 420px !important; }
+
+.editHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+.editTitle {
+  font-family: var(--font1);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+/* Avatar edit */
+.avatarEdit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+.avatarEditImg {
+  position: relative;
+  cursor: pointer;
+  border-radius: 50%;
+  overflow: hidden;
+}
+.avatarPreview {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--border2);
+  display: block;
+}
+.avatarFbLg {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--p), var(--p2));
+  color: #fff;
+  font-size: 2rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid var(--border2);
+}
+.avatarOverlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(0,0,0,.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.avatarEditImg:hover .avatarOverlay { opacity: 1; }
+
+.avatarEditHint {
+  font-size: 0.75rem;
+  color: var(--t3);
+}
+
+/* Fields */
+.editFields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.charCount {
+  font-size: 0.72rem;
+  color: var(--t3);
+  text-align: right;
+  margin-top: 0.2rem;
+}
+
+/* Actions */
+.editActions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
