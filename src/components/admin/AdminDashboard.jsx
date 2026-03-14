@@ -12,13 +12,13 @@ import { setChatStatus } from '../../services/social'
 import styles from './AdminDashboard.module.css'
 
 const TABS = [
-  { label: '📊 Stats',    role: 'admin' },
-  { label: '👥 Usuarios', role: 'admin' },
-  { label: '📝 Posts',    role: 'staff' },
-  { label: '⚠️ Reportes', role: 'staff' },
-  { label: '🤖 Seguidores Bot', role: 'admin' },
-  { label: '📋 Logs',    role: 'admin' },
-  { label: '⚙️ Config',  role: 'admin' },
+  { label: '📊 Stats',          role: 'staff'  },  // Admin + Admin Jr
+  { label: '👥 Usuarios',       role: 'admin'  },  // Solo Admin
+  { label: '📝 Posts',          role: 'staff'  },  // Admin + Admin Jr
+  { label: '⚠️ Reportes',       role: 'staff'  },  // Admin + Admin Jr
+  { label: '🤖 Seguidores Bot', role: 'admin'  },  // Solo Admin
+  { label: '📋 Logs',           role: 'admin'  },  // Solo Admin
+  { label: '⚙️ Config',         role: 'admin'  },  // Solo Admin
 ]
 
 export default function AdminDashboard() {
@@ -37,16 +37,17 @@ export default function AdminDashboard() {
     setLoading(true)
     setData(null)
     try {
-      const tabLabel = visibleTabs[t]?.label || ''
-      if (tabLabel.includes('Stats'))     setData(await getStats())
-      else if (tabLabel.includes('Usuarios')) setData(await getAllUsers())
-      else if (tabLabel.includes('Posts'))    setData(await getPendingPosts())
-      else if (tabLabel.includes('Reportes')) setData(await getReports())
-      else if (tabLabel.includes('Seguidores')) setData(await getAllUsers())
-      else if (tabLabel.includes('Logs'))     setData(await getAdminLogs())
+      const label = visibleTabs[t]?.label || ''
+      if (label.includes('Stats'))          setData(await getStats())
+      else if (label.includes('Usuarios'))  setData(await getAllUsers())
+      else if (label.includes('Posts'))     setData(await getPendingPosts())
+      else if (label.includes('Reportes'))  setData(await getReports())
+      else if (label.includes('Seguidores'))setData(await getAllUsers({ pageSize: 100 }))
+      else if (label.includes('Logs'))      setData(await getAdminLogs())
       else setData({})
     } catch (e) {
-      toast.error('Error: ' + e.message)
+      toast.error('Error cargando datos: ' + e.message)
+      setData([])
     } finally {
       setLoading(false)
     }
@@ -344,19 +345,26 @@ function FollowersBotPanel({ users, user: adminUser }) {
 //  POSTS PENDIENTES
 // ═══════════════════════════════
 function PostsPanel({ posts, onRefresh }) {
-  async function act(postId, action) {
+  const { user } = useAuth()
+
+  async function act(postId, action, authorId) {
+    // Admin Jr no puede borrar posts ajenos
+    if (!user.isAdmin && action === 'delete' && authorId !== user.uid) {
+      toast.error('No puedes eliminar publicaciones de otros usuarios')
+      return
+    }
     try {
       if (action === 'approve') await setPostStatus(postId, 'active')
       else if (action === 'reject') await setPostStatus(postId, 'rejected')
-      else if (action === 'delete') { if (!confirm('¿Eliminar?')) return; await deletePost(postId) }
+      else if (action === 'delete') { if (!confirm('¿Eliminar esta publicación?')) return; await deletePost(postId) }
       else if (action === 'feature') await toggleFeatured(postId, true)
       else if (action === 'verify') await verifyPost(postId, true)
-      toast.success('Acción realizada')
+      toast.success('✅ Acción realizada')
       onRefresh()
     } catch (e) { toast.error(e.message) }
   }
 
-  if (!posts?.length) return <Empty icon="✅" text="Sin posts pendientes" />
+  if (!posts?.length) return <Empty icon="✅" text="Sin posts pendientes de revisión" />
 
   return (
     <div className={styles.list}>
@@ -367,15 +375,33 @@ function PostsPanel({ posts, onRefresh }) {
             <div className={styles.listName}>{p.name}</div>
             <div className={styles.listMeta}>
               <span className="badge badge-purple">{p.category}</span>
+              {p.status === 'pending_review' && <span className="badge badge-gold">⏳ Pendiente</span>}
               {p.safetyScore < 70 && <span className="badge badge-red">⚠️ Score: {p.safetyScore}</span>}
             </div>
             <p className={styles.listDesc}>{p.description?.slice(0, 100)}</p>
+            <div style={{ fontSize: '0.72rem', color: 'var(--t3)', marginTop: '0.2rem' }}>
+              Por: {p.authorName || p.authorId?.slice(0, 8)}
+            </div>
           </div>
           <div className={styles.listActions}>
-            <button className="btn btn-primary btn-sm" onClick={() => act(p.id, 'approve')}>✅ Aprobar</button>
-            <button className="btn btn-ghost btn-sm"   onClick={() => act(p.id, 'verify')}>✓ Verificar</button>
-            <button className="btn btn-ghost btn-sm"   onClick={() => act(p.id, 'feature')}>⭐ Destacar</button>
-            <button className="btn btn-danger btn-sm"  onClick={() => act(p.id, 'delete')}>🗑️ Eliminar</button>
+            <button className="btn btn-primary btn-sm" onClick={() => act(p.id, 'approve', p.authorId)}>
+              ✅ Aprobar
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => act(p.id, 'verify', p.authorId)}>
+              ✓ Verificar
+            </button>
+            {/* Destacar solo Admin */}
+            {user.isAdmin && (
+              <button className="btn btn-ghost btn-sm" onClick={() => act(p.id, 'feature', p.authorId)}>
+                ⭐ Destacar
+              </button>
+            )}
+            {/* Eliminar: Admin siempre, Admin Jr solo sus propios posts */}
+            {(user.isAdmin || p.authorId === user.uid) && (
+              <button className="btn btn-danger btn-sm" onClick={() => act(p.id, 'delete', p.authorId)}>
+                🗑️ Eliminar
+              </button>
+            )}
           </div>
         </div>
       ))}
