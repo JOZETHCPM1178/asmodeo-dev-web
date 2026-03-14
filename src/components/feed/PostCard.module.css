@@ -1,0 +1,230 @@
+/* src/components/feed/PostCard.module.css */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+  border-radius: var(--r2);
+  background: var(--card);
+  border: 1px solid var(--border);
+  transition: var(--tr);
+}
+.card:hover {
+  border-color: var(--border2);
+  box-shadow: var(--shadow2);
+  transform: translateY(-2px);
+}
+
+.topRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem 0.5rem;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.catPill {
+  font-size: 0.78rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.topRight {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.moreBtn {
+  font-size: 1.1rem;
+  padding: 0.2rem 0.4rem;
+}
+
+/* ─── MEDIA ─── */
+.media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16/9;
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--bg2);
+}
+
+.thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+.card:hover .thumb { transform: scale(1.03); }
+
+.ytEmbed {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.playOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.media:hover .playOverlay { opacity: 1; }
+
+.playBtn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(124,58,237,.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  box-shadow: 0 4px 20px rgba(124,58,237,.4);
+  transition: transform 0.2s;
+}
+.media:hover .playBtn { transform: scale(1.1); }
+
+.noMedia {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  background: linear-gradient(135deg, var(--bg2), var(--card2));
+}
+
+/* ─── BODY ─── */
+.body {
+  padding: 0.9rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  flex: 1;
+}
+
+.author {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.avatarFallback {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--p);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.authorName {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--t1);
+}
+.date {
+  font-size: 0.72rem;
+  color: var(--t3);
+}
+
+.title {
+  font-family: var(--font1);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--t1);
+  text-decoration: none;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  transition: color 0.2s;
+}
+.title:hover { color: var(--p2); }
+
+.desc {
+  font-size: 0.83rem;
+  color: var(--t2);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.tag {
+  font-size: 0.72rem;
+  color: var(--p2);
+  background: rgba(124,58,237,.1);
+  padding: 0.15rem 0.5rem;
+  border-radius: 20px;
+}
+
+/* ─── ACTIONS ─── */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.actionBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.35rem 0.7rem;
+  color: var(--t2);
+  font-size: 0.82rem;
+  font-family: var(--font2);
+  cursor: pointer;
+  transition: var(--tr);
+}
+.actionBtn:hover { border-color: var(--border2); color: var(--t1); }
+.actionBtn.liked { color: #ef4444; border-color: rgba(239,68,68,.3); background: rgba(239,68,68,.08); }
+
+.heartPop { display: inline-block; animation: heartPop .5s ease; }
+
+.statPill {
+  font-size: 0.78rem;
+  color: var(--t3);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* Compact mode */
+.compact .media { aspect-ratio: 4/3; }
+.compact .desc { display: none; }
