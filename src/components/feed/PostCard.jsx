@@ -1,11 +1,14 @@
 // src/components/feed/PostCard.jsx
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '../../context/AuthContext'
-import { toggleLike, hasLiked, registerDownload, reportPost } from '../../services/posts'
+import {
+  toggleLike, hasLiked, registerDownload,
+  reportPost, deletePost, toggleFeatured, verifyPost, setPostStatus,
+} from '../../services/posts'
 import { optimizeUrl } from '../../services/cloudinary'
 import CommentsPanel from '../social/CommentsPanel'
 import styles from './PostCard.module.css'
@@ -23,28 +26,41 @@ function getYouTubeId(url) {
   return m ? m[1] : null
 }
 
-export default function PostCard({ post, compact = false }) {
-  const { user } = useAuth()
-  const [liked, setLiked]           = useState(false)
-  const [likeCount, setLikeCount]   = useState(post.likes || 0)
-  const [likeLoading, setLikeLoading] = useState(false)
-  const [showComments, setShowComments] = useState(false)
-  const [showVideo, setShowVideo]   = useState(false)
-  const [likeAnim, setLikeAnim]     = useState(false)
+export default function PostCard({ post, compact = false, onDeleted }) {
+  const { user }  = useAuth()
+  const menuRef   = useRef(null)
 
-  const cat    = CATS[post.category] || CATS.apk
-  const ytId   = getYouTubeId(post.youtubeUrl)
-  const thumbUrl = post.imageUrl ? optimizeUrl(post.imageUrl, { width: 600, height: 338 }) : null
+  const [liked, setLiked]               = useState(false)
+  const [likeCount, setLikeCount]       = useState(post.likes || 0)
+  const [likeLoading, setLikeLoading]   = useState(false)
+  const [showComments, setShowComments] = useState(false)
+  const [showVideo, setShowVideo]       = useState(false)
+  const [likeAnim, setLikeAnim]         = useState(false)
+  const [menuOpen, setMenuOpen]         = useState(false)
+  const [deleted, setDeleted]           = useState(false)
+
+  const cat        = CATS[post.category] || CATS.apk
+  const ytId       = getYouTubeId(post.youtubeUrl)
+  const thumbUrl   = post.imageUrl ? optimizeUrl(post.imageUrl, { width: 600, height: 338 }) : null
+  const authorName = post.authorName  || 'Usuario'
+  const authorPhoto= post.authorPhoto || null
+  const isOwner    = user?.uid === post.authorId
+  const canManage  = user?.isStaff || isOwner
 
   const createdAgo = post.createdAt?.toDate
     ? formatDistanceToNow(post.createdAt.toDate(), { addSuffix: true, locale: es })
     : ''
 
-  // Nombre del autor — usa el que venga en el post
-  // Si el usuario actualizó su nombre, se verá en nuevos posts
-  const authorName  = post.authorName  || 'Usuario'
-  const authorPhoto = post.authorPhoto || null
+  // Cerrar menú al click fuera
+  useEffect(() => {
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
+  // Cargar estado de like
   useEffect(() => {
     if (!user?.uid || !post.id) return
     let cancelled = false
@@ -86,24 +102,15 @@ export default function PostCard({ post, compact = false }) {
   const handleShare = useCallback(async () => {
     const url  = `${window.location.origin}/post/${post.id}`
     const text = `${post.name} — Descárgalo en AsmodeoDev`
-
     if (navigator.share) {
-      // Web Share API — funciona en móvil
-      try {
-        await navigator.share({ title: post.name, text, url })
-        return
-      } catch {
-        // Cancelado por usuario, no hacer nada
-        return
-      }
+      try { await navigator.share({ title: post.name, text, url }) }
+      catch { /* cancelado */ }
+      return
     }
-
-    // Fallback — copiar al portapapeles
     try {
       await navigator.clipboard.writeText(url)
-      toast.success('🔗 Link copiado al portapapeles')
+      toast.success('🔗 Link copiado')
     } catch {
-      // Último fallback
       const el = document.createElement('input')
       el.value = url
       document.body.appendChild(el)
@@ -114,22 +121,56 @@ export default function PostCard({ post, compact = false }) {
     }
   }, [post])
 
-  // ─── REPORTAR ───
-  const handleReport = useCallback(async () => {
-    if (!user) { toast.error('Inicia sesión para reportar'); return }
-    const reason = window.prompt('¿Por qué reportas esta publicación?')
-    if (!reason?.trim()) return
+  // ─── ACCIONES DE MENÚ ───
+  async function menuAction(action) {
+    setMenuOpen(false)
     try {
-      await reportPost(post.id, user.uid, reason)
-      toast.success('Reporte enviado ✅')
-    } catch {
-      toast.error('Error al enviar reporte')
+      switch (action) {
+        case 'report': {
+          const reason = window.prompt('¿Por qué reportas esta publicación?')
+          if (!reason?.trim()) return
+          await reportPost(post.id, user.uid, reason)
+          toast.success('Reporte enviado ✅')
+          break
+        }
+        case 'delete': {
+          if (!window.confirm(`¿Eliminar "${post.name}"?`)) return
+          await deletePost(post.id)
+          setDeleted(true)
+          toast.success('Publicación eliminada')
+          onDeleted?.()
+          break
+        }
+        case 'feature': {
+          await toggleFeatured(post.id, !post.featured)
+          toast.success(post.featured ? 'Destacado quitado' : '⭐ Publicación destacada')
+          break
+        }
+        case 'verify': {
+          await verifyPost(post.id, !post.verified)
+          toast.success(post.verified ? 'Verificación quitada' : '✓ Publicación verificada')
+          break
+        }
+        case 'hide': {
+          await setPostStatus(post.id, 'hidden')
+          setDeleted(true)
+          toast.success('Publicación ocultada')
+          break
+        }
+        default: break
+      }
+    } catch (e) {
+      toast.error(e.message || 'Error al realizar acción')
     }
-  }, [user, post.id])
+  }
+
+  // Si fue eliminada, no renderizar
+  if (deleted) return null
 
   return (
     <article className={`${styles.card} ${compact ? styles.compact : ''}`}>
-      {/* Top row */}
+
+      {/* ── TOP ROW ── */}
       <div className={styles.topRow}>
         <span className={styles.catPill} style={{ color: cat.color }}>
           {cat.icon} {cat.label}
@@ -137,11 +178,63 @@ export default function PostCard({ post, compact = false }) {
         <div className={styles.topRight}>
           {post.featured && <span className="badge badge-gold">⭐</span>}
           {post.verified && <span className="badge badge-cyan">✓</span>}
-          <button className={styles.moreBtn} onClick={handleReport} title="Reportar">⋯</button>
+
+          {/* Menú de opciones */}
+          <div className={styles.menuWrap} ref={menuRef}>
+            <button
+              className={styles.moreBtn}
+              onClick={() => setMenuOpen(o => !o)}
+              title="Opciones"
+            >
+              ⋯
+            </button>
+
+            {menuOpen && (
+              <div className={styles.menuDropdown}>
+                {/* Compartir — siempre visible */}
+                <button className={styles.menuItem} onClick={handleShare}>
+                  🔗 Compartir
+                </button>
+
+                {/* Reportar — solo usuarios logueados que no sean dueños */}
+                {user && !isOwner && (
+                  <button className={styles.menuItem} onClick={() => menuAction('report')}>
+                    🚩 Reportar
+                  </button>
+                )}
+
+                {/* Acciones de admin/dueño */}
+                {canManage && (
+                  <>
+                    <div className={styles.menuDivider} />
+                    {user?.isStaff && (
+                      <>
+                        <button className={styles.menuItem} onClick={() => menuAction('feature')}>
+                          {post.featured ? '⭐ Quitar destacado' : '⭐ Destacar'}
+                        </button>
+                        <button className={styles.menuItem} onClick={() => menuAction('verify')}>
+                          {post.verified ? '✓ Quitar verificado' : '✓ Verificar'}
+                        </button>
+                        <button className={styles.menuItem} onClick={() => menuAction('hide')}>
+                          👁️ Ocultar
+                        </button>
+                      </>
+                    )}
+                    <button
+                      className={`${styles.menuItem} ${styles.menuItemDanger}`}
+                      onClick={() => menuAction('delete')}
+                    >
+                      🗑️ Eliminar
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Media */}
+      {/* ── MEDIA ── */}
       <div
         className={styles.media}
         onClick={() => ytId && !showVideo && setShowVideo(true)}
@@ -171,7 +264,7 @@ export default function PostCard({ post, compact = false }) {
         )}
       </div>
 
-      {/* Body */}
+      {/* ── BODY ── */}
       <div className={styles.body}>
         <Link to={`/profile/${post.authorId}`} className={styles.author}>
           {authorPhoto
@@ -199,13 +292,13 @@ export default function PostCard({ post, compact = false }) {
         )}
       </div>
 
-      {/* Acciones */}
+      {/* ── ACCIONES ── */}
       <div className={styles.actions}>
-        {/* Like */}
         <button
           className={`${styles.actionBtn} ${liked ? styles.liked : ''}`}
           onClick={handleLike}
           disabled={likeLoading}
+          title="Like"
         >
           <span className={likeAnim ? styles.heartPop : ''}>
             {liked ? '❤️' : '🤍'}
@@ -213,24 +306,30 @@ export default function PostCard({ post, compact = false }) {
           <span>{likeCount}</span>
         </button>
 
-        {/* Comentarios */}
         <button
           className={`${styles.actionBtn} ${showComments ? styles.activeAction : ''}`}
           onClick={() => setShowComments(o => !o)}
+          title="Comentarios"
         >
           💬 <span>{post.commentCount || 0}</span>
         </button>
 
-        {/* Compartir */}
-        <button className={styles.actionBtn} onClick={handleShare} title="Compartir">
-          🔗
+        {/* Compartir — botón directo visible siempre */}
+        <button
+          className={styles.actionBtn}
+          onClick={handleShare}
+          title="Compartir"
+        >
+          🔗 <span className={styles.shareLabel}>Compartir</span>
         </button>
 
-        {/* Descargas */}
         <span className={styles.statPill}>⬇️ {post.downloads || 0}</span>
 
-        {/* Botón descargar */}
-        <button className="btn btn-primary btn-sm" onClick={handleDownload} style={{ marginLeft: 'auto' }}>
+        <button
+          className="btn btn-primary btn-sm"
+          onClick={handleDownload}
+          style={{ marginLeft: 'auto' }}
+        >
           Descargar
         </button>
       </div>
