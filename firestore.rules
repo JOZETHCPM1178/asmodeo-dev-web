@@ -151,5 +151,21 @@ service cloud.firestore {
       allow create: if isStaff();
       allow update, delete: if false;
     }
+
+    // ─── MENSAJES PRIVADOS ───
+    match /conversations/{convId} {
+      allow read: if isAuth() && request.auth.uid in resource.data.participants;
+      allow create: if isAuth() && request.auth.uid in request.resource.data.participants;
+      allow update: if isAuth() && request.auth.uid in resource.data.participants;
+
+      match /messages/{msgId} {
+        allow read: if isAuth() &&
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(convId)).data.participants;
+        allow create: if isAuth() &&
+          request.auth.uid in get(/databases/$(database)/documents/conversations/$(convId)).data.participants &&
+          request.resource.data.senderId == request.auth.uid;
+        allow update, delete: if false;
+      }
+    }
   }
 }
