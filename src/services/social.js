@@ -68,22 +68,8 @@ export async function getFollowing(userId) {
 // ═══════════════════════════════════════
 
 export async function addComment(postId, { userId, username, photoURL, text }) {
-  // Anti-spam: máximo 5 comentarios por minuto
-  const recentSnap = await getDocs(
-    query(
-      collection(db, 'posts', postId, 'comments'),
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc'),
-      limit(5)
-    )
-  )
-
-  if (recentSnap.docs.length >= 5) {
-    const oldest = recentSnap.docs[4].data().createdAt?.toDate()
-    if (oldest && Date.now() - oldest.getTime() < 60000) {
-      throw new Error('Estás comentando muy rápido. Espera un momento.')
-    }
-  }
+  // Validación básica
+  if (!text?.trim()) throw new Error('El comentario no puede estar vacío')
 
   const ref = await addDoc(collection(db, 'posts', postId, 'comments'), {
     userId,

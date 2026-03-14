@@ -5,30 +5,27 @@
 import {
   db, collection, addDoc, getDocs, getDoc, doc, deleteDoc,
   updateDoc, serverTimestamp, query, orderBy, where,
-  increment, onSnapshot, limit, startAfter, arrayUnion, arrayRemove,
+  increment, onSnapshot, limit, startAfter,
   writeBatch, getCountFromServer,
 } from './firebase'
 import { analyzePostSafety } from './gemini'
 import { notifyAdmins } from './notifications'
 
 // ─── SCORE DE RANKING ───
-// Calcula el score de cada post para el feed
 function calcScore(post) {
-  const likes = post.likes || 0
+  const likes     = post.likes     || 0
   const downloads = post.downloads || 0
-  const comments = post.commentCount || 0
-  const featured = post.featured ? 500 : 0
-  const ageDays = post.createdAt
+  const comments  = post.commentCount || 0
+  const featured  = post.featured ? 500 : 0
+  const ageDays   = post.createdAt?.toDate
     ? (Date.now() - post.createdAt.toDate().getTime()) / 86400000
     : 0
-  // Decaimiento temporal: más reciente = más score
   const decay = Math.max(0, 1 - ageDays / 30)
   return Math.round((likes * 3 + downloads * 2 + comments) * (1 + decay) + featured)
 }
 
-// ─── CREAR PUBLICACIÓN ───
+// ─── CREAR POST ───
 export async function createPost(postData, userId) {
-  // Análisis de seguridad con Gemini
   let safetyResult = { safe: true, score: 100, issues: [] }
   try {
     safetyResult = await analyzePostSafety({
@@ -36,9 +33,7 @@ export async function createPost(postData, userId) {
       description: postData.description,
       downloadUrl: postData.downloadUrl,
     })
-  } catch (e) {
-    console.warn('Gemini safety check failed, continuing:', e.message)
-  }
+  } catch { /* IA deshabilitada, continuar */ }
 
   const post = {
     ...postData,
@@ -49,9 +44,10 @@ export async function createPost(postData, userId) {
     views: 0,
     featured: false,
     verified: false,
+    // IMPORTANTE: todos los posts nuevos arrancan como 'active' directamente
     status: safetyResult.safe ? 'active' : 'pending_review',
     safetyScore: safetyResult.score,
-    safetyIssues: safetyResult.issues,
+    safetyIssues: safetyResult.issues || [],
     score: 0,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -59,22 +55,23 @@ export async function createPost(postData, userId) {
 
   const ref = await addDoc(collection(db, 'posts'), post)
 
-  // Si el contenido es sospechoso, notificar a admins
   if (!safetyResult.safe) {
-    await notifyAdmins({
+    notifyAdmins({
       type: 'suspicious_content',
       postId: ref.id,
       postName: postData.name,
-      reason: safetyResult.reason,
-      issues: safetyResult.issues,
-    })
+      reason: safetyResult.reason || '',
+      issues: safetyResult.issues || [],
+    }).catch(() => {})
   }
 
   return ref.id
 }
 
 // ─── OBTENER FEED PAGINADO ───
-export async function getFeed({ pageSize = 10, lastDoc = null, category = null } = {}) {
+// Muestra posts con status='active' O posts que no tienen campo status (posts antiguos)
+export async function getFeed({ pageSize = 12, lastDoc = null, category = null } = {}) {
+  // Query principal: posts activos ordenados por score y fecha
   let q = query(
     collection(db, 'posts'),
     where('status', '==', 'active'),
@@ -99,18 +96,48 @@ export async function getFeed({ pageSize = 10, lastDoc = null, category = null }
   }
 
   const snap = await getDocs(q)
+  const activePosts = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+
+  // Si no hay posts activos, buscar también posts sin campo status (posts antiguos migrados)
+  if (activePosts.length === 0 && !lastDoc) {
+    const oldQ = category
+      ? query(collection(db, 'posts'), where('category', '==', category), orderBy('createdAt', 'desc'), limit(pageSize))
+      : query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(pageSize))
+    const oldSnap = await getDocs(oldQ)
+    const oldPosts = oldSnap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(p => !p.status || p.status === 'active')
+    return {
+      posts: oldPosts,
+      lastDoc: oldSnap.docs[oldSnap.docs.length - 1] || null,
+      hasMore: oldSnap.docs.length === pageSize,
+    }
+  }
+
   return {
-    posts: snap.docs.map(d => ({ id: d.id, ...d.data() })),
+    posts: activePosts,
     lastDoc: snap.docs[snap.docs.length - 1] || null,
     hasMore: snap.docs.length === pageSize,
   }
+}
+
+// ─── OBTENER POSTS DE UN USUARIO (para perfil) ───
+export async function getUserPosts(userId, { pageSize = 50 } = {}) {
+  // Busca posts del usuario sin filtrar por status (para que vea sus propios posts)
+  const q = query(
+    collection(db, 'posts'),
+    where('authorId', '==', userId),
+    orderBy('createdAt', 'desc'),
+    limit(pageSize)
+  )
+  const snap = await getDocs(q)
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }))
 }
 
 // ─── OBTENER UN POST ───
 export async function getPost(postId) {
   const snap = await getDoc(doc(db, 'posts', postId))
   if (!snap.exists()) return null
-  // Incrementar views
   updateDoc(snap.ref, { views: increment(1) }).catch(() => {})
   return { id: snap.id, ...snap.data() }
 }
@@ -119,9 +146,8 @@ export async function getPost(postId) {
 export async function toggleLike(postId, userId) {
   const postRef = doc(db, 'posts', postId)
   const likeRef = doc(db, 'posts', postId, 'likes', userId)
-  const snap = await getDoc(likeRef)
-
-  const batch = writeBatch(db)
+  const snap    = await getDoc(likeRef)
+  const batch   = writeBatch(db)
 
   if (snap.exists()) {
     batch.delete(likeRef)
@@ -132,10 +158,10 @@ export async function toggleLike(postId, userId) {
   }
 
   await batch.commit()
-  return !snap.exists() // true = liked, false = unliked
+  return !snap.exists()
 }
 
-// ─── COMPROBAR SI DIO LIKE ───
+// ─── COMPROBAR LIKE ───
 export async function hasLiked(postId, userId) {
   const snap = await getDoc(doc(db, 'posts', postId, 'likes', userId))
   return snap.exists()
@@ -151,7 +177,7 @@ export async function deletePost(postId) {
   await deleteDoc(doc(db, 'posts', postId))
 }
 
-// ─── DESTACAR POST (admin) ───
+// ─── DESTACAR POST ───
 export async function toggleFeatured(postId, featured) {
   await updateDoc(doc(db, 'posts', postId), {
     featured,
@@ -159,12 +185,12 @@ export async function toggleFeatured(postId, featured) {
   })
 }
 
-// ─── VERIFICAR POST (admin jr) ───
+// ─── VERIFICAR POST ───
 export async function verifyPost(postId, verified) {
   await updateDoc(doc(db, 'posts', postId), { verified })
 }
 
-// ─── CAMBIAR ESTADO (moderación) ───
+// ─── CAMBIAR STATUS ───
 export async function setPostStatus(postId, status) {
   await updateDoc(doc(db, 'posts', postId), { status })
 }
@@ -180,25 +206,37 @@ export async function reportPost(postId, userId, reason) {
   })
 }
 
-// ─── ACTUALIZAR SCORES (cron-like, llamar ocasionalmente) ───
-export async function refreshScores() {
-  const snap = await getDocs(query(collection(db, 'posts'), where('status', '==', 'active')))
-  const batch = writeBatch(db)
-  snap.docs.forEach(d => {
-    const score = calcScore(d.data())
-    batch.update(d.ref, { score })
-  })
-  await batch.commit()
+// ─── BÚSQUEDA (carga todos para Fuse.js) ───
+export async function searchPosts() {
+  // Busca tanto posts activos como posts sin status (antiguos)
+  const snap = await getDocs(
+    query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(200))
+  )
+  return snap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .filter(p => !p.status || p.status === 'active')
 }
 
-// ─── BÚSQUEDA ───
-export async function searchPosts(term) {
-  // Firestore no tiene full-text search nativo.
-  // Cargamos todos los posts activos y filtramos en cliente con Fuse.js
-  const snap = await getDocs(
-    query(collection(db, 'posts'), where('status', '==', 'active'), orderBy('score', 'desc'), limit(200))
-  )
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+// ─── MIGRAR POSTS ANTIGUOS (ejecutar una vez desde admin) ───
+// Agrega 'status: active' y 'score: 0' a posts que no los tienen
+export async function migrateOldPosts() {
+  const snap = await getDocs(collection(db, 'posts'))
+  const batch = writeBatch(db)
+  let count = 0
+
+  snap.docs.forEach(d => {
+    const data = d.data()
+    if (!data.status) {
+      batch.update(d.ref, {
+        status: 'active',
+        score: calcScore(data),
+      })
+      count++
+    }
+  })
+
+  if (count > 0) await batch.commit()
+  return count
 }
 
 // ─── LISTENER TIEMPO REAL ───
