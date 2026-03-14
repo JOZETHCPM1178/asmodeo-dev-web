@@ -5,7 +5,6 @@ import { toast } from 'react-hot-toast'
 import { useAuth } from '../../context/AuthContext'
 import { createPost } from '../../services/posts'
 import { uploadImage } from '../../services/cloudinary'
-import { generateAppDescription, generateTags } from '../../services/gemini'
 import { publishToTelegram } from '../../services/notifications'
 import styles from './UploadForm.module.css'
 
@@ -34,7 +33,6 @@ export default function UploadForm() {
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [aiLoading, setAiLoading] = useState(false)
   const [step, setStep] = useState('')
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -47,28 +45,6 @@ export default function UploadForm() {
     const reader = new FileReader()
     reader.onload = ev => setImagePreview(ev.target.result)
     reader.readAsDataURL(file)
-  }
-
-  async function handleAiGenerate() {
-    if (!form.name) { toast.error('Escribe el nombre primero'); return }
-    setAiLoading(true)
-    try {
-      const [desc, tags] = await Promise.all([
-        generateAppDescription({
-          name: form.name,
-          category: CATS[form.category]?.label,
-          features: form.description ? [form.description] : [],
-        }),
-        generateTags({ name: form.name, description: form.description, category: form.category }),
-      ])
-      set('description', desc)
-      set('tags', tags.join(', '))
-      toast.success('✨ IA generó descripción y tags')
-    } catch (err) {
-      toast.error('Error con Gemini AI: ' + err.message)
-    } finally {
-      setAiLoading(false)
-    }
   }
 
   async function handleSubmit(e) {
@@ -195,21 +171,9 @@ export default function UploadForm() {
             />
           </div>
 
-          {/* Descripción + AI */}
+          {/* Descripción */}
           <div className="inp-group">
-            <div className={styles.labelRow}>
-              <label className="inp-label">Descripción *</label>
-              <button
-                type="button"
-                className={`btn btn-sm ${styles.aiBtn}`}
-                onClick={handleAiGenerate}
-                disabled={aiLoading}
-              >
-                {aiLoading
-                  ? <><span className="spinner" style={{ width: 14, height: 14 }} /> Generando...</>
-                  : '✨ Generar con IA'}
-              </button>
-            </div>
+            <label className="inp-label">Descripción *</label>
             <textarea
               className="inp"
               placeholder="Describe qué hace esta app, qué tiene de especial..."
