@@ -4,17 +4,33 @@
 
 async function renderAdminJr(tab = 'create') {
   const u = window._currentUser;
-  if (!u?.isAdminJr) return toast('Acceso denegado', 'err');
+  if (!u) return toast('Debes iniciar sesión', 'err');
+  if (!u.isAdminJr) {
+    toast(`Tu rol es: ${u.role} — necesitas admin_jr`, 'err');
+    return;
+  }
+  toast('Cargando panel JR...');
+  const { db, collection, query, where, getDocs } = window._fb;
 
-  const { db, collection, query, where, orderBy, getDocs } = window._fb;
-
-  // Cargar SOLO las publicaciones del admin jr actual
-  const snap = await getDocs(query(
-    collection(db, 'posts'),
-    where('authorId', '==', u.uid),
-    orderBy('createdAt', 'desc')
-  ));
-  window._jrPosts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  try {
+    // Solo where sin orderBy para evitar requerir índice compuesto
+    const snap = await getDocs(query(
+      collection(db, 'posts'),
+      where('authorId', '==', u.uid)
+    ));
+    // Ordenar en el cliente
+    window._jrPosts = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => {
+        const ta = a.createdAt?.seconds || 0;
+        const tb = b.createdAt?.seconds || 0;
+        return tb - ta;
+      });
+  } catch(e) {
+    console.error('Admin Jr query error:', e);
+    toast('Error al cargar: ' + e.message, 'err');
+    window._jrPosts = [];
+  }
 
   setMain(`
     <div class="admin-page">
