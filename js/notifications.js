@@ -177,9 +177,14 @@ async function showNotificationsPanel() {
           : notifs.map(n => {
               const msg = typeof msgs[n.type] === 'function' ? msgs[n.type](n) : (msgs[n.type] || n.message || '');
               const isReport = n.type === 'report_response';
+              const isPost   = n.type === 'like_post' || n.type === 'comment';
+              // like/comment → abrir publicación | follow → abrir perfil | report → nada
+              const clickAction = isReport ? ''
+                : isPost && n.postId ? `document.getElementById('notif-panel')?.remove();showPost('${n.postId}');`
+                : `document.getElementById('notif-panel')?.remove();showUserProfile('${n.fromUid}');`;
               return `
                 <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.05);${!n.read ? 'background:rgba(139,92,246,.08)' : ''};cursor:pointer"
-                  onclick="${isReport ? '' : `showUserProfile('${n.fromUid}');document.getElementById('notif-panel')?.remove()`}">
+                  onclick="${clickAction}">
                   <img src="${n.fromPhoto || avatarUrl(n.fromName)}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.src='${avatarUrl(n.fromName)}'"/>
                   <div style="flex:1;min-width:0">
                     <div style="font-size:.82rem"><b>${n.fromName}</b> ${msg}</div>

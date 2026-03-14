@@ -7,19 +7,17 @@ OneSignalDeferred.push(async function(OneSignal) {
     notifyButton: { enable: false },
     allowLocalhostAsSecureOrigin: false,
   });
-  // Actualizar botón después de init
   if (typeof updateNotifBtn === 'function') setTimeout(updateNotifBtn, 500);
-  // Guardar player ID si está suscrito
   if (typeof saveOneSignalId === 'function') setTimeout(saveOneSignalId, 3000);
+
+  // Escuchar cambios de suscripción
+  OneSignal.User.PushSubscription.addEventListener('change', () => {
+    if (typeof updateNotifBtn === 'function') updateNotifBtn();
+    if (typeof saveOneSignalId === 'function') saveOneSignalId();
+  });
 });
 
 // js/app.js
-
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
-  });
-}
 
 // ─── SOLUCIÓN AL ERROR AL CARGAR ───
 // Espera a que Firebase esté listo antes de mostrar la página.

@@ -30,3 +30,5 @@ Return exactly this format:
     return null;
   }
 }
+
+window.traducirPost = traducirPost;

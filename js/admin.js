@@ -688,5 +688,7 @@ async function banReportedUser(targetId, reportId) {
   await markReportDone(reportId);
 }
 
-window.markReportDone = markReportDone;
+window.markReportDone  = markReportDone;
 window.banReportedUser = banReportedUser;
+window.showAdmin       = showAdmin;
+window.renderAdmin     = renderAdmin;

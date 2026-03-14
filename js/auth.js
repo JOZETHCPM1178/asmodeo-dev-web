@@ -332,9 +332,13 @@ async function uploadProfilePhoto(file) {
     const { db, doc, updateDoc, updateProfile, auth } = window._fb;
     await updateDoc(doc(db, 'users', window._currentUser.uid), { photoURL: url });
     if (auth.currentUser) await updateProfile(auth.currentUser, { photoURL: url });
+    // Actualizar objeto local inmediatamente
     window._currentUser.photoURL = url;
+    // Actualizar imagen de perfil en pantalla
     const el = document.getElementById('prof-photo');
     if (el) el.src = url + '?t=' + Date.now();
+    // Actualizar avatar en el nav
+    document.querySelectorAll('.av-img').forEach(img => { img.src = url + '?t=' + Date.now(); });
     renderNavAuth();
     toast('✅ Foto actualizada');
   } catch(e) {
