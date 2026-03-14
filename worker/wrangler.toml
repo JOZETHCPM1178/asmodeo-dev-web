@@ -1,0 +1,17 @@
+# worker/wrangler.toml
+# ════════════════════════════════════════
+#  CLOUDFLARE WORKER — Configuración de despliegue
+# ════════════════════════════════════════
+name = "asmodeo-worker"
+main = "index.js"
+compatibility_date = "2024-01-01"
+account_id = "TU_ACCOUNT_ID"   # Reemplaza con tu Account ID de Cloudflare
+
+# Variables de entorno NO sensibles (las sensibles van en Dashboard → Secrets)
+[vars]
+ENVIRONMENT = "production"
+
+# Rutas del worker (opcional si usas un dominio propio)
+# [[routes]]
+# pattern = "api.asmodeodev.com/*"
+# zone_name = "asmodeodev.com"
