@@ -1,0 +1,7 @@
+/* src/pages/SearchPage.module.css */
+.page { padding: 2rem 0 4rem; }
+.header { margin-bottom: 1.5rem; }
+.title { font-family: var(--font1); font-size: 1.5rem; font-weight: 900; }
+.sub { color: var(--t2); margin-top: 0.3rem; }
+.searchBar { max-width: 600px; margin-bottom: 1.5rem; }
+.catFilters { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 2rem; }
