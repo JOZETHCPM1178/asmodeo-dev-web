@@ -1,12 +1,11 @@
 // src/components/feed/PostCard.jsx
-import { useState, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '../../context/AuthContext'
-import { toggleLike, registerDownload } from '../../services/posts'
-import { reportPost } from '../../services/posts'
+import { toggleLike, hasLiked, registerDownload, reportPost } from '../../services/posts'
 import { optimizeUrl } from '../../services/cloudinary'
 import CommentsPanel from '../social/CommentsPanel'
 import styles from './PostCard.module.css'
@@ -18,73 +17,84 @@ const CATS = {
   tutorials: { label: 'Tutoriales', icon: '📚', color: 'var(--gold)' },
 }
 
-// Extraer ID de YouTube desde URL
 function getYouTubeId(url) {
   if (!url) return null
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
-  ]
-  for (const p of patterns) {
-    const m = url.match(p)
-    if (m) return m[1]
-  }
-  return null
+  const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/)
+  return m ? m[1] : null
 }
 
 export default function PostCard({ post, compact = false }) {
   const { user } = useAuth()
-  const navigate = useNavigate()
-  const [liked, setLiked] = useState(post._liked || false)
+  const [liked, setLiked] = useState(false)
   const [likeCount, setLikeCount] = useState(post.likes || 0)
+  const [likeLoading, setLikeLoading] = useState(false)
   const [showComments, setShowComments] = useState(false)
   const [showVideo, setShowVideo] = useState(false)
   const [likeAnim, setLikeAnim] = useState(false)
 
   const cat = CATS[post.category] || CATS.apk
   const ytId = getYouTubeId(post.youtubeUrl)
-  const thumbUrl = optimizeUrl(post.imageUrl, { width: 500 })
+  const thumbUrl = post.imageUrl ? optimizeUrl(post.imageUrl, { width: 600, height: 338 }) : null
 
   const createdAgo = post.createdAt?.toDate
     ? formatDistanceToNow(post.createdAt.toDate(), { addSuffix: true, locale: es })
     : ''
 
+  // ─── Cargar estado inicial del like ───
+  useEffect(() => {
+    if (!user?.uid || !post.id) return
+    let cancelled = false
+    hasLiked(post.id, user.uid)
+      .then(result => { if (!cancelled) setLiked(result) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [user?.uid, post.id])
+
   const handleLike = useCallback(async () => {
     if (!user) { toast.error('Inicia sesión para dar like'); return }
+    if (likeLoading) return
+    setLikeLoading(true)
     setLikeAnim(true)
     setTimeout(() => setLikeAnim(false), 600)
+
     const wasLiked = liked
+    // Optimistic update
     setLiked(!wasLiked)
     setLikeCount(c => wasLiked ? c - 1 : c + 1)
+
     try {
       await toggleLike(post.id, user.uid)
-    } catch {
+    } catch (err) {
+      // Revertir si falla
       setLiked(wasLiked)
       setLikeCount(c => wasLiked ? c + 1 : c - 1)
       toast.error('Error al procesar like')
+    } finally {
+      setLikeLoading(false)
     }
-  }, [user, liked, post.id])
+  }, [user, liked, likeLoading, post.id])
 
   const handleDownload = useCallback(async () => {
     if (!post.downloadUrl) { toast.error('Link de descarga no disponible'); return }
-    await registerDownload(post.id)
-    window.open(post.downloadUrl, '_blank', 'noopener')
+    await registerDownload(post.id).catch(() => {})
+    window.open(post.downloadUrl, '_blank', 'noopener,noreferrer')
   }, [post])
 
   const handleReport = useCallback(async () => {
     if (!user) { toast.error('Inicia sesión para reportar'); return }
-    const reason = prompt('¿Por qué reportas esta publicación?')
+    const reason = window.prompt('¿Por qué reportas esta publicación?')
     if (!reason) return
     try {
       await reportPost(post.id, user.uid, reason)
-      toast.success('Reporte enviado. Lo revisaremos pronto.')
+      toast.success('Reporte enviado ✅')
     } catch {
       toast.error('Error al enviar reporte')
     }
   }, [user, post.id])
 
   return (
-    <article className={`${styles.card} ${compact ? styles.compact : ''} fade-up card`}>
-      {/* Badges superiores */}
+    <article className={`${styles.card} ${compact ? styles.compact : ''}`}>
+      {/* Top badges */}
       <div className={styles.topRow}>
         <span className={styles.catPill} style={{ color: cat.color }}>
           {cat.icon} {cat.label}
@@ -92,12 +102,22 @@ export default function PostCard({ post, compact = false }) {
         <div className={styles.topRight}>
           {post.featured && <span className="badge badge-gold">⭐ Destacado</span>}
           {post.verified && <span className="badge badge-cyan">✓ Verificado</span>}
-          <button className={`${styles.moreBtn} btn-icon btn`} title="Reportar" onClick={handleReport}>⋯</button>
+          <button
+            className={`${styles.moreBtn}`}
+            title="Reportar publicación"
+            onClick={handleReport}
+          >
+            ⋯
+          </button>
         </div>
       </div>
 
-      {/* Media: imagen o video */}
-      <div className={styles.media} onClick={() => ytId && setShowVideo(true)}>
+      {/* Media */}
+      <div
+        className={styles.media}
+        onClick={() => ytId && !showVideo && setShowVideo(true)}
+        style={{ cursor: ytId ? 'pointer' : 'default' }}
+      >
         {showVideo && ytId ? (
           <iframe
             className={styles.ytEmbed}
@@ -116,30 +136,27 @@ export default function PostCard({ post, compact = false }) {
                 loading="lazy"
               />
             )}
-            {ytId && (
+            {!thumbUrl && (
+              <div className={styles.noMedia}>{cat.icon}</div>
+            )}
+            {ytId && !showVideo && (
               <div className={styles.playOverlay}>
                 <div className={styles.playBtn}>▶</div>
                 <span>Ver preview</span>
-              </div>
-            )}
-            {!thumbUrl && !ytId && (
-              <div className={styles.noMedia}>
-                {cat.icon}
               </div>
             )}
           </>
         )}
       </div>
 
-      {/* Contenido */}
+      {/* Body */}
       <div className={styles.body}>
         {/* Autor */}
         <Link to={`/profile/${post.authorId}`} className={styles.author}>
-          {post.authorPhoto ? (
-            <img src={optimizeUrl(post.authorPhoto, { width: 60 })} alt="" className="avatar avatar-sm" />
-          ) : (
-            <div className={styles.avatarFallback}>{(post.authorName || 'U')[0]}</div>
-          )}
+          {post.authorPhoto
+            ? <img src={optimizeUrl(post.authorPhoto, { width: 60, height: 60 })} alt="" className="avatar avatar-sm" />
+            : <div className={styles.avatarFb}>{(post.authorName || 'U')[0].toUpperCase()}</div>
+          }
           <div>
             <div className={styles.authorName}>{post.authorName || 'Usuario'}</div>
             {createdAgo && <div className={styles.date}>{createdAgo}</div>}
@@ -147,7 +164,9 @@ export default function PostCard({ post, compact = false }) {
         </Link>
 
         {/* Título */}
-        <Link to={`/post/${post.id}`} className={styles.title}>{post.name}</Link>
+        <Link to={`/post/${post.id}`} className={styles.title}>
+          {post.name}
+        </Link>
 
         {/* Descripción */}
         {!compact && post.description && (
@@ -170,6 +189,8 @@ export default function PostCard({ post, compact = false }) {
         <button
           className={`${styles.actionBtn} ${liked ? styles.liked : ''}`}
           onClick={handleLike}
+          disabled={likeLoading}
+          title={liked ? 'Quitar like' : 'Dar like'}
         >
           <span className={likeAnim ? styles.heartPop : ''}>
             {liked ? '❤️' : '🤍'}
@@ -179,24 +200,29 @@ export default function PostCard({ post, compact = false }) {
 
         {/* Comentarios */}
         <button
-          className={styles.actionBtn}
+          className={`${styles.actionBtn} ${showComments ? styles.activeAction : ''}`}
           onClick={() => setShowComments(o => !o)}
+          title="Ver comentarios"
         >
           💬 <span>{post.commentCount || 0}</span>
         </button>
 
-        {/* Descargas */}
+        {/* Descargas stat */}
         <span className={styles.statPill}>
           ⬇️ {post.downloads || 0}
         </span>
 
-        {/* Botón descarga */}
-        <button className="btn btn-primary btn-sm" onClick={handleDownload} style={{ marginLeft: 'auto' }}>
+        {/* Botón descargar */}
+        <button
+          className="btn btn-primary btn-sm"
+          onClick={handleDownload}
+          style={{ marginLeft: 'auto' }}
+        >
           Descargar
         </button>
       </div>
 
-      {/* Panel de comentarios */}
+      {/* Panel comentarios — sin X redundante, se cierra tocando el botón 💬 */}
       {showComments && (
         <CommentsPanel postId={post.id} onClose={() => setShowComments(false)} />
       )}
