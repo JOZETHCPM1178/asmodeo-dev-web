@@ -1,0 +1,49 @@
+// src/context/AuthContext.jsx
+// ════════════════════════════════════════
+//  AUTH CONTEXT — Estado global de autenticación
+// ════════════════════════════════════════
+import { createContext, useContext, useEffect, useState } from 'react'
+import { auth, onAuthStateChanged } from '../services/firebase'
+import { buildUserObject } from '../services/auth'
+import { saveOneSignalId } from '../services/notifications'
+
+const AuthContext = createContext(null)
+
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(undefined) // undefined = cargando, null = no autenticado
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const fullUser = await buildUserObject(firebaseUser)
+        setUser(fullUser)
+        // Guardar OneSignal ID si está disponible
+        setTimeout(() => saveOneSignalId(firebaseUser.uid), 3000)
+      } else {
+        setUser(null)
+      }
+      setLoading(false)
+    })
+    return unsub
+  }, [])
+
+  const refreshUser = async () => {
+    if (auth.currentUser) {
+      const fullUser = await buildUserObject(auth.currentUser)
+      setUser(fullUser)
+    }
+  }
+
+  return (
+    <AuthContext.Provider value={{ user, loading, refreshUser }}>
+      {children}
+    </AuthContext.Provider>
+  )
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext)
+  if (!ctx) throw new Error('useAuth debe usarse dentro de AuthProvider')
+  return ctx
+      }
