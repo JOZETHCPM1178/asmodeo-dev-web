@@ -15,7 +15,9 @@ async function renderComments(postId, postAuthorId) {
   const cmtHTML = (c, depth = 0) => `
     <div class="cmt ${c.pinned ? 'pinned' : ''} ${depth > 0 ? 'reply' : ''}">
       ${c.pinned ? `<div class="pin-tag">📌 Fijado por Admin</div>` : ''}
-      <img src="${c.authorPhoto || avatarUrl(c.authorName)}" class="cmt-av-sm" onclick="showUserProfile('${c.authorId}')" style="cursor:pointer" onerror="this.src='${avatarUrl(c.authorName)}'"/>
+      <img src="${c.authorPhoto || avatarUrl(c.authorName)}" class="cmt-av-sm" 
+        ${c.authorId ? `onclick="showUserProfile('${c.authorId}')" style="cursor:pointer"` : 'style="cursor:default"'}
+        onerror="this.src='${avatarUrl(c.authorName)}'"/>
       <div class="cmt-body">
         <div class="cmt-header"><span class="cmt-name">${c.authorName || 'Usuario'}</span><span class="cmt-date">${fmtDate(c.createdAt)}</span></div>
         <div class="cmt-text">${c.text || ''}</div>
