@@ -1,63 +1,94 @@
 /* src/components/ui/VerifiedBadge.module.css */
 
-@keyframes shineSwipe {
-  0%   { left: -80%; opacity: 0; }
-  20%  { opacity: 0.8; }
-  80%  { opacity: 0.8; }
-  100% { left: 180%; opacity: 0; }
+/* Animación de color neon rojo-vino ↔ negro — 2 colores */
+@keyframes neonPulse {
+  0%   { background: #8b0000; box-shadow: 0 0 6px 2px rgba(139,0,0,0.7), 0 0 12px 4px rgba(139,0,0,0.4); }
+  25%  { background: #c0001a; box-shadow: 0 0 8px 3px rgba(192,0,26,0.8), 0 0 16px 6px rgba(192,0,26,0.4); }
+  50%  { background: #1a0000; box-shadow: 0 0 10px 4px rgba(139,0,0,0.9), 0 0 20px 8px rgba(139,0,0,0.5); }
+  75%  { background: #c0001a; box-shadow: 0 0 8px 3px rgba(192,0,26,0.8), 0 0 16px 6px rgba(192,0,26,0.4); }
+  100% { background: #8b0000; box-shadow: 0 0 6px 2px rgba(139,0,0,0.7), 0 0 12px 4px rgba(139,0,0,0.4); }
 }
 
-@keyframes badgePop {
+@keyframes checkPop {
   0%, 100% { transform: scale(1); }
-  50%      { transform: scale(1.2); }
+  50%       { transform: scale(1.15); }
 }
 
-/* Contenedor — sin background, solo el SVG */
+/* Wrapper — sin fondo, sin border-radius cuadrado */
 .badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  overflow: hidden;
   flex-shrink: 0;
   cursor: default;
-  /* Tamaño normal — visible junto al nombre */
-  width: 22px;
-  height: 22px;
-  border-radius: 2px;
-  background: transparent; /* SIN fondo cyan */
-  animation: badgePop 5s ease-in-out infinite;
+  /* Tamaño que se vea bien junto al texto */
+  width: 20px;
+  height: 20px;
+  /* Sin fondo aquí — el fondo está en .star */
+  background: transparent;
+  border: none;
+  outline: none;
+  /* Pop suave */
+  animation: checkPop 4s ease-in-out infinite;
 }
 
-/* Tamaño grande para perfil */
 .large {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
 }
 
-.svg {
+/* Estrella con clip-path — forma real de estrella, sin cuadro */
+.star {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   height: 100%;
-  display: block;
-  /* Sombra para que resalte sobre cualquier fondo */
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
+  /* Clip-path de estrella de 8 puntas */
+  clip-path: polygon(
+    50% 0%,
+    61% 35%,
+    98% 35%,
+    68% 57%,
+    79% 91%,
+    50% 70%,
+    21% 91%,
+    32% 57%,
+    2%  35%,
+    39% 35%
+  );
+  /* Color neon animado */
+  animation: neonPulse 2.5s ease-in-out infinite;
+  position: relative;
+  z-index: 1;
 }
 
-/* Brillo que barre */
-.shine {
+/* Check blanco dentro de la estrella */
+.check {
+  color: #fff;
+  font-size: 0.55em;
+  font-weight: 900;
+  line-height: 1;
+  /* Compensar el clip-path para centrar */
+  margin-top: 15%;
+  text-shadow: 0 0 4px rgba(255,255,255,0.8);
+  display: block;
+}
+
+.large .check {
+  font-size: 0.6em;
+}
+
+/* Glow difuso alrededor — sin forma cuadrada */
+.glow {
   position: absolute;
-  top: 0;
-  left: -80%;
-  width: 60%;
-  height: 100%;
-  background: linear-gradient(
-    105deg,
-    transparent 10%,
-    rgba(255,255,255,0.5) 50%,
-    transparent 90%
-  );
-  transform: skewX(-15deg);
+  inset: -3px;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: 0 0 8px 3px rgba(139,0,0,0.5);
+  animation: neonPulse 2.5s ease-in-out infinite;
+  z-index: 0;
   pointer-events: none;
-  animation: shineSwipe 5s ease-in-out infinite;
-  animation-delay: 0.5s;
+  clip-path: none; /* El glow sí es circular */
 }
