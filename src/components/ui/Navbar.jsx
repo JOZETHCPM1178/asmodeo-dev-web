@@ -137,8 +137,9 @@ export default function Navbar() {
                         <div className={styles.dropUserInfo}>
                           <div className={styles.dropName}>{user.displayName}</div>
                           <div className={styles.dropEmail}>{user.email}</div>
-                          {user.isAdmin   && <span className="badge badge-purple">👑 ADMIN</span>}
-                          {user.isAdminJr && <span className="badge badge-cyan">🛡️ ADMIN JR</span>}
+                          {user.isOwner   && <span className="badge badge-gold">👑 OWNER</span>}
+                          {!user.isOwner && user.isAdmin   && <span className="badge badge-purple">👑 ADMIN</span>}
+                          {user.isAdminJr && <span className="badge badge-cyan">🛡️ MOD</span>}
                         </div>
                       </div>
                       <div className={styles.dropDivider} />
@@ -148,7 +149,7 @@ export default function Navbar() {
                       <Link to="/upload" className={styles.dropItem} onClick={() => setDropOpen(false)}>
                         📤 Subir publicación
                       </Link>
-                      {user.isStaff && (
+                      {(user.isStaff || user.isOwner) && (
                         <Link to="/admin" className={styles.dropItem} onClick={() => setDropOpen(false)}>
                           🛡️ Panel de Admin
                         </Link>
@@ -192,7 +193,7 @@ export default function Navbar() {
                 <div className={styles.mobileDivider} />
                 <Link to="/upload"               className={styles.mobileLink}>📤 Subir</Link>
                 <Link to={`/profile/${user.uid}`} className={styles.mobileLink}>👤 Mi perfil</Link>
-                {user.isStaff && <Link to="/admin" className={styles.mobileLink}>🛡️ Panel Admin</Link>}
+                {(user.isStaff || user.isOwner) && <Link to="/admin" className={styles.mobileLink}>🛡️ Panel Admin</Link>}
               </>
             )}
             <div className={styles.mobileDivider} />

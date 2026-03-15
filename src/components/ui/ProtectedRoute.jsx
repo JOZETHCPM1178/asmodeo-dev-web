@@ -14,7 +14,7 @@ export default function ProtectedRoute({ children, requireStaff = false }) {
   }
 
   if (!user) return <Navigate to="/" replace />
-  if (requireStaff && !user.isStaff) return <Navigate to="/" replace />
+  if (requireStaff && !user.isStaff && !user.isOwner) return <Navigate to="/" replace />
 
   return children
 }
