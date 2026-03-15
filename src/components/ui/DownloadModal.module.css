@@ -1,0 +1,102 @@
+/* src/components/ui/DownloadModal.module.css */
+
+.overlay {
+  position: fixed; inset: 0; z-index: 1100;
+  background: rgba(0,0,0,.65);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 1rem;
+}
+
+.modal {
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: var(--r2);
+  width: 100%; max-width: 400px;
+  box-shadow: 0 24px 80px rgba(0,0,0,.7);
+  animation: scaleIn .2s ease;
+  overflow: hidden;
+  display: flex; flex-direction: column; gap: 1.1rem;
+  padding: 1.25rem;
+}
+
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.title {
+  font-family: var(--font1); font-size: 1rem; font-weight: 700;
+}
+.closeBtn {
+  background: rgba(255,255,255,.06); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--t2); cursor: pointer;
+  font-size: 0.9rem; padding: 0.3rem 0.6rem; transition: var(--tr);
+}
+.closeBtn:hover { color: var(--t1); }
+
+/* Post info */
+.postInfo {
+  display: flex; gap: 0.85rem; align-items: center;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 0.75rem;
+}
+.thumb {
+  width: 60px; height: 60px; border-radius: var(--r);
+  object-fit: cover; flex-shrink: 0;
+}
+.postDetails { flex: 1; min-width: 0; }
+.postName {
+  font-weight: 700; font-size: 0.9rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.postMeta { font-size: 0.75rem; color: var(--t3); margin-top: 0.2rem; }
+
+/* Countdown */
+.countdownWrap {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 0.75rem; padding: 0.5rem 0;
+}
+.countdownCircle {
+  width: 72px; height: 72px; border-radius: 50%;
+  border: 3px solid var(--p2);
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(124,58,237,.1);
+  animation: pulse 1s ease-in-out infinite;
+}
+.countdownNum {
+  font-family: var(--font1); font-size: 1.8rem; font-weight: 900;
+  color: var(--p2);
+}
+.countdownText { font-size: 0.85rem; color: var(--t2); text-align: center; }
+
+/* Downloading */
+.downloadingWrap {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 0.6rem; padding: 0.5rem 0;
+}
+.downloadIcon { font-size: 2.5rem; }
+.downloadingText { font-size: 0.85rem; color: var(--t2); text-align: center; }
+
+/* Progress bar */
+.progressBar {
+  height: 4px; background: var(--bg2);
+  border-radius: 4px; overflow: hidden;
+}
+.progressFill {
+  height: 100%; background: linear-gradient(90deg, var(--p), var(--p2));
+  border-radius: 4px; transition: width 1s linear;
+}
+
+/* Actions */
+.actions {
+  display: flex; gap: 0.5rem; align-items: center;
+}
+
+.note {
+  font-size: 0.72rem; color: var(--t3);
+  text-align: center; padding-top: 0;
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(124,58,237,.3); }
+  50%       { box-shadow: 0 0 0 8px rgba(124,58,237,0); }
+}
