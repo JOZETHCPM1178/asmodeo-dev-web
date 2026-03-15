@@ -14,6 +14,7 @@ import { optimizeUrl, uploadImage } from '../services/cloudinary'
 import CommentsPanel from '../components/social/CommentsPanel'
 import FollowButton from '../components/social/FollowButton'
 import VerifiedBadge from '../components/ui/VerifiedBadge'
+import DownloadModal from '../components/ui/DownloadModal'
 import styles from './PostDetailPage.module.css'
 
 const CATS = {
@@ -40,6 +41,7 @@ export default function PostDetailPage() {
   const [likeCount, setLikeCount] = useState(0)
   const [showVideo, setShowVideo] = useState(false)
   const [showEdit, setShowEdit]   = useState(false)
+  const [showDownload, setShowDownload] = useState(false)
 
   useEffect(() => {
     getPost(id)
@@ -72,20 +74,11 @@ export default function PostDetailPage() {
   async function handleDownload() {
     if (!post?.downloadUrl) { toast.error('Link no disponible'); return }
     await registerDownload(id).catch(() => {})
-    if (post.directDownload) {
-      const a = document.createElement('a')
-      a.href = post.downloadUrl
-      a.download = (post.name || 'archivo') + '.apk'
-      a.target = '_blank'; a.rel = 'noopener noreferrer'
-      document.body.appendChild(a); a.click(); document.body.removeChild(a)
-      toast.success('⬇️ Descargando...')
-    } else {
-      window.open(post.downloadUrl, '_blank', 'noopener,noreferrer')
-    }
+    setShowDownload(true)
   }
 
   async function handleShare() {
-    const url  = `https://asmodeo-og.asmodeotayson.workers.dev/?post=${id}`
+    const url  = `${window.location.origin}/post/${id}`
     const text = `${post.name} — Descárgalo en AsmodeoDev`
     if (navigator.share) {
       try { await navigator.share({ title: post.name, text, url }) } catch {}
@@ -516,6 +509,10 @@ function EditPostModal({ post, user, onClose, onSaved }) {
         </div>
       </div>
     </div>
+
+    {showDownload && post && (
+      <DownloadModal post={post} onClose={() => setShowDownload(false)} />
+    )}
   )
 }
 
