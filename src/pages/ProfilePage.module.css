@@ -50,13 +50,15 @@
   box-shadow: 0 0 0 2px var(--p);
 }
 .verifiedBadge {
-  position: absolute; bottom: 2px; right: 2px;
-  width: 22px; height: 22px;
-  border-radius: 50%;
-  background: var(--cyan); color: #fff;
-  font-size: 0.72rem; font-weight: 700;
-  display: flex; align-items: center; justify-content: center;
-  border: 2px solid var(--card);
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  /* Sin fondo, sin borde — solo el componente VerifiedBadge */
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .profileInfo { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 0.7rem; }
