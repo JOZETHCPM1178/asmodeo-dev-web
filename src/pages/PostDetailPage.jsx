@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext'
 import { optimizeUrl } from '../services/cloudinary'
 import CommentsPanel from '../components/social/CommentsPanel'
 import FollowButton from '../components/social/FollowButton'
+import VerifiedBadge from '../components/ui/VerifiedBadge'
 import styles from './PostDetailPage.module.css'
 
 const CATS = {
@@ -216,7 +217,7 @@ export default function PostDetailPage() {
                 </span>
                 <div className={styles.badges}>
                   {post.featured && <span className="badge badge-gold">⭐ Destacado</span>}
-                  {post.verified && <span className="badge badge-cyan">✓ Verificado</span>}
+                  {post.verified && <VerifiedBadge title="Publicación verificada" />}
                 </div>
               </div>
 

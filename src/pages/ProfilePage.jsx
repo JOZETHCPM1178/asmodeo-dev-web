@@ -9,6 +9,7 @@ import FollowButton from '../components/social/FollowButton'
 import PostCard from '../components/feed/PostCard'
 import { uploadAvatar, optimizeUrl } from '../services/cloudinary'
 import { getOrCreateConversation } from '../services/dm'
+import VerifiedBadge from '../components/ui/VerifiedBadge'
 import styles from './ProfilePage.module.css'
 
 export default function ProfilePage() {
@@ -80,13 +81,18 @@ export default function ProfilePage() {
               ? <img src={optimizeUrl(profile.photoURL, { width: 200, height: 200 })} alt="" className={styles.avatar} />
               : <div className={styles.avatarFb}>{(profile.displayName || profile.username || 'U')[0].toUpperCase()}</div>
             }
-            {profile.verified && <div className={styles.verifiedBadge}>✓</div>}
+            {profile.verified && (
+              <div className={styles.verifiedBadge}>
+                <VerifiedBadge large title="Usuario verificado" />
+              </div>
+            )}
           </div>
 
           {/* Info */}
           <div className={styles.profileInfo}>
             <div className={styles.nameRow}>
               <h1 className={styles.username}>{profile.displayName || profile.username}</h1>
+              {profile.verified && <VerifiedBadge title="Usuario verificado" />}
               {profile.role === 'admin'    && <span className="badge badge-purple">👑 ADMIN</span>}
               {profile.role === 'admin_jr' && <span className="badge badge-cyan">🛡️ ADMIN JR</span>}
             </div>
