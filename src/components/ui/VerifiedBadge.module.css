@@ -1,20 +1,28 @@
 /* src/components/ui/VerifiedBadge.module.css */
 
-/* Barrido diagonal del brillo blanco — igual a la foto */
+/* Brillo blanco que barre en diagonal dentro de la estrella */
 @keyframes shineSweep {
-  0%   { transform: rotate(-30deg) translateX(-180px); opacity: 0; }
-  15%  { opacity: 1; }
-  85%  { opacity: 1; }
-  100% { transform: rotate(-30deg) translateX(220px); opacity: 0; }
+  0%   { transform: rotate(-35deg) translate(-120px, 0); opacity: 0; }
+  10%  { opacity: 0.85; }
+  90%  { opacity: 0.85; }
+  100% { transform: rotate(-35deg) translate(180px, 0); opacity: 0; }
 }
 
-/* Pulso suave del badge */
-@keyframes badgePulse {
-  0%, 100% { transform: scale(1); filter: drop-shadow(0 1px 3px rgba(0,0,0,.5)); }
-  50%       { transform: scale(1.12); filter: drop-shadow(0 2px 8px rgba(0,0,0,.7)); }
+/* Pulso de glow rojo neon — 2 colores: rojo vino oscuro ↔ rojo neon fuerte */
+@keyframes neonGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 4px #8b0000)
+            drop-shadow(0 0 8px #8b0000)
+            drop-shadow(0 0 2px #ff0022);
+  }
+  50% {
+    filter: drop-shadow(0 0 6px #ff0022)
+            drop-shadow(0 0 14px #cc0000)
+            drop-shadow(0 0 20px #8b0000);
+  }
 }
 
-/* Contenedor — transparente, solo el SVG */
+/* Contenedor — completamente transparente, sin borde, sin fondo */
 .wrap {
   display: inline-flex;
   align-items: center;
@@ -26,43 +34,39 @@
   background: transparent;
   border: none;
   outline: none;
-  animation: badgePulse 4s ease-in-out infinite;
-  overflow: visible;
+  /* Glow neon rojo animado en el contenedor */
+  animation: neonGlow 2s ease-in-out infinite;
 }
 
 .large {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
 }
 
-/* SVG principal */
+/* SVG ocupa todo */
 .svg {
   width: 100%;
   height: 100%;
   display: block;
-  overflow: hidden;
 }
 
-/* Estrella negra */
+/* Estrella — negro puro */
 .star {
   fill: #0d0d0d;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,.6));
 }
 
-/* Check blanco brillante */
+/* Check blanco con glow blanco */
 .check {
   fill: none;
   stroke: #ffffff;
-  stroke-width: 11;
+  stroke-width: 12;
   stroke-linecap: round;
   stroke-linejoin: round;
-  filter: drop-shadow(0 0 4px rgba(255,255,255,.9));
+  filter: drop-shadow(0 0 3px rgba(255,255,255,0.9));
 }
 
-/* Brillo blanco diagonal que barre — igual a la foto */
+/* Brillo diagonal — animado, clipado a la estrella */
 .shine {
-  fill: white;
-  opacity: 0;
-  animation: shineSweep 4s ease-in-out infinite;
-  animation-delay: 0.8s;
+  animation: shineSweep 3s ease-in-out infinite;
+  animation-delay: 0.5s;
 }
