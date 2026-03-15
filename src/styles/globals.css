@@ -356,3 +356,52 @@ body {
   .container { padding: 0 0.75rem; }
   .section { padding: 2rem 0; }
 }
+
+/* ─── VERIFIED BADGE — Estilo Telegram ─── */
+@keyframes verifiedShine {
+  0%   { opacity: 1; transform: scale(1); }
+  50%  { opacity: 0.7; transform: scale(1.15); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes verifiedPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(6,182,212,0); }
+  50%       { box-shadow: 0 0 0 6px rgba(6,182,212,0.15); }
+}
+
+.verified-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: #06b6d4;
+  border-radius: 50%;
+  position: relative;
+  flex-shrink: 0;
+  cursor: default;
+  animation: verifiedPulse 3s ease-in-out infinite;
+  /* Forma de estrella/escudo con clip-path */
+  clip-path: polygon(
+    50% 0%, 61% 35%, 98% 35%, 68% 57%,
+    79% 91%, 50% 70%, 21% 91%, 32% 57%,
+    2% 35%, 39% 35%
+  );
+}
+.verified-badge::after {
+  content: '✓';
+  color: #fff;
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1;
+  /* Compensar el clip-path para centrar el ✓ */
+  margin-top: 2px;
+}
+/* Tamaño grande para perfil */
+.verified-badge-lg {
+  width: 26px;
+  height: 26px;
+}
+.verified-badge-lg::after {
+  font-size: 13px;
+  margin-top: 3px;
+}
