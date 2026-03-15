@@ -146,6 +146,9 @@ export default function Navbar() {
                       <Link to={`/profile/${user.uid}`} className={styles.dropItem} onClick={() => setDropOpen(false)}>
                         👤 Mi perfil
                       </Link>
+                      <Link to="/messages" className={styles.dropItem} onClick={() => setDropOpen(false)}>
+                        ✉️ Mensajes
+                      </Link>
                       <Link to="/upload" className={styles.dropItem} onClick={() => setDropOpen(false)}>
                         📤 Subir publicación
                       </Link>
@@ -192,6 +195,7 @@ export default function Navbar() {
               <>
                 <div className={styles.mobileDivider} />
                 <Link to="/upload"               className={styles.mobileLink}>📤 Subir</Link>
+                <Link to="/messages"             className={styles.mobileLink}>✉️ Mensajes</Link>
                 <Link to={`/profile/${user.uid}`} className={styles.mobileLink}>👤 Mi perfil</Link>
                 {(user.isStaff || user.isOwner) && <Link to="/admin" className={styles.mobileLink}>🛡️ Panel Admin</Link>}
               </>

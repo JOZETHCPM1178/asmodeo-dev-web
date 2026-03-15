@@ -218,17 +218,16 @@ export default function InboxPanel({ notifications = [], onClose }) {
         {/* ── MENSAJES ── */}
         {!activeConv && tab === 'messages' && (
           <div className={styles.body}>
-            {conversations.length === 0
-              ? <EmptyState icon="✉️" text="Sin mensajes aún" sub="Visita un perfil para escribir" />
-              : conversations.map(conv => (
-                <ConvRow key={conv.id} conv={conv} myUid={user.uid}
-                  onClick={(otherId, otherUser) => {
-                    setActiveConv({ id: conv.id, otherUser })
-                    setMessages([])
-                  }}
-                />
-              ))
-            }
+            <div className={styles.goToMessages}>
+              <span style={{ fontSize: '2rem' }}>✉️</span>
+              <p style={{ fontWeight: 700 }}>Mensajes privados</p>
+              <p style={{ fontSize: '0.8rem', color: 'var(--t3)', margin: '0.25rem 0 0.75rem' }}>
+                Accede a tu bandeja completa para chatear
+              </p>
+              <a href="/messages" className="btn btn-primary btn-sm" onClick={onClose}>
+                Abrir mensajes
+              </a>
+            </div>
           </div>
         )}
 
