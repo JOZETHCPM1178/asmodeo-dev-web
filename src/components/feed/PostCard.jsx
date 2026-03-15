@@ -11,6 +11,7 @@ import {
 } from '../../services/posts'
 import { optimizeUrl } from '../../services/cloudinary'
 import CommentsPanel from '../social/CommentsPanel'
+import VerifiedBadge from '../ui/VerifiedBadge'
 import styles from './PostCard.module.css'
 
 const CATS = {
@@ -27,8 +28,8 @@ function getYouTubeId(url) {
 }
 
 export default function PostCard({ post, compact = false, onDeleted }) {
-  const { user }  = useAuth()
-  const menuRef   = useRef(null)
+  const { user } = useAuth()
+  const menuRef  = useRef(null)
 
   const [liked, setLiked]               = useState(false)
   const [likeCount, setLikeCount]       = useState(post.likes || 0)
@@ -39,13 +40,13 @@ export default function PostCard({ post, compact = false, onDeleted }) {
   const [menuOpen, setMenuOpen]         = useState(false)
   const [deleted, setDeleted]           = useState(false)
 
-  const cat        = CATS[post.category] || CATS.apk
-  const ytId       = getYouTubeId(post.youtubeUrl)
-  const thumbUrl   = post.imageUrl ? optimizeUrl(post.imageUrl, { width: 600, height: 338 }) : null
-  const authorName = post.authorName  || 'Usuario'
-  const authorPhoto= post.authorPhoto || null
-  const isOwner    = user?.uid === post.authorId
-  const canManage  = user?.isStaff || isOwner
+  const cat         = CATS[post.category] || CATS.apk
+  const ytId        = getYouTubeId(post.youtubeUrl)
+  const thumbUrl    = post.imageUrl ? optimizeUrl(post.imageUrl, { width: 600, height: 338 }) : null
+  const authorName  = post.authorName  || 'Usuario'
+  const authorPhoto = post.authorPhoto || null
+  const isOwner     = user?.uid === post.authorId
+  const canManage   = user?.isStaff || isOwner
 
   const createdAgo = post.createdAt?.toDate
     ? formatDistanceToNow(post.createdAt.toDate(), { addSuffix: true, locale: es })
@@ -53,20 +54,16 @@ export default function PostCard({ post, compact = false, onDeleted }) {
 
   // Cerrar menú al click fuera
   useEffect(() => {
-    const handler = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    const h = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
   }, [])
 
-  // Cargar estado de like
+  // Cargar estado like
   useEffect(() => {
     if (!user?.uid || !post.id) return
     let cancelled = false
-    hasLiked(post.id, user.uid)
-      .then(r => { if (!cancelled) setLiked(r) })
-      .catch(() => {})
+    hasLiked(post.id, user.uid).then(r => { if (!cancelled) setLiked(r) }).catch(() => {})
     return () => { cancelled = true }
   }, [user?.uid, post.id])
 
@@ -77,18 +74,12 @@ export default function PostCard({ post, compact = false, onDeleted }) {
     setLikeLoading(true)
     setLikeAnim(true)
     setTimeout(() => setLikeAnim(false), 600)
-    const wasLiked = liked
-    setLiked(!wasLiked)
-    setLikeCount(c => wasLiked ? c - 1 : c + 1)
-    try {
-      await toggleLike(post.id, user.uid)
-    } catch {
-      setLiked(wasLiked)
-      setLikeCount(c => wasLiked ? c + 1 : c - 1)
-      toast.error('Error al procesar like')
-    } finally {
-      setLikeLoading(false)
-    }
+    const was = liked
+    setLiked(!was)
+    setLikeCount(c => was ? c - 1 : c + 1)
+    try { await toggleLike(post.id, user.uid) }
+    catch { setLiked(was); setLikeCount(c => was ? c + 1 : c - 1); toast.error('Error') }
+    finally { setLikeLoading(false) }
   }, [user, liked, likeLoading, post.id])
 
   // ─── DESCARGA ───
@@ -102,69 +93,59 @@ export default function PostCard({ post, compact = false, onDeleted }) {
   const handleShare = useCallback(async () => {
     const url  = `${window.location.origin}/post/${post.id}`
     const text = `${post.name} — Descárgalo en AsmodeoDev`
+    setMenuOpen(false)
     if (navigator.share) {
-      try { await navigator.share({ title: post.name, text, url }) }
-      catch { /* cancelado */ }
+      try { await navigator.share({ title: post.name, text, url }) } catch {}
       return
     }
-    try {
-      await navigator.clipboard.writeText(url)
-      toast.success('🔗 Link copiado')
-    } catch {
+    try { await navigator.clipboard.writeText(url) }
+    catch {
       const el = document.createElement('input')
-      el.value = url
-      document.body.appendChild(el)
-      el.select()
-      document.execCommand('copy')
-      document.body.removeChild(el)
-      toast.success('🔗 Link copiado')
+      el.value = url; document.body.appendChild(el); el.select()
+      document.execCommand('copy'); document.body.removeChild(el)
     }
+    toast.success('🔗 Link copiado')
   }, [post])
 
-  // ─── ACCIONES DE MENÚ ───
+  // ─── MENÚ ACCIONES ───
   async function menuAction(action) {
     setMenuOpen(false)
     try {
-      switch (action) {
-        case 'report': {
-          const reason = window.prompt('¿Por qué reportas esta publicación?')
-          if (!reason?.trim()) return
-          await reportPost(post.id, user.uid, reason)
-          toast.success('Reporte enviado ✅')
-          break
-        }
-        case 'delete': {
-          if (!window.confirm(`¿Eliminar "${post.name}"?`)) return
-          await deletePost(post.id)
-          setDeleted(true)
-          toast.success('Publicación eliminada')
-          onDeleted?.()
-          break
-        }
-        case 'feature': {
-          await toggleFeatured(post.id, !post.featured)
-          toast.success(post.featured ? 'Destacado quitado' : '⭐ Publicación destacada')
-          break
-        }
-        case 'verify': {
-          await verifyPost(post.id, !post.verified)
-          toast.success(post.verified ? 'Verificación quitada' : '✓ Publicación verificada')
-          break
-        }
-        case 'hide': {
-          await setPostStatus(post.id, 'hidden')
-          setDeleted(true)
-          toast.success('Publicación ocultada')
-          break
-        }
-        default: break
+      if (action === 'share')   { handleShare(); return }
+      if (action === 'report')  {
+        const r = window.prompt('¿Por qué reportas esta publicación?')
+        if (!r?.trim()) return
+        await reportPost(post.id, user.uid, r)
+        toast.success('Reporte enviado ✅')
+        return
       }
-    } catch (e) {
-      toast.error(e.message || 'Error al realizar acción')
-    }
+      if (action === 'delete')  {
+        if (!window.confirm(`¿Eliminar "${post.name}"?`)) return
+        await deletePost(post.id)
+        setDeleted(true)
+        onDeleted?.()
+        toast.success('Eliminado')
+        return
+      }
+      if (action === 'feature') {
+        await toggleFeatured(post.id, !post.featured)
+        toast.success(post.featured ? 'Destacado quitado' : '⭐ Destacado')
+        return
+      }
+      if (action === 'verify')  {
+        await verifyPost(post.id, !post.verified)
+        toast.success(post.verified ? 'Verificación quitada' : '✓ Verificado')
+        return
+      }
+      if (action === 'hide')    {
+        await setPostStatus(post.id, 'hidden')
+        setDeleted(true)
+        toast.success('Ocultado')
+        return
+      }
+    } catch (e) { toast.error(e.message || 'Error') }
   }
 
-  // Si fue eliminada, no renderizar
   if (deleted) return null
 
   return (
@@ -177,53 +158,39 @@ export default function PostCard({ post, compact = false, onDeleted }) {
         </span>
         <div className={styles.topRight}>
           {post.featured && <span className="badge badge-gold">⭐</span>}
-          {post.verified && <span className="badge badge-cyan">✓</span>}
+          {/* Insignia verificado estilo Telegram */}
+          {post.verified && <VerifiedBadge title="Publicación verificada" />}
 
-          {/* Menú de opciones */}
+          {/* Menú ⋯ */}
           <div className={styles.menuWrap} ref={menuRef}>
-            <button
-              className={styles.moreBtn}
-              onClick={() => setMenuOpen(o => !o)}
-              title="Opciones"
-            >
+            <button className={styles.moreBtn} onClick={() => setMenuOpen(o => !o)} title="Opciones">
               ⋯
             </button>
-
             {menuOpen && (
               <div className={styles.menuDropdown}>
-                {/* Compartir — siempre visible */}
-                <button className={styles.menuItem} onClick={handleShare}>
+                <button className={styles.menuItem} onClick={() => menuAction('share')}>
                   🔗 Compartir
                 </button>
-
-                {/* Reportar — solo usuarios logueados que no sean dueños */}
                 {user && !isOwner && (
                   <button className={styles.menuItem} onClick={() => menuAction('report')}>
                     🚩 Reportar
                   </button>
                 )}
-
-                {/* Acciones de admin/dueño */}
                 {canManage && (
                   <>
                     <div className={styles.menuDivider} />
-                    {user?.isStaff && (
-                      <>
-                        <button className={styles.menuItem} onClick={() => menuAction('feature')}>
-                          {post.featured ? '⭐ Quitar destacado' : '⭐ Destacar'}
-                        </button>
-                        <button className={styles.menuItem} onClick={() => menuAction('verify')}>
-                          {post.verified ? '✓ Quitar verificado' : '✓ Verificar'}
-                        </button>
-                        <button className={styles.menuItem} onClick={() => menuAction('hide')}>
-                          👁️ Ocultar
-                        </button>
-                      </>
-                    )}
-                    <button
-                      className={`${styles.menuItem} ${styles.menuItemDanger}`}
-                      onClick={() => menuAction('delete')}
-                    >
+                    {user?.isStaff && <>
+                      <button className={styles.menuItem} onClick={() => menuAction('feature')}>
+                        {post.featured ? '⭐ Quitar destacado' : '⭐ Destacar'}
+                      </button>
+                      <button className={styles.menuItem} onClick={() => menuAction('verify')}>
+                        {post.verified ? '✓ Quitar verificado' : '✓ Verificar'}
+                      </button>
+                      <button className={styles.menuItem} onClick={() => menuAction('hide')}>
+                        👁️ Ocultar
+                      </button>
+                    </>}
+                    <button className={`${styles.menuItem} ${styles.menuDanger}`} onClick={() => menuAction('delete')}>
                       🗑️ Eliminar
                     </button>
                   </>
@@ -244,9 +211,7 @@ export default function PostCard({ post, compact = false, onDeleted }) {
           <iframe
             className={styles.ytEmbed}
             src={`https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0`}
-            title={post.name}
-            allow="autoplay; encrypted-media; picture-in-picture"
-            allowFullScreen
+            title={post.name} allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen
           />
         ) : (
           <>
@@ -296,40 +261,27 @@ export default function PostCard({ post, compact = false, onDeleted }) {
       <div className={styles.actions}>
         <button
           className={`${styles.actionBtn} ${liked ? styles.liked : ''}`}
-          onClick={handleLike}
-          disabled={likeLoading}
-          title="Like"
+          onClick={handleLike} disabled={likeLoading}
         >
-          <span className={likeAnim ? styles.heartPop : ''}>
-            {liked ? '❤️' : '🤍'}
-          </span>
+          <span className={likeAnim ? styles.heartPop : ''}>{liked ? '❤️' : '🤍'}</span>
           <span>{likeCount}</span>
         </button>
 
         <button
           className={`${styles.actionBtn} ${showComments ? styles.activeAction : ''}`}
           onClick={() => setShowComments(o => !o)}
-          title="Comentarios"
         >
           💬 <span>{post.commentCount || 0}</span>
         </button>
 
-        {/* Compartir — botón directo visible siempre */}
-        <button
-          className={styles.actionBtn}
-          onClick={handleShare}
-          title="Compartir"
-        >
+        {/* Compartir — botón directo en barra */}
+        <button className={styles.actionBtn} onClick={handleShare} title="Compartir">
           🔗 <span className={styles.shareLabel}>Compartir</span>
         </button>
 
         <span className={styles.statPill}>⬇️ {post.downloads || 0}</span>
 
-        <button
-          className="btn btn-primary btn-sm"
-          onClick={handleDownload}
-          style={{ marginLeft: 'auto' }}
-        >
+        <button className="btn btn-primary btn-sm" onClick={handleDownload} style={{ marginLeft: 'auto' }}>
           Descargar
         </button>
       </div>
