@@ -107,15 +107,25 @@ export default function UploadForm() {
         authorId:       user.uid,
         authorName:     user.displayName || user.username || 'Usuario',
         authorPhoto:    user.photoURL || '',
-        authorVerified: user.verified || false,
+        authorVerified: user.verified === true,
+        authorIsStaff:  user.isStaff === true,
         directDownload: uploadMode === 'file',
       }
 
-      const postId = await createPost(postData, user.uid)
+      const result = await createPost(postData, user.uid)
+      const postId = result.id || result
+      const status = result.status || 'active'
+
       setProgress(100)
-      setProgressLabel('🎉 ¡Publicado!')
-      toast.success('¡Publicación creada! 🎉')
-      navigate(`/post/${postId}`)
+      if (status === 'pending') {
+        setProgressLabel('⏳ En revisión')
+        toast.success('✅ Publicación enviada — un admin la revisará pronto')
+        navigate('/')
+      } else {
+        setProgressLabel('🎉 ¡Publicado!')
+        toast.success('¡Publicación creada! 🎉')
+        navigate(`/post/${postId}`)
+      }
     } catch (err) {
       console.error('Upload error:', err)
       toast.error(err.message || 'Error al publicar')
