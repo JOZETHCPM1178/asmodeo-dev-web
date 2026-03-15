@@ -33,7 +33,17 @@ function getContentType(file) {
   return types[ext] || file.type || 'application/octet-stream'
 }
 
-export async function uploadToArchive(file, onProgress) {
+// Validar archivo antes de subir
+export function validateApkFile(file) {
+  if (!file) return { valid: false, error: 'No se seleccionó archivo' }
+  const maxSize = 500 * 1024 * 1024 // 500 MB
+  if (file.size > maxSize) throw new Error(`El archivo pesa ${(file.size/1024/1024).toFixed(0)}MB — máximo 500MB`)
+  const allowed = ['apk','zip','rar','7z','apks','xapk','tar','gz']
+  const ext = file.name.split('.').pop().toLowerCase()
+  if (!allowed.includes(ext)) throw new Error(`Formato .${ext} no soportado`)
+  return { valid: true }
+}
+
   if (!ACCESS_KEY || !SECRET_KEY) {
     throw new Error('Archive.org keys no configuradas. Agrega VITE_ARCHIVE_ACCESS_KEY y VITE_ARCHIVE_SECRET_KEY en Cloudflare Pages.')
   }
