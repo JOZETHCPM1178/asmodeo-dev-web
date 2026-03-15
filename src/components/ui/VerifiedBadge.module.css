@@ -1,72 +1,38 @@
 /* src/components/ui/VerifiedBadge.module.css */
 
-/* Brillo blanco que barre en diagonal dentro de la estrella */
-@keyframes shineSweep {
-  0%   { transform: rotate(-35deg) translate(-120px, 0); opacity: 0; }
-  10%  { opacity: 0.85; }
-  90%  { opacity: 0.85; }
-  100% { transform: rotate(-35deg) translate(180px, 0); opacity: 0; }
-}
-
-/* Pulso de glow rojo neon — 2 colores: rojo vino oscuro ↔ rojo neon fuerte */
+/* Glow sutil neon — rojo cian alternando suavemente */
 @keyframes neonGlow {
   0%, 100% {
-    filter: drop-shadow(0 0 4px #8b0000)
-            drop-shadow(0 0 8px #8b0000)
-            drop-shadow(0 0 2px #ff0022);
+    filter: drop-shadow(0 0 3px rgba(255, 0, 68, 0.7))
+            drop-shadow(0 0 6px rgba(255, 0, 68, 0.3));
   }
   50% {
-    filter: drop-shadow(0 0 6px #ff0022)
-            drop-shadow(0 0 14px #cc0000)
-            drop-shadow(0 0 20px #8b0000);
+    filter: drop-shadow(0 0 3px rgba(0, 229, 255, 0.7))
+            drop-shadow(0 0 6px rgba(0, 229, 255, 0.3));
   }
 }
 
-/* Contenedor — completamente transparente, sin borde, sin fondo */
-.wrap {
+.badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   cursor: default;
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   background: transparent;
   border: none;
   outline: none;
-  /* Glow neon rojo animado en el contenedor */
-  animation: neonGlow 2s ease-in-out infinite;
+  animation: neonGlow 3s ease-in-out infinite;
 }
 
 .large {
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
 }
 
-/* SVG ocupa todo */
 .svg {
   width: 100%;
   height: 100%;
   display: block;
-}
-
-/* Estrella — negro puro */
-.star {
-  fill: #0d0d0d;
-}
-
-/* Check blanco con glow blanco */
-.check {
-  fill: none;
-  stroke: #ffffff;
-  stroke-width: 12;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  filter: drop-shadow(0 0 3px rgba(255,255,255,0.9));
-}
-
-/* Brillo diagonal — animado, clipado a la estrella */
-.shine {
-  animation: shineSweep 3s ease-in-out infinite;
-  animation-delay: 0.5s;
 }
