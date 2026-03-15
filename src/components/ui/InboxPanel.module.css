@@ -1,173 +1,93 @@
 /* src/components/ui/InboxPanel.module.css */
 
-/* ── Overlay — cubre toda la pantalla ── */
+/* Overlay */
 .overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  /* En desktop: fondo semitransparente */
-  background: rgba(0,0,0,0.3);
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,0.4);
   backdrop-filter: blur(2px);
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-end;
+  display: flex; align-items: flex-start; justify-content: flex-end;
   padding-top: var(--nav-h);
 }
 
-/* ── Panel ── */
+/* Panel */
 .panel {
   width: 380px;
   height: calc(100vh - var(--nav-h));
   background: var(--card);
   border-left: 1px solid var(--border2);
-  display: flex;
-  flex-direction: column;
+  display: flex; flex-direction: column;
   overflow: hidden;
   animation: slideIn .2s ease;
   box-shadow: -8px 0 40px rgba(0,0,0,.5);
 }
 
-/* En móvil: panel ocupa toda la pantalla */
 @media (max-width: 640px) {
-  .overlay {
-    padding-top: var(--nav-h);
-    align-items: stretch;
-    justify-content: stretch;
-    background: rgba(0,0,0,0.5);
-  }
-  .panel {
-    width: 100%;
-    height: calc(100vh - var(--nav-h));
-    border-left: none;
-    border-radius: 0;
-  }
+  .overlay { padding-top: var(--nav-h); align-items: stretch; justify-content: stretch; }
+  .panel { width: 100%; border-left: none; }
 }
 
-/* ── Header ── */
+/* Header */
 .header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.85rem 1rem;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-  min-height: 56px;
-  background: var(--card);
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.85rem 1rem; border-bottom: 1px solid var(--border);
+  flex-shrink: 0; min-height: 56px; background: var(--card);
 }
-.panelTitle {
-  font-family: var(--font1);
-  font-size: 1rem;
-  font-weight: 700;
-  flex: 1;
-}
+.panelTitle { font-family: var(--font1); font-size: 1rem; font-weight: 700; flex: 1; }
 .closeBtn {
-  background: rgba(255,255,255,.06);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--t2);
-  font-size: 0.9rem;
-  cursor: pointer;
-  padding: 0.35rem 0.6rem;
-  transition: var(--tr);
+  background: rgba(255,255,255,.06); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--t2); font-size: 0.9rem;
+  cursor: pointer; padding: 0.35rem 0.6rem; transition: var(--tr);
 }
-.closeBtn:hover { color: var(--t1); background: rgba(255,255,255,.1); }
-
+.closeBtn:hover { color: var(--t1); }
 .backBtn {
-  background: none; border: none;
-  color: var(--p2); font-size: 1.2rem;
-  font-weight: 700; cursor: pointer;
-  padding: 4px 10px; border-radius: 8px;
-  transition: var(--tr); flex-shrink: 0;
+  background: none; border: none; color: var(--p2);
+  font-size: 1.2rem; font-weight: 700; cursor: pointer;
+  padding: 4px 10px; border-radius: 8px; transition: var(--tr); flex-shrink: 0;
 }
 .backBtn:hover { background: rgba(124,58,237,.1); }
-
-.convHeaderInfo {
-  display: flex; align-items: center;
-  gap: 0.6rem; flex: 1;
-}
+.convHeaderInfo { display: flex; align-items: center; gap: 0.6rem; flex: 1; }
 .convHeaderName { font-weight: 700; font-size: 0.9rem; }
-
 .blockBtn {
-  background: rgba(239,68,68,.08);
-  border: 1px solid rgba(239,68,68,.2);
-  border-radius: 8px;
-  color: var(--red);
-  font-size: 0.9rem;
-  cursor: pointer;
-  padding: 0.35rem 0.6rem;
-  transition: var(--tr);
-  flex-shrink: 0;
+  background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2);
+  border-radius: 8px; color: var(--red); font-size: 0.9rem;
+  cursor: pointer; padding: 0.35rem 0.6rem; transition: var(--tr); flex-shrink: 0;
 }
 .blockBtn:hover { background: rgba(239,68,68,.15); }
 
-/* ── Tabs ── */
+/* Tabs */
 .tabs {
-  display: flex;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-  background: var(--card);
+  display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0;
 }
 .tab {
-  flex: 1; padding: 0.75rem 0.5rem;
-  background: none; border: none;
-  color: var(--t3); font-family: var(--font2);
-  font-size: 0.85rem; font-weight: 600;
-  cursor: pointer; transition: var(--tr);
-  display: flex; align-items: center;
-  justify-content: center; gap: 0.4rem;
+  flex: 1; padding: 0.75rem 0.5rem; background: none; border: none;
+  color: var(--t3); font-family: var(--font2); font-size: 0.85rem;
+  font-weight: 600; cursor: pointer; transition: var(--tr);
+  display: flex; align-items: center; justify-content: center; gap: 0.4rem;
   border-bottom: 2px solid transparent;
 }
 .tab:hover { color: var(--t1); }
-.tab.tabActive { color: var(--p2); border-bottom-color: var(--p2); }
+.tabActive { color: var(--p2); border-bottom-color: var(--p2); }
 .tabBadge {
-  background: var(--red); color: #fff;
-  font-size: 0.65rem; font-weight: 700;
-  min-width: 18px; height: 18px;
-  border-radius: 20px;
-  display: flex; align-items: center;
-  justify-content: center; padding: 0 4px;
+  background: var(--red); color: #fff; font-size: 0.65rem; font-weight: 700;
+  min-width: 18px; height: 18px; border-radius: 20px;
+  display: flex; align-items: center; justify-content: center; padding: 0 4px;
 }
 
-/* ── Body scrollable ── */
-.body {
-  flex: 1; overflow-y: auto;
-  display: flex; flex-direction: column;
-}
-
-/* Activity filters */
-.activityFilters {
-  display: flex;
-  gap: 0.4rem;
-  flex-wrap: wrap;
-  padding: 0.65rem 0.85rem;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg2);
-}
-.filterChip {
-  font-size: 0.75rem;
-  color: var(--t2);
-  background: var(--card);
-  border: 1px solid var(--border);
-  padding: 0.2rem 0.6rem;
-  border-radius: 20px;
-}
+/* Body scrollable (notifs + lista mensajes) */
+.body { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
 
 .markAllBtn {
-  padding: 0.5rem 1rem;
-  background: none; border: none;
-  border-bottom: 1px solid var(--border);
-  color: var(--p2); font-size: 0.78rem;
-  font-family: var(--font2); cursor: pointer;
-  text-align: left; transition: background 0.15s;
-  flex-shrink: 0;
+  padding: 0.5rem 1rem; background: none; border: none;
+  border-bottom: 1px solid var(--border); color: var(--p2);
+  font-size: 0.78rem; font-family: var(--font2); cursor: pointer;
+  text-align: left; transition: background 0.15s; flex-shrink: 0;
 }
 .markAllBtn:hover { background: rgba(124,58,237,.05); }
 
-/* Notification row */
+/* Notificaciones */
 .notifRow {
-  display: flex; align-items: flex-start;
-  gap: 0.65rem; padding: 0.8rem 1rem;
-  cursor: pointer; transition: background 0.15s;
+  display: flex; align-items: flex-start; gap: 0.65rem;
+  padding: 0.8rem 1rem; cursor: pointer; transition: background 0.15s;
   border-bottom: 1px solid rgba(255,255,255,.03);
 }
 .notifRow:hover { background: rgba(255,255,255,.03); }
@@ -182,11 +102,10 @@
   background: var(--p); flex-shrink: 0; margin-top: 6px;
 }
 
-/* Conversation row */
+/* Conversaciones */
 .convRow {
   display: flex; align-items: center; gap: 0.75rem;
-  padding: 0.85rem 1rem; cursor: pointer;
-  transition: background 0.15s;
+  padding: 0.85rem 1rem; cursor: pointer; transition: background 0.15s;
   border-bottom: 1px solid rgba(255,255,255,.03);
 }
 .convRow:hover { background: rgba(255,255,255,.03); }
@@ -200,81 +119,109 @@
 .convName { font-weight: 700; font-size: 0.9rem; }
 .convLast {
   font-size: 0.8rem; color: var(--t3);
-  white-space: nowrap; overflow: hidden;
-  text-overflow: ellipsis; margin-top: 0.15rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 0.15rem;
 }
-.convMeta {
-  display: flex; flex-direction: column;
-  align-items: flex-end; gap: 0.3rem; flex-shrink: 0;
-}
+.convMeta { display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem; flex-shrink: 0; }
 .convTime { font-size: 0.7rem; color: var(--t3); }
 .convBadge {
-  background: var(--p); color: #fff;
-  font-size: 0.65rem; font-weight: 700;
+  background: var(--p); color: #fff; font-size: 0.65rem; font-weight: 700;
   min-width: 20px; height: 20px; border-radius: 20px;
   display: flex; align-items: center; justify-content: center; padding: 0 5px;
 }
 
-/* DM messages */
-.dmMessages {
-  flex: 1; overflow-y: auto;
-  padding: 0.85rem; display: flex;
-  flex-direction: column; gap: 0.5rem;
+/* ── CHAT ACTIVO — layout fijo ── */
+.chatWrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Clave para que el input no se vaya abajo */
+  min-height: 0;
 }
+
+/* Mensajes — ocupa todo el espacio disponible */
+.dmMessages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-height: 0;
+}
+
+/* Burbujas */
+.bubbleRow {
+  display: flex;
+}
+.bubbleRowOwn  { justify-content: flex-end; }
+.bubbleRowOther { justify-content: flex-start; }
+
 .bubble {
-  max-width: 78%; padding: 0.55rem 0.85rem;
-  border-radius: 16px; display: flex;
-  flex-direction: column; gap: 0.2rem;
-  word-break: break-word; font-size: 0.875rem;
-  line-height: 1.4;
+  max-width: 78%;
+  padding: 0.55rem 0.85rem;
+  border-radius: 16px;
+  display: flex; flex-direction: column; gap: 0.2rem;
+  word-break: break-word;
 }
 .bubbleOwn {
-  align-self: flex-end; background: var(--p);
-  color: #fff; border-bottom-right-radius: 4px;
+  background: var(--p); color: #fff;
+  border-bottom-right-radius: 4px;
 }
 .bubbleOther {
-  align-self: flex-start; background: var(--bg2);
-  border: 1px solid var(--border);
+  background: var(--bg2); border: 1px solid var(--border);
   color: var(--t1); border-bottom-left-radius: 4px;
 }
+/* Sticker — sin fondo */
+.bubbleSticker {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+}
+.bubbleText { font-size: 0.875rem; line-height: 1.4; }
 .bubbleTime { font-size: 0.65rem; opacity: 0.55; align-self: flex-end; }
 
-/* DM input */
-.dmInputRow {
-  display: flex; gap: 0.5rem;
-  padding: 0.7rem 0.85rem;
-  border-top: 1px solid var(--border);
-  flex-shrink: 0; background: var(--card);
+/* Sticker imagen */
+.stickerMsg {
+  width: 140px; height: 140px;
+  object-fit: contain; display: block;
+  border-radius: var(--r);
 }
 
-/* Empty */
+/* ── INPUT AREA — siempre al fondo ── */
+.dmInputArea {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  background: var(--card);
+  position: relative;
+}
+
+.dmInputRow {
+  display: flex; align-items: center; gap: 0.4rem;
+  padding: 0.65rem 0.75rem;
+}
+
+.dmInput {
+  flex: 1;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--r); color: var(--t1);
+  font-family: var(--font2); font-size: 0.875rem;
+  padding: 0.5rem 0.75rem; outline: none; transition: var(--tr);
+}
+.dmInput:focus { border-color: var(--p2); }
+.dmInput::placeholder { color: var(--t3); }
+
+.dmStickerBtn {
+  background: rgba(255,255,255,.05); border: 1px solid var(--border);
+  border-radius: 8px; padding: 0.4rem 0.55rem;
+  font-size: 1rem; cursor: pointer; transition: var(--tr); flex-shrink: 0;
+}
+.dmStickerBtn:hover { background: rgba(124,58,237,.15); border-color: var(--border2); }
+.dmStickerBtnActive { background: rgba(124,58,237,.2); border-color: var(--p2); }
+
+/* Empty state */
 .emptyState {
   flex: 1; display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   gap: 0.5rem; color: var(--t3); font-size: 0.875rem;
   padding: 3rem; text-align: center;
-}
-
-/* ─── STICKERS EN DMs ─── */
-.dmInputWrap {
-  position: relative;
-  border-top: 1px solid var(--border);
-  flex-shrink: 0;
-  background: var(--card);
-}
-.dmStickerBtn {
-  background: rgba(255,255,255,.05);
-  border: 1px solid var(--border);
-  border-radius: 8px; padding: 0.3rem 0.5rem;
-  font-size: 1rem; cursor: pointer;
-  transition: var(--tr); flex-shrink: 0;
-}
-.dmStickerBtn:hover { background: rgba(124,58,237,.15); border-color: var(--border2); }
-.dmStickerBtnActive { background: rgba(124,58,237,.2); border-color: var(--p2); }
-
-/* Sticker en burbuja de mensaje */
-.stickerMsg {
-  width: 130px; height: 130px;
-  object-fit: contain; display: block;
-  border-radius: var(--r);
 }
