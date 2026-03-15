@@ -67,7 +67,7 @@ export async function getFollowing(userId) {
 //  COMENTARIOS
 // ═══════════════════════════════════════
 
-export async function addComment(postId, { userId, username, photoURL, text }) {
+export async function addComment(postId, { userId, username, photoURL, text, replyToId = null, type = 'text' }) {
   // Validación básica
   if (!text?.trim()) throw new Error('El comentario no puede estar vacío')
 
@@ -75,7 +75,9 @@ export async function addComment(postId, { userId, username, photoURL, text }) {
     userId,
     username,
     photoURL: photoURL || '',
-    text: text.slice(0, 500),
+    text: text.slice(0, 1000),
+    type,
+    replyToId: replyToId || null,
     likes: 0,
     createdAt: serverTimestamp(),
   })
