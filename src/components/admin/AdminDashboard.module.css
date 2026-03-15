@@ -1,85 +1,169 @@
 /* src/components/admin/AdminDashboard.module.css */
-.wrap { max-width: 1100px; margin: 0 auto; padding: 2rem 1rem 4rem; display: flex; flex-direction: column; gap: 1.25rem; }
 
+.wrap {
+  max-width: 1100px; margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+  display: flex; flex-direction: column; gap: 1.25rem;
+}
+
+/* Header */
 .header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; }
 .title { font-family: var(--font1); font-size: 1.4rem; font-weight: 900; }
 
-.tabs { display: flex; gap: 0.3rem; flex-wrap: wrap; background: var(--bg2); padding: 0.35rem; border-radius: var(--r2); border: 1px solid var(--border); }
-.tab { padding: 0.4rem 0.85rem; background: none; border: none; border-radius: var(--r); color: var(--t3); font-family: var(--font2); font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: var(--tr); white-space: nowrap; }
+/* Tabs */
+.tabs {
+  display: flex; gap: 0.3rem; flex-wrap: wrap;
+  background: var(--bg2); padding: 0.35rem;
+  border-radius: var(--r2); border: 1px solid var(--border);
+}
+.tab {
+  padding: 0.4rem 0.85rem; background: none; border: none;
+  border-radius: var(--r); color: var(--t3);
+  font-family: var(--font2); font-size: 0.8rem; font-weight: 600;
+  cursor: pointer; transition: var(--tr); white-space: nowrap;
+}
 .tab:hover { color: var(--t1); background: rgba(255,255,255,.04); }
 .tab.active { background: var(--p); color: #fff; }
 
+/* Content */
 .content { min-height: 300px; }
-.center { display: flex; justify-content: center; padding: 4rem; }
-
-/* Owner panel */
-.ownerPanel { display: flex; flex-direction: column; gap: 1.25rem; }
-.ownerBanner {
-  background: linear-gradient(135deg, rgba(245,158,11,.15), rgba(124,58,237,.15));
-  border: 1px solid rgba(245,158,11,.3);
-  border-radius: var(--r2); padding: 1.25rem 1.5rem;
-  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+.center {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 4rem; gap: 0.75rem;
 }
-.ownerBannerInner { display: flex; align-items: center; gap: 1rem; }
+.errorBox {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 3rem; gap: 0.75rem;
+  color: var(--t2); text-align: center;
+  background: rgba(239,68,68,.05); border: 1px solid rgba(239,68,68,.15);
+  border-radius: var(--r2);
+}
+
+/* ── OWNER PANEL ── */
+.ownerWrap { display: flex; flex-direction: column; gap: 1.25rem; }
+
+.ownerBanner {
+  background: linear-gradient(135deg, rgba(245,158,11,.12), rgba(124,58,237,.12));
+  border: 1px solid rgba(245,158,11,.35);
+  border-radius: var(--r2); padding: 1.25rem 1.5rem;
+  display: flex; align-items: center;
+  justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+}
+.ownerLeft { display: flex; align-items: center; gap: 1rem; }
 .ownerCrown { font-size: 2.5rem; }
-.ownerTitle { font-family: var(--font1); font-size: 1.2rem; font-weight: 900; color: var(--gold); }
-.ownerSub { font-size: 0.82rem; color: var(--t2); margin-top: 0.2rem; }
-.ownerStats { display: flex; gap: 1.5rem; flex-wrap: wrap; }
-.ownerStat { text-align: center; }
-.ownerStat span:first-child { display: block; font-family: var(--font1); font-size: 1.4rem; font-weight: 900; color: var(--gold); }
-.ownerStat span:last-child { display: block; font-size: 0.72rem; color: var(--t3); text-transform: uppercase; }
-.selfRow { background: rgba(245,158,11,.04); }
+.ownerTitle { font-family: var(--font1); font-size: 1.15rem; font-weight: 900; color: var(--gold); }
+.ownerSub { font-size: 0.8rem; color: var(--t2); margin-top: 0.15rem; }
+
+.ownerKpis { display: flex; gap: 1.25rem; flex-wrap: wrap; }
+.kpi { text-align: center; }
+.kpi span:first-child {
+  display: block; font-family: var(--font1);
+  font-size: 1.3rem; font-weight: 900; color: var(--gold);
+}
+.kpi span:last-child {
+  display: block; font-size: 0.68rem; color: var(--t3); text-transform: uppercase;
+}
+
+/* Section buttons */
+.ownerSections { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.sectionBtn {
+  padding: 0.45rem 1rem; background: var(--bg2);
+  border: 1px solid var(--border); border-radius: var(--r);
+  color: var(--t2); font-family: var(--font2); font-size: 0.82rem;
+  font-weight: 600; cursor: pointer; transition: var(--tr);
+}
+.sectionBtn:hover { color: var(--t1); border-color: var(--border2); }
+.sectionActive { background: var(--p); color: #fff !important; border-color: var(--p) !important; }
+
+/* Filter row */
+.filterRow { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+
+/* Roles grid */
+.rolesGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px,1fr)); gap: 1rem; }
+.roleCard {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--r2); padding: 1rem;
+  display: flex; flex-direction: column; gap: 0.6rem;
+}
+.roleCardHeader { display: flex; align-items: flex-start; gap: 0.75rem; }
+.roleUserRow {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.4rem 0; border-top: 1px solid var(--border);
+}
+
+/* Info cards */
+.platformGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap: 0.75rem; }
+.infoCard {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--r2); padding: 1.1rem;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 0.35rem; text-align: center; transition: var(--tr);
+}
+.infoCard:hover { border-color: var(--border2); }
+
+/* Danger zone */
+.dangerZone {
+  background: rgba(239,68,68,.05); border: 1px solid rgba(239,68,68,.2);
+  border-radius: var(--r2); padding: 1.1rem;
+  display: flex; flex-direction: column; gap: 1rem;
+}
+.dangerHeader { display: flex; align-items: center; gap: 0.75rem; font-size: 1.4rem; }
+.dangerActions { display: flex; flex-direction: column; gap: 0.6rem; }
+.dangerAction {
+  display: flex; align-items: center; gap: 0.75rem;
+  background: var(--card); border: 1px solid rgba(239,68,68,.15);
+  border-radius: var(--r); padding: 0.75rem 0.9rem;
+}
 
 /* Stats */
-.statCards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.75rem; }
+.statCards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px,1fr)); gap: 0.75rem; }
 .statCard {
-  background: var(--card); border: 1px solid var(--border); border-radius: var(--r2);
-  padding: 1.1rem; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.35rem; transition: var(--tr);
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--r2); padding: 1.1rem;
+  text-align: center; display: flex; flex-direction: column;
+  align-items: center; gap: 0.35rem; transition: var(--tr);
 }
 .statCard:hover { border-color: var(--border2); }
-.statVal { font-family: var(--font1); font-size: 1.5rem; font-weight: 900; }
-.statLbl { font-size: 0.72rem; color: var(--t2); }
 .sectionTitle { font-family: var(--font1); font-size: 0.9rem; font-weight: 700; margin-bottom: 0.75rem; }
-.topRow { display: flex; align-items: center; gap: 0.75rem; padding: 0.45rem 0.6rem; background: var(--bg2); border-radius: var(--r); font-size: 0.83rem; margin-bottom: 0.35rem; }
-.topRank { font-family: var(--font1); color: var(--gold); font-weight: 700; min-width: 28px; }
 
-/* Table — fondo forzado para evitar white flash en móvil */
+/* Table — fondo explícito para evitar flash blanco en móvil */
 .tableWrap {
-  overflow-x: auto;
-  border-radius: var(--r2);
-  border: 1px solid var(--border);
-  background: var(--card); /* fondo explícito */
+  overflow-x: auto; border-radius: var(--r2);
+  border: 1px solid var(--border); background: var(--card);
   -webkit-overflow-scrolling: touch;
 }
 .table { width: 100%; border-collapse: collapse; font-size: 0.83rem; background: var(--card); }
 .table th {
   text-align: left; padding: 0.6rem 0.85rem;
   background: var(--bg2); color: var(--t2);
-  font-size: 0.75rem; text-transform: uppercase;
+  font-size: 0.74rem; text-transform: uppercase;
   letter-spacing: 0.04em; border-bottom: 1px solid var(--border);
+  white-space: nowrap;
 }
 .table td {
   padding: 0.6rem 0.85rem;
   border-bottom: 1px solid rgba(255,255,255,.03);
   color: var(--t1); vertical-align: middle;
-  background: var(--card); /* fondo explícito en cada celda */
+  background: var(--card);
 }
 .table tr:last-child td { border-bottom: none; }
 .table tr:hover td { background: var(--card2) !important; }
-.rowBanned td { opacity: 0.55; }
+.rowBanned td { opacity: 0.5; }
+.selfRow td { background: rgba(245,158,11,.04) !important; }
 .muted { color: var(--t3) !important; font-size: 0.78rem; }
+
 .userCell { display: flex; align-items: center; gap: 0.5rem; }
-.avatarFb { width: 28px; height: 28px; border-radius: 50%; background: var(--p); color: #fff; font-size: 0.75rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.actionBtns { display: flex; gap: 0.3rem; flex-wrap: wrap; align-items: center; }
-.roleSelect { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r); color: var(--t1); font-family: var(--font2); font-size: 0.78rem; padding: 0.28rem 0.5rem; cursor: pointer; }
-
-/* List (posts + reports) */
-.list { display: flex; flex-direction: column; gap: 0.75rem; }
-.listItem { display: flex; align-items: flex-start; gap: 0.75rem; flex-wrap: wrap; }
-.listThumb { width: 72px; height: 54px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
-.listInfo { flex: 1; min-width: 180px; }
-.listName { font-weight: 700; font-size: 0.9rem; margin-bottom: 0.3rem; }
-.listActions { display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: flex-start; }
-
-/* Reply panel */
-.replyPanel { width: 100%; background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--r); padding: 0.85rem; margin-top: 0.5rem; animation: fadeUp .2s ease; }
+.avatarFb {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--p); color: #fff;
+  font-size: 0.75rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.actionBtns { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+.roleSelect {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--r); color: var(--t1);
+  font-family: var(--font2); font-size: 0.78rem;
+  padding: 0.28rem 0.5rem; cursor: pointer;
+}
