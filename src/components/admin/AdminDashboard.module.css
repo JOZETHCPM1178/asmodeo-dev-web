@@ -28,7 +28,7 @@
 .ownerStat { text-align: center; }
 .ownerStat span:first-child { display: block; font-family: var(--font1); font-size: 1.4rem; font-weight: 900; color: var(--gold); }
 .ownerStat span:last-child { display: block; font-size: 0.72rem; color: var(--t3); text-transform: uppercase; }
-.selfRow td { background: rgba(245,158,11,.04) !important; }
+.selfRow { background: rgba(245,158,11,.04); }
 
 /* Stats */
 .statCards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.75rem; }
@@ -43,13 +43,29 @@
 .topRow { display: flex; align-items: center; gap: 0.75rem; padding: 0.45rem 0.6rem; background: var(--bg2); border-radius: var(--r); font-size: 0.83rem; margin-bottom: 0.35rem; }
 .topRank { font-family: var(--font1); color: var(--gold); font-weight: 700; min-width: 28px; }
 
-/* Table */
-.tableWrap { overflow-x: auto; border-radius: var(--r2); border: 1px solid var(--border); }
-.table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
-.table th { text-align: left; padding: 0.6rem 0.85rem; background: var(--bg2); color: var(--t2); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--border); }
-.table td { padding: 0.6rem 0.85rem; border-bottom: 1px solid rgba(255,255,255,.03); color: var(--t1); vertical-align: middle; }
+/* Table — fondo forzado para evitar white flash en móvil */
+.tableWrap {
+  overflow-x: auto;
+  border-radius: var(--r2);
+  border: 1px solid var(--border);
+  background: var(--card); /* fondo explícito */
+  -webkit-overflow-scrolling: touch;
+}
+.table { width: 100%; border-collapse: collapse; font-size: 0.83rem; background: var(--card); }
+.table th {
+  text-align: left; padding: 0.6rem 0.85rem;
+  background: var(--bg2); color: var(--t2);
+  font-size: 0.75rem; text-transform: uppercase;
+  letter-spacing: 0.04em; border-bottom: 1px solid var(--border);
+}
+.table td {
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid rgba(255,255,255,.03);
+  color: var(--t1); vertical-align: middle;
+  background: var(--card); /* fondo explícito en cada celda */
+}
 .table tr:last-child td { border-bottom: none; }
-.table tr:hover td { background: rgba(255,255,255,.02); }
+.table tr:hover td { background: var(--card2) !important; }
 .rowBanned td { opacity: 0.55; }
 .muted { color: var(--t3) !important; font-size: 0.78rem; }
 .userCell { display: flex; align-items: center; gap: 0.5rem; }
@@ -57,7 +73,7 @@
 .actionBtns { display: flex; gap: 0.3rem; flex-wrap: wrap; align-items: center; }
 .roleSelect { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r); color: var(--t1); font-family: var(--font2); font-size: 0.78rem; padding: 0.28rem 0.5rem; cursor: pointer; }
 
-/* List */
+/* List (posts + reports) */
 .list { display: flex; flex-direction: column; gap: 0.75rem; }
 .listItem { display: flex; align-items: flex-start; gap: 0.75rem; flex-wrap: wrap; }
 .listThumb { width: 72px; height: 54px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
@@ -65,5 +81,5 @@
 .listName { font-weight: 700; font-size: 0.9rem; margin-bottom: 0.3rem; }
 .listActions { display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: flex-start; }
 
-/* Reply panel in reports */
+/* Reply panel */
 .replyPanel { width: 100%; background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--r); padding: 0.85rem; margin-top: 0.5rem; animation: fadeUp .2s ease; }
