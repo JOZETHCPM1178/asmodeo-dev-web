@@ -257,6 +257,11 @@ function StatsPanel({ stats }) {
 //  USUARIOS
 // ══════════════════════
 function UsersPanel({ users, me, onRefresh }) {
+  // Si aún no cargó, mostrar spinner
+  if (!users || users.length === 0) return (
+    <div className={styles.center}><span className="spinner spinner-lg" /></div>
+  )
+
   async function act(fn, msg) {
     try { await fn(); toast.success(msg); onRefresh() }
     catch (e) { toast.error(e.message) }
