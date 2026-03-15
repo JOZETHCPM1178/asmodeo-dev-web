@@ -145,3 +145,40 @@
   color: #fff;
   text-shadow: 0 1px 4px rgba(0,0,0,.5);
 }
+
+/* ─── PROGRESS INFO ─── */
+.progressTrack {
+  position: relative; height: 28px;
+  background: var(--bg2); border-radius: var(--r);
+  overflow: hidden; border: 1px solid var(--border);
+}
+.progressInfo {
+  display: flex; justify-content: space-between;
+  align-items: center; margin-top: 0.4rem;
+}
+.progressPct { font-size: 0.78rem; color: var(--p2); font-weight: 700; }
+
+/* ─── MODE TOGGLE ─── */
+.modeToggle { display: flex; gap: 0.4rem; margin-bottom: 0.5rem; }
+.modeBtn {
+  flex: 1; padding: 0.5rem; background: var(--bg2);
+  border: 1px solid var(--border); border-radius: var(--r);
+  color: var(--t2); font-family: var(--font2); font-size: 0.8rem;
+  font-weight: 600; cursor: pointer; transition: var(--tr);
+}
+.modeBtn:hover { color: var(--t1); border-color: var(--border2); }
+.modeBtnActive { background: var(--p); color: #fff !important; border-color: var(--p) !important; }
+
+/* ─── APK UPLOAD ─── */
+.apkUpload {
+  border: 2px dashed var(--border2); border-radius: var(--r2);
+  padding: 1.25rem; cursor: pointer; transition: var(--tr); background: var(--bg2);
+}
+.apkUpload:hover { border-color: var(--p2); background: rgba(124,58,237,.05); }
+.apkReady { border-color: var(--green); border-style: solid; background: rgba(16,185,129,.05); }
+.apkPlaceholder { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; text-align: center; }
+.apkPlaceholderText { font-weight: 600; font-size: 0.9rem; color: var(--t1); }
+.apkHint { font-size: 0.75rem; color: var(--t3); }
+.apkSelected { display: flex; align-items: center; gap: 0.75rem; }
+.apkName { font-weight: 700; font-size: 0.88rem; word-break: break-all; }
+.apkMeta { font-size: 0.75rem; color: var(--green); margin-top: 0.15rem; }

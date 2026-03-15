@@ -86,7 +86,22 @@ export default function PostCard({ post, compact = false, onDeleted }) {
   const handleDownload = useCallback(async () => {
     if (!post.downloadUrl) { toast.error('Link no disponible'); return }
     await registerDownload(post.id).catch(() => {})
-    window.open(post.downloadUrl, '_blank', 'noopener,noreferrer')
+
+    if (post.directDownload) {
+      // Descarga directa — no abre nueva pestaña, descarga el archivo
+      const a = document.createElement('a')
+      a.href = post.downloadUrl
+      a.download = (post.name || 'archivo') + '.apk'
+      a.target = '_blank'
+      a.rel = 'noopener noreferrer'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      toast.success('⬇️ Descargando...')
+    } else {
+      // Link externo (MediaFire, Mega, etc.)
+      window.open(post.downloadUrl, '_blank', 'noopener,noreferrer')
+    }
   }, [post])
 
   // ─── COMPARTIR ───
