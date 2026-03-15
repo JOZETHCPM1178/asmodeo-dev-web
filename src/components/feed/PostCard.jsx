@@ -12,6 +12,7 @@ import {
 import { optimizeUrl } from '../../services/cloudinary'
 import CommentsPanel from '../social/CommentsPanel'
 import VerifiedBadge from '../ui/VerifiedBadge'
+import DownloadModal from '../ui/DownloadModal'
 import styles from './PostCard.module.css'
 
 const CATS = {
@@ -39,6 +40,7 @@ export default function PostCard({ post, compact = false, onDeleted }) {
   const [likeAnim, setLikeAnim]         = useState(false)
   const [menuOpen, setMenuOpen]         = useState(false)
   const [deleted, setDeleted]           = useState(false)
+  const [showDownload, setShowDownload] = useState(false)
 
   const cat         = CATS[post.category] || CATS.apk
   const ytId        = getYouTubeId(post.youtubeUrl)
@@ -86,27 +88,12 @@ export default function PostCard({ post, compact = false, onDeleted }) {
   const handleDownload = useCallback(async () => {
     if (!post.downloadUrl) { toast.error('Link no disponible'); return }
     await registerDownload(post.id).catch(() => {})
-
-    if (post.directDownload) {
-      // Descarga directa — no abre nueva pestaña, descarga el archivo
-      const a = document.createElement('a')
-      a.href = post.downloadUrl
-      a.download = (post.name || 'archivo') + '.apk'
-      a.target = '_blank'
-      a.rel = 'noopener noreferrer'
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      toast.success('⬇️ Descargando...')
-    } else {
-      // Link externo (MediaFire, Mega, etc.)
-      window.open(post.downloadUrl, '_blank', 'noopener,noreferrer')
-    }
+    setShowDownload(true)
   }, [post])
 
   // ─── COMPARTIR ───
   const handleShare = useCallback(async () => {
-    const url  = `https://asmodeo-og.asmodeotayson.workers.dev/?post=${post.id}`
+    const url  = `${window.location.origin}/post/${post.id}`
     const text = `${post.name} — Descárgalo en AsmodeoDev`
     setMenuOpen(false)
     if (navigator.share) {
@@ -310,6 +297,10 @@ export default function PostCard({ post, compact = false, onDeleted }) {
 
       {showComments && (
         <CommentsPanel postId={post.id} onClose={() => setShowComments(false)} />
+      )}
+
+      {showDownload && (
+        <DownloadModal post={post} onClose={() => setShowDownload(false)} />
       )}
     </article>
   )
