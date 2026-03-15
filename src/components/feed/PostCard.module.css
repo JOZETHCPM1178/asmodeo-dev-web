@@ -119,7 +119,9 @@
   cursor: pointer; transition: var(--tr); white-space: nowrap; flex-shrink: 0;
 }
 .actionBtn:hover { border-color: var(--border2); color: var(--t1); }
-.actionBtn.liked { color: #ef4444; border-color: rgba(239,68,68,.3); background: rgba(239,68,68,.08); }
+.likeBtn { color: #ef4444 !important; border-color: rgba(239,68,68,.35) !important; }
+.likeBtn:hover { background: rgba(239,68,68,.1) !important; }
+.liked { background: rgba(239,68,68,.15) !important; }
 .actionBtn.activeAction { color: var(--p2); border-color: var(--border2); background: rgba(124,58,237,.08); }
 .heartPop { display: inline-block; animation: heartPop .5s ease; }
 

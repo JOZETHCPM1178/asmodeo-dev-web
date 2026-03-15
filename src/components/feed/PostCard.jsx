@@ -261,11 +261,12 @@ export default function PostCard({ post, compact = false, onDeleted }) {
 
       {/* ── ACCIONES ── */}
       <div className={styles.actions}>
+        {/* Like — siempre corazón rojo */}
         <button
-          className={`${styles.actionBtn} ${liked ? styles.liked : ''}`}
+          className={`${styles.actionBtn} ${styles.likeBtn} ${liked ? styles.liked : ''}`}
           onClick={handleLike} disabled={likeLoading}
         >
-          <span className={likeAnim ? styles.heartPop : ''}>{liked ? '❤️' : '🤍'}</span>
+          <span className={likeAnim ? styles.heartPop : ''}>❤️</span>
           <span>{likeCount}</span>
         </button>
 
