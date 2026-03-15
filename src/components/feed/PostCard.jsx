@@ -106,7 +106,7 @@ export default function PostCard({ post, compact = false, onDeleted }) {
 
   // ─── COMPARTIR ───
   const handleShare = useCallback(async () => {
-    const url  = `${window.location.origin}/post/${post.id}`
+    const url  = `https://asmodeo-og.asmodeotayson.workers.dev/?post=${post.id}`
     const text = `${post.name} — Descárgalo en AsmodeoDev`
     setMenuOpen(false)
     if (navigator.share) {
