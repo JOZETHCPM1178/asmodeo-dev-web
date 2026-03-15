@@ -1,6 +1,6 @@
 // src/pages/ProfilePage.jsx
 import { useState, useEffect, useRef } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
 import { getUserProfile, updateUserProfile } from '../services/auth'
 import { getUserPosts, updateAuthorNameInPosts } from '../services/posts'
@@ -15,6 +15,7 @@ import styles from './ProfilePage.module.css'
 export default function ProfilePage() {
   const { uid } = useParams()
   const { user: me, refreshUser } = useAuth()
+  const navigate = useNavigate()
   const [profile, setProfile]     = useState(null)
   const [posts, setPosts]         = useState([])
   const [loading, setLoading]     = useState(true)
@@ -29,7 +30,7 @@ export default function ProfilePage() {
     try {
       const [p, userPosts] = await Promise.all([
         getUserProfile(uid),
-        getUserPosts(uid),  // ← consulta directa por authorId
+        getUserPosts(uid),
       ])
       setProfile(p)
       setPosts(userPosts)
@@ -47,8 +48,9 @@ export default function ProfilePage() {
     if (!me) { toast.error('Inicia sesión para enviar mensajes'); return }
     setDmLoading(true)
     try {
-      await getOrCreateConversation(me.uid, uid, profile)
-      toast.success('Conversación creada — abre tu bandeja 🔔')
+      const convId = await getOrCreateConversation(me.uid, uid)
+      // Navegar directo al chat con teclado abierto
+      navigate(`/messages/${convId}`)
     } catch (e) {
       toast.error(e.message)
     } finally {
