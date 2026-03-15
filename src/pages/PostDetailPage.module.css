@@ -235,3 +235,69 @@
   .sideCard { max-height: 400px; }
   .title { font-size: 1.1rem; }
 }
+
+/* ─── EDIT MODAL ─── */
+.editModal {
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+.editHeader {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.editTitle { font-family: var(--font1); font-size: 1rem; font-weight: 700; }
+
+.editBody {
+  flex: 1; overflow-y: auto;
+  padding: 1.25rem; display: flex; flex-direction: column; gap: 0.85rem;
+}
+
+.editImgWrap {
+  position: relative; width: 100%; aspect-ratio: 16/9;
+  border-radius: var(--r2); overflow: hidden; cursor: pointer;
+  background: var(--bg2); border: 1px solid var(--border);
+}
+.editImgPreview { width: 100%; height: 100%; object-fit: cover; display: block; }
+.editImgPlaceholder {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--t3); font-size: 0.9rem; gap: 0.5rem;
+}
+.editImgOverlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,.45);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 0.9rem; font-weight: 600;
+  opacity: 0; transition: opacity 0.2s;
+}
+.editImgWrap:hover .editImgOverlay { opacity: 1; }
+
+.editCatGrid { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+
+.editFooter {
+  display: flex; gap: 0.6rem; justify-content: flex-end;
+  padding: 1rem 1.25rem; border-top: 1px solid var(--border); flex-shrink: 0;
+}
+
+/* Admin-only section divider */
+.adminOnlySection {
+  display: flex; align-items: center; gap: 0.5rem;
+  margin: 0.25rem 0;
+}
+.adminOnlyLabel {
+  font-size: 0.73rem; font-weight: 700;
+  color: var(--p2); text-transform: uppercase;
+  letter-spacing: 0.05em; padding: 0.25rem 0.65rem;
+  background: rgba(124,58,237,.1); border-radius: 20px;
+  border: 1px solid rgba(124,58,237,.2);
+}
+
+/* Notice for restricted users */
+.restrictedNotice {
+  font-size: 0.78rem; color: var(--t3);
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 0.65rem 0.85rem;
+  line-height: 1.4;
+}
