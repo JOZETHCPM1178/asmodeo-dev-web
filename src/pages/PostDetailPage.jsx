@@ -72,7 +72,20 @@ export default function PostDetailPage() {
   async function handleDownload() {
     if (!post?.downloadUrl) { toast.error('Link no disponible'); return }
     await registerDownload(id).catch(() => {})
-    window.open(post.downloadUrl, '_blank', 'noopener,noreferrer')
+
+    if (post.directDownload) {
+      const a = document.createElement('a')
+      a.href = post.downloadUrl
+      a.download = (post.name || 'archivo') + '.apk'
+      a.target = '_blank'
+      a.rel = 'noopener noreferrer'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      toast.success('⬇️ Descargando...')
+    } else {
+      window.open(post.downloadUrl, '_blank', 'noopener,noreferrer')
+    }
   }
 
   async function handleShare() {
