@@ -81,6 +81,7 @@ export default function UploadForm() {
         authorId:    user.uid,
         authorName:  user.displayName || user.username || 'Usuario',
         authorPhoto: user.photoURL || '',
+        authorVerified: user.verified || false,
       }
 
       const postId = await createPost(postData, user.uid)

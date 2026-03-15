@@ -158,9 +158,6 @@ export default function PostCard({ post, compact = false, onDeleted }) {
         </span>
         <div className={styles.topRight}>
           {post.featured && <span className="badge badge-gold">⭐</span>}
-          {/* Insignia verificado estilo Telegram */}
-          {post.verified && <VerifiedBadge title="Publicación verificada" />}
-
           {/* Menú ⋯ */}
           <div className={styles.menuWrap} ref={menuRef}>
             <button className={styles.moreBtn} onClick={() => setMenuOpen(o => !o)} title="Opciones">
@@ -237,7 +234,12 @@ export default function PostCard({ post, compact = false, onDeleted }) {
             : <div className={styles.avatarFb}>{authorName[0].toUpperCase()}</div>
           }
           <div>
-            <div className={styles.authorName}>{authorName}</div>
+            <div className={styles.authorName}>
+              {authorName}
+              {post.authorVerified && (
+                <VerifiedBadge title={`${authorName} está verificado`} />
+              )}
+            </div>
             {createdAgo && <div className={styles.date}>{createdAgo}</div>}
           </div>
         </Link>
