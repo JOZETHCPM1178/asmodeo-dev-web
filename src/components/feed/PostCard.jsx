@@ -191,6 +191,10 @@ export default function PostCard({ post, compact = false, onDeleted }) {
                 {canManage && (
                   <>
                     <div className={styles.menuDivider} />
+                    {/* Editar — siempre disponible para dueño del post o admin */}
+                    <button className={styles.menuItem} onClick={() => { setMenuOpen(false); window.location.href = `/post/${post.id}` }}>
+                      ✏️ Editar publicación
+                    </button>
                     {user?.isStaff && <>
                       <button className={styles.menuItem} onClick={() => menuAction('feature')}>
                         {post.featured ? '⭐ Quitar destacado' : '⭐ Destacar'}
