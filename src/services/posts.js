@@ -8,6 +8,12 @@ import {
 
 // ─── CREAR POST ───
 export async function createPost(postData, userId) {
+  // Si el autor es verificado o staff → activo directo
+  // Si no → pendiente de revisión
+  const status = postData.authorVerified || postData.authorIsStaff
+    ? 'active'
+    : 'pending'
+
   const post = {
     ...postData,
     authorId: userId,
@@ -18,13 +24,13 @@ export async function createPost(postData, userId) {
     featured: false,
     verified: false,
     authorVerified: postData.authorVerified || false,
-    status: 'active',
+    status,
     score: 0,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   }
   const ref = await addDoc(collection(db, 'posts'), post)
-  return ref.id
+  return { id: ref.id, status }
 }
 
 // ─── FEED PAGINADO (home + categorías) ───

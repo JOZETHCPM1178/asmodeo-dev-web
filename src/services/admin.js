@@ -140,7 +140,7 @@ export async function removeFakeFollowers(targetUserId, amount, adminId) {
 // ═══════════════════════════════════════
 export async function getPendingPosts() {
   const snap = await getDocs(
-    query(collection(db, 'posts'), where('status', '==', 'pending_review'), orderBy('createdAt', 'desc'))
+    query(collection(db, 'posts'), where('status', '==', 'pending'), orderBy('createdAt', 'desc'))
   )
   return snap.docs.map(d => ({ id: d.id, ...d.data() }))
 }
