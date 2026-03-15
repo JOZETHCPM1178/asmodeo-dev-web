@@ -47,11 +47,17 @@ export async function getStats() {
 // ═══════════════════════════════════════
 //  GESTIÓN DE USUARIOS
 // ═══════════════════════════════════════
-export async function getAllUsers({ pageSize = 50 } = {}) {
-  const snap = await getDocs(
-    query(collection(db, 'users'), orderBy('createdAt', 'desc'), limit(pageSize))
-  )
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+export async function getAllUsers({ pageSize = 100 } = {}) {
+  try {
+    const snap = await getDocs(
+      query(collection(db, 'users'), limit(pageSize))
+    )
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+  } catch {
+    // Fallback sin limit
+    const snap = await getDocs(collection(db, 'users'))
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+  }
 }
 
 export async function setUserRole(userId, role) {
