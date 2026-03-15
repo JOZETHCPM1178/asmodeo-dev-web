@@ -41,10 +41,12 @@ service cloud.firestore {
     // ════════════════════════════════════════
     match /users/{userId} {
       allow read: if true;
-      // Crear: solo el propio usuario crea su documento al registrarse
       allow create: if isAuth() && myUid() == userId;
-      // Actualizar: el propio usuario O un admin
-      allow update: if isAuth() && (myUid() == userId || isAdmin());
+      // Owner no puede ser modificado por nadie excepto él mismo
+      allow update: if isAuth() && (
+        myUid() == userId ||
+        (isAdmin() && resource.data.role != 'owner')
+      );
       allow delete: if isAdmin();
     }
 
