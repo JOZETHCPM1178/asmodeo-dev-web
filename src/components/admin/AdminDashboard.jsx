@@ -11,7 +11,7 @@ import {
   resolveReport, getAdminLogs, addFakeFollowers, removeFakeFollowers,
 } from '../../services/admin'
 import {
-  deletePost, toggleFeatured, verifyPost, setPostStatus, migrateOldPosts,
+  deletePost, toggleFeatured, verifyPost, setPostStatus,
 } from '../../services/posts'
 import { setChatStatus } from '../../services/social'
 import styles from './AdminDashboard.module.css'
