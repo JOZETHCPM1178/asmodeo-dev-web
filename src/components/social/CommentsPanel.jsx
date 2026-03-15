@@ -8,23 +8,25 @@ import { addComment, subscribeToComments, deleteComment } from '../../services/s
 import { getUserProfile } from '../../services/auth'
 import { optimizeUrl } from '../../services/cloudinary'
 import VerifiedBadge from '../ui/VerifiedBadge'
+import StickerPicker from '../ui/StickerPicker'
 import styles from './CommentsPanel.module.css'
 
 export default function CommentsPanel({ postId, onClose }) {
   const { user }    = useAuth()
-  const [comments, setComments]     = useState([])
-  const [text, setText]             = useState('')
-  const [sending, setSending]       = useState(false)
-  const [replyTo, setReplyTo]       = useState(null)
+  const [comments, setComments]           = useState([])
+  const [text, setText]                   = useState('')
+  const [sending, setSending]             = useState(false)
+  const [replyTo, setReplyTo]             = useState(null)
   const [verifiedCache, setVerifiedCache] = useState({})
-  const inputRef  = useRef(null)
-  const bottomRef = useRef(null)
+  const [showStickers, setShowStickers]   = useState(false)
+  const inputRef    = useRef(null)
+  const bottomRef   = useRef(null)
+  const inputWrapRef = useRef(null)
 
   useEffect(() => {
     const unsub = subscribeToComments(postId, async (msgs) => {
       setComments(msgs)
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
-      // Cargar verificación de usuarios únicos
       const uids = [...new Set(msgs.map(m => m.userId).filter(Boolean))]
       const missing = uids.filter(uid => !(uid in verifiedCache))
       if (missing.length > 0) {
@@ -38,7 +40,7 @@ export default function CommentsPanel({ postId, onClose }) {
   }, [postId])
 
   async function handleSend(e) {
-    e.preventDefault()
+    e?.preventDefault()
     if (!user) { toast.error('Inicia sesión para comentar'); return }
     if (!text.trim()) return
     setSending(true)
@@ -50,13 +52,32 @@ export default function CommentsPanel({ postId, onClose }) {
         photoURL:  user.photoURL,
         text:      finalText,
         replyToId: replyTo?.id || null,
+        type:      'text',
       })
-      setText('')
-      setReplyTo(null)
+      setText(''); setReplyTo(null)
     } catch (err) {
       toast.error(err.message || 'Error al comentar')
     } finally {
       setSending(false)
+    }
+  }
+
+  // Enviar sticker como comentario
+  async function handleStickerSelect(sticker) {
+    if (!user) { toast.error('Inicia sesión para enviar stickers'); return }
+    setShowStickers(false)
+    try {
+      await addComment(postId, {
+        userId:   user.uid,
+        username: user.displayName || user.username,
+        photoURL: user.photoURL,
+        text:     sticker.url,   // URL del GIF
+        type:     'sticker',     // marcar como sticker
+        replyToId: replyTo?.id || null,
+      })
+      setReplyTo(null)
+    } catch (err) {
+      toast.error(err.message || 'Error al enviar sticker')
     }
   }
 
@@ -103,7 +124,12 @@ export default function CommentsPanel({ postId, onClose }) {
                 )}
               </div>
 
-              <p className={styles.commentText}>{renderText(c.text)}</p>
+              {/* Texto o sticker */}
+              {c.type === 'sticker' ? (
+                <img src={c.text} alt="sticker" className={styles.stickerComment} />
+              ) : (
+                <p className={styles.commentText}>{renderText(c.text)}</p>
+              )}
 
               {user && (
                 <button className={styles.replyBtn} onClick={() => handleReply(c)}>
@@ -113,9 +139,7 @@ export default function CommentsPanel({ postId, onClose }) {
             </div>
 
             {(user?.uid === c.userId || user?.isStaff) && (
-              <button className={styles.deleteBtn} onClick={() => handleDelete(c.id)} title="Eliminar">
-                🗑️
-              </button>
+              <button className={styles.deleteBtn} onClick={() => handleDelete(c.id)}>🗑️</button>
             )}
           </div>
         ))}
@@ -123,14 +147,23 @@ export default function CommentsPanel({ postId, onClose }) {
       </div>
 
       {/* Input */}
-      <form className={styles.inputWrap} onSubmit={handleSend}>
+      <div className={styles.inputWrap} ref={inputWrapRef}>
+        {/* Sticker picker */}
+        {showStickers && (
+          <StickerPicker
+            onSelect={handleStickerSelect}
+            onClose={() => setShowStickers(false)}
+          />
+        )}
+
         {replyTo && (
           <div className={styles.replyIndicator}>
             <span>↩ Respondiendo a <strong>@{replyTo.username}</strong></span>
             <button type="button" onClick={() => setReplyTo(null)} className={styles.cancelReply}>✕</button>
           </div>
         )}
-        <div className={styles.inputRow}>
+
+        <form className={styles.inputRow} onSubmit={handleSend}>
           {user?.photoURL
             ? <img src={optimizeUrl(user.photoURL, { width: 60 })} alt="" className="avatar avatar-sm" />
             : user ? <div className={styles.avatarFb}>{(user.displayName || 'U')[0]}</div> : null
@@ -147,13 +180,24 @@ export default function CommentsPanel({ postId, onClose }) {
             disabled={!user || sending}
             style={{ flex: 1 }}
           />
+          {/* Botón sticker */}
+          {user && (
+            <button
+              type="button"
+              className={`${styles.stickerBtn} ${showStickers ? styles.stickerBtnActive : ''}`}
+              onClick={() => setShowStickers(o => !o)}
+              title="Stickers"
+            >
+              🎭
+            </button>
+          )}
           {user && (
             <button className="btn btn-primary btn-sm" type="submit" disabled={sending || !text.trim()}>
               {sending ? <span className="spinner" style={{ width: 16, height: 16 }} /> : '➤'}
             </button>
           )}
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   )
 }

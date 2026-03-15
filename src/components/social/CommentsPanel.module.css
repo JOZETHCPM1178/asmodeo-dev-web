@@ -29,8 +29,6 @@
 .comment {
   display: flex; align-items: flex-start; gap: 0.6rem;
 }
-
-/* Respuesta — indentada */
 .isReply {
   padding-left: 1.5rem;
   border-left: 2px solid var(--border2);
@@ -46,33 +44,36 @@
 }
 
 .commentBody { flex: 1; min-width: 0; }
-
 .commentMeta {
   display: flex; align-items: center;
   gap: 0.4rem; margin-bottom: 0.2rem; flex-wrap: wrap;
 }
-
 .commentUser {
   font-weight: 700; font-size: 0.8rem; color: var(--p2);
   display: flex; align-items: center; gap: 0.25rem;
 }
-
 .commentTime { font-size: 0.7rem; color: var(--t3); }
-
 .commentText {
   font-size: 0.84rem; color: var(--t1);
   line-height: 1.4; word-break: break-word;
+}
+
+/* Sticker en comentario */
+.stickerComment {
+  width: 120px; height: 120px;
+  object-fit: contain;
+  border-radius: var(--r);
+  margin-top: 0.25rem;
+  display: block;
 }
 
 .replyBtn {
   background: none; border: none; color: var(--p2);
   font-size: 0.75rem; font-family: var(--font2);
   font-weight: 600; cursor: pointer; padding: 0.15rem 0;
-  margin-top: 0.25rem; transition: color 0.2s;
-  display: block;
+  margin-top: 0.25rem; transition: color 0.2s; display: block;
 }
 .replyBtn:hover { color: var(--p); text-decoration: underline; }
-
 .deleteBtn {
   background: none; border: none; cursor: pointer;
   font-size: 0.85rem; opacity: 0.4; padding: 2px;
@@ -80,10 +81,13 @@
 }
 .deleteBtn:hover { opacity: 1; }
 
-/* Input */
+/* Input wrap — posición relativa para el picker */
 .inputWrap {
   border-top: 1px solid var(--border);
-  flex-shrink: 0; display: flex; flex-direction: column;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
 }
 
 .replyIndicator {
@@ -94,12 +98,9 @@
   font-size: 0.78rem; color: var(--t2);
 }
 .replyIndicator strong { color: var(--p2); }
-
 .cancelReply {
-  background: none; border: none;
-  color: var(--t3); cursor: pointer; font-size: 0.8rem;
-  padding: 2px 4px; border-radius: 4px;
-  transition: color 0.2s;
+  background: none; border: none; color: var(--t3);
+  cursor: pointer; font-size: 0.8rem; padding: 2px 4px; border-radius: 4px;
 }
 .cancelReply:hover { color: var(--t1); }
 
@@ -107,3 +108,14 @@
   display: flex; align-items: center;
   gap: 0.5rem; padding: 0.65rem 0.85rem;
 }
+
+/* Botón sticker */
+.stickerBtn {
+  background: rgba(255,255,255,.05);
+  border: 1px solid var(--border);
+  border-radius: 8px; padding: 0.3rem 0.5rem;
+  font-size: 1rem; cursor: pointer;
+  transition: var(--tr); flex-shrink: 0;
+}
+.stickerBtn:hover { background: rgba(124,58,237,.15); border-color: var(--border2); }
+.stickerBtnActive { background: rgba(124,58,237,.2); border-color: var(--p2); }
