@@ -254,3 +254,27 @@
   gap: 0.5rem; color: var(--t3); font-size: 0.875rem;
   padding: 3rem; text-align: center;
 }
+
+/* ─── STICKERS EN DMs ─── */
+.dmInputWrap {
+  position: relative;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--card);
+}
+.dmStickerBtn {
+  background: rgba(255,255,255,.05);
+  border: 1px solid var(--border);
+  border-radius: 8px; padding: 0.3rem 0.5rem;
+  font-size: 1rem; cursor: pointer;
+  transition: var(--tr); flex-shrink: 0;
+}
+.dmStickerBtn:hover { background: rgba(124,58,237,.15); border-color: var(--border2); }
+.dmStickerBtnActive { background: rgba(124,58,237,.2); border-color: var(--p2); }
+
+/* Sticker en burbuja de mensaje */
+.stickerMsg {
+  width: 130px; height: 130px;
+  object-fit: contain; display: block;
+  border-radius: var(--r);
+}

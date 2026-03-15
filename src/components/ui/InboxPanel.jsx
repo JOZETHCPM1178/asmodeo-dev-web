@@ -1,4 +1,3 @@
-// src/components/ui/InboxPanel.jsx
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { formatDistanceToNow } from 'date-fns'
@@ -13,6 +12,7 @@ import {
 } from '../../services/dm'
 import { getUserProfile } from '../../services/auth'
 import { optimizeUrl } from '../../services/cloudinary'
+import StickerPicker from './StickerPicker'
 import styles from './InboxPanel.module.css'
 
 const NOTIF_ICON = {
@@ -30,6 +30,7 @@ export default function InboxPanel({ notifications = [], onClose }) {
   const [dmText, setDmText]                 = useState('')
   const [dmSending, setDmSending]           = useState(false)
   const [totalUnreadDMs, setTotalUnreadDMs] = useState(0)
+  const [showDMStickers, setShowDMStickers] = useState(false)
   const msgBottomRef = useRef(null)
   const unsubMsgsRef = useRef(null)
 
@@ -211,7 +212,10 @@ export default function InboxPanel({ notifications = [], onClose }) {
                 <div key={msg.id}
                   className={`${styles.bubble} ${msg.senderId === user.uid ? styles.bubbleOwn : styles.bubbleOther}`}
                 >
-                  <span>{msg.text}</span>
+                  {msg.type === 'sticker'
+                    ? <img src={msg.text} alt="sticker" className={styles.stickerMsg} />
+                    : <span>{msg.text}</span>
+                  }
                   {msg.createdAt?.toDate && (
                     <span className={styles.bubbleTime}>
                       {formatDistanceToNow(msg.createdAt.toDate(), { addSuffix: true, locale: es })}
@@ -221,14 +225,35 @@ export default function InboxPanel({ notifications = [], onClose }) {
               ))}
               <div ref={msgBottomRef} />
             </div>
-            <form className={styles.dmInputRow} onSubmit={handleSendDM}>
-              <input className="inp" placeholder="Escribe un mensaje..."
-                value={dmText} onChange={e => setDmText(e.target.value)}
-                maxLength={1000} disabled={dmSending} style={{ flex: 1 }} autoFocus />
-              <button className="btn btn-primary btn-sm" type="submit" disabled={dmSending || !dmText.trim()}>
-                {dmSending ? <span className="spinner" style={{ width: 14, height: 14 }} /> : '➤'}
-              </button>
-            </form>
+
+            {/* Input con sticker picker */}
+            <div className={styles.dmInputWrap}>
+              {showDMStickers && (
+                <StickerPicker
+                  onSelect={async (sticker) => {
+                    setShowDMStickers(false)
+                    try {
+                      await sendDM(activeConv.id, user.uid, sticker.url, 'sticker')
+                    } catch (err) { toast.error(err.message) }
+                  }}
+                  onClose={() => setShowDMStickers(false)}
+                />
+              )}
+              <form className={styles.dmInputRow} onSubmit={handleSendDM}>
+                <input className="inp" placeholder="Escribe un mensaje..."
+                  value={dmText} onChange={e => setDmText(e.target.value)}
+                  maxLength={1000} disabled={dmSending} style={{ flex: 1 }} autoFocus />
+                {/* Botón sticker */}
+                <button type="button"
+                  className={`${styles.dmStickerBtn} ${showDMStickers ? styles.dmStickerBtnActive : ''}`}
+                  onClick={() => setShowDMStickers(o => !o)} title="Stickers">
+                  🎭
+                </button>
+                <button className="btn btn-primary btn-sm" type="submit" disabled={dmSending || !dmText.trim()}>
+                  {dmSending ? <span className="spinner" style={{ width: 14, height: 14 }} /> : '➤'}
+                </button>
+              </form>
+            </div>
           </>
         )}
       </div>
