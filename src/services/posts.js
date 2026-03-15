@@ -17,6 +17,7 @@ export async function createPost(postData, userId) {
     views: 0,
     featured: false,
     verified: false,
+    authorVerified: postData.authorVerified || false,
     status: 'active',
     score: 0,
     createdAt: serverTimestamp(),
@@ -96,6 +97,14 @@ export async function hasLiked(postId, userId) {
 // ─── DESCARGA ───
 export async function registerDownload(postId) {
   await updateDoc(doc(db, 'posts', postId), { downloads: increment(1) })
+}
+
+// ─── ACTUALIZAR POST ───
+export async function updatePost(postId, updates) {
+  await updateDoc(doc(db, 'posts', postId), {
+    ...updates,
+    updatedAt: serverTimestamp(),
+  })
 }
 
 // ─── ELIMINAR ───
