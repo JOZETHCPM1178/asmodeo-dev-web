@@ -25,19 +25,21 @@ export async function getOrCreateConversation(myUid, otherUid) {
   return convId
 }
 
-export async function sendDM(conversationId, senderId, text) {
+export async function sendDM(conversationId, senderId, text, type = 'text') {
   if (!text.trim()) return
   const batch = writeBatch(db)
   const msgRef = doc(collection(db, 'conversations', conversationId, 'messages'))
   batch.set(msgRef, {
-    senderId, text: text.slice(0, 1000), read: false, createdAt: serverTimestamp(),
+    senderId, text: text.slice(0, 1000),
+    type, read: false, createdAt: serverTimestamp(),
   })
   const convRef = doc(db, 'conversations', conversationId)
   const convSnap = await getDoc(convRef)
   const participants = convSnap.data()?.participants || []
   const otherId = participants.find(p => p !== senderId)
+  const lastMessage = type === 'sticker' ? '🎭 Sticker' : text.slice(0, 80)
   batch.update(convRef, {
-    lastMessage: text.slice(0, 80),
+    lastMessage,
     lastMessageAt: serverTimestamp(),
     [`unread.${otherId}`]: (convSnap.data()?.unread?.[otherId] || 0) + 1,
   })
