@@ -132,7 +132,7 @@ export async function buildUserObject(firebaseUser) {
       isStaff,
       username:  data.username || firebaseUser.displayName || '',
       bio:       data.bio      || '',
-      verified:  isOwner ? true : (data.verified || false),
+      verified:  isOwner ? true : (data.verified === true),
       banned:    data.banned   || false,
       followers: data.followers || 0,
       following: data.following || 0,

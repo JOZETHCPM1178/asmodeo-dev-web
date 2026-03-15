@@ -8,11 +8,13 @@ import {
 
 // ─── CREAR POST ───
 export async function createPost(postData, userId) {
-  // Si el autor es verificado o staff → activo directo
-  // Si no → pendiente de revisión
-  const status = postData.authorVerified || postData.authorIsStaff
-    ? 'active'
-    : 'pending'
+  // Publicación directa SOLO si:
+  // 1. El autor tiene verified === true (explícito, no truthy)
+  // 2. O el autor tiene rol staff/admin/owner
+  const isVerified = postData.authorVerified === true
+  const isStaff    = postData.authorIsStaff === true
+
+  const status = (isVerified || isStaff) ? 'active' : 'pending'
 
   const post = {
     ...postData,
