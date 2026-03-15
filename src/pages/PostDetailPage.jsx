@@ -85,7 +85,7 @@ export default function PostDetailPage() {
   }
 
   async function handleShare() {
-    const url  = `${window.location.origin}/post/${id}`
+    const url  = `https://asmodeo-og.asmodeotayson.workers.dev/?post=${id}`
     const text = `${post.name} — Descárgalo en AsmodeoDev`
     if (navigator.share) {
       try { await navigator.share({ title: post.name, text, url }) } catch {}
