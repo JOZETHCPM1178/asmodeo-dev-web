@@ -1,6 +1,7 @@
 // src/components/ui/Navbar.jsx
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { createPortal } from 'react-dom'
 import { useAuth } from '../../context/AuthContext'
 import { logout } from '../../services/auth'
 import { subscribeToNotifications } from '../../services/social'
@@ -17,9 +18,10 @@ const SOCIAL_LINKS = [
 ]
 
 export default function Navbar() {
-  const { user } = useAuth()
-  const navigate = useNavigate()
-  const location = useLocation()
+  const { user }  = useAuth()
+  const navigate  = useNavigate()
+  const location  = useLocation()
+  const dropRef   = useRef(null)
 
   const [showAuth, setShowAuth]           = useState(false)
   const [menuOpen, setMenuOpen]           = useState(false)
@@ -28,27 +30,28 @@ export default function Navbar() {
   const [notifications, setNotifications] = useState([])
   const [conversations, setConversations] = useState([])
 
-  const dropRef  = useRef(null)
-  const inboxRef = useRef(null)
-
-  useEffect(() => { setMenuOpen(false); setDropOpen(false); setInboxOpen(false) }, [location.pathname])
-
-  // Notificaciones y DMs
+  // Cerrar todo al cambiar de ruta
   useEffect(() => {
-    if (!user) return
-    const unsubNotifs = subscribeToNotifications(user.uid, setNotifications)
-    const unsubDMs    = subscribeToConversations(user.uid, setConversations)
-    return () => { unsubNotifs(); unsubDMs() }
+    setMenuOpen(false)
+    setDropOpen(false)
+    setInboxOpen(false)
+  }, [location.pathname])
+
+  // Suscribir notificaciones y DMs
+  useEffect(() => {
+    if (!user?.uid) return
+    const unsubN = subscribeToNotifications(user.uid, setNotifications)
+    const unsubD = subscribeToConversations(user.uid, setConversations)
+    return () => { unsubN(); unsubD() }
   }, [user?.uid])
 
-  // Click fuera → cerrar panels
+  // Cerrar dropdown al click fuera
   useEffect(() => {
-    const handler = (e) => {
-      if (dropRef.current  && !dropRef.current.contains(e.target))  setDropOpen(false)
-      if (inboxRef.current && !inboxRef.current.contains(e.target)) setInboxOpen(false)
+    const h = (e) => {
+      if (dropRef.current && !dropRef.current.contains(e.target)) setDropOpen(false)
     }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
   }, [])
 
   const unreadNotifs = notifications.filter(n => !n.read).length
@@ -66,8 +69,12 @@ export default function Navbar() {
       <nav className={styles.nav}>
         <div className={styles.inner}>
 
-          <Link to="/" className={styles.logo}>ASMODEO<span>DEV</span></Link>
+          {/* Logo */}
+          <Link to="/" className={styles.logo}>
+            ASMODEO<span>DEV</span>
+          </Link>
 
+          {/* Links desktop */}
           <div className={styles.links}>
             <NavLink to="/feed"        label="📱 Feed" />
             <NavLink to="/feed/apk"    label="APK" />
@@ -76,6 +83,7 @@ export default function Navbar() {
             <NavLink to="/search"      label="🔍 Buscar" />
           </div>
 
+          {/* Redes sociales desktop */}
           <div className={styles.socialLinks}>
             {SOCIAL_LINKS.map(s => (
               <a key={s.label} href={s.url} target="_blank" rel="noopener noreferrer"
@@ -83,36 +91,35 @@ export default function Navbar() {
             ))}
           </div>
 
+          {/* Acciones */}
           <div className={styles.actions}>
             {user ? (
               <>
+                {/* Subir */}
                 <Link to="/upload" className={`btn btn-primary btn-sm ${styles.hideOnMobile}`}>
                   + Subir
                 </Link>
 
-                {/* Inbox (notificaciones + DMs) */}
-                <div className={styles.inboxWrap} ref={inboxRef}>
-                  <button
-                    className={styles.inboxBtn}
-                    onClick={() => setInboxOpen(o => !o)}
-                    title="Bandeja de entrada"
-                  >
-                    🔔
-                    {totalInbox > 0 && (
-                      <span className={styles.inboxBadge}>{totalInbox > 9 ? '9+' : totalInbox}</span>
-                    )}
-                  </button>
-                  {inboxOpen && (
-                    <InboxPanel
-                      notifications={notifications}
-                      onClose={() => setInboxOpen(false)}
-                    />
+                {/* Campana inbox */}
+                <button
+                  className={styles.inboxBtn}
+                  onClick={() => setInboxOpen(o => !o)}
+                  title="Bandeja de entrada"
+                >
+                  🔔
+                  {totalInbox > 0 && (
+                    <span className={styles.inboxBadge}>
+                      {totalInbox > 9 ? '9+' : totalInbox}
+                    </span>
                   )}
-                </div>
+                </button>
 
                 {/* Avatar dropdown */}
                 <div className={styles.avatarWrap} ref={dropRef}>
-                  <button className={styles.avatarBtn} onClick={() => setDropOpen(o => !o)}>
+                  <button
+                    className={styles.avatarBtn}
+                    onClick={() => setDropOpen(o => !o)}
+                  >
                     {user.photoURL
                       ? <img src={user.photoURL} alt="" className="avatar avatar-sm" />
                       : <div className={styles.avatarPlaceholder}>{(user.displayName || 'U')[0].toUpperCase()}</div>
@@ -128,31 +135,44 @@ export default function Navbar() {
                           : <div className={styles.avatarPlaceholderMd}>{(user.displayName || 'U')[0].toUpperCase()}</div>
                         }
                         <div className={styles.dropUserInfo}>
-                          <div className={styles.dropName}>{user.displayName}
-                            {user.verified && <span className={styles.checkMark}>✓</span>}
-                          </div>
+                          <div className={styles.dropName}>{user.displayName}</div>
                           <div className={styles.dropEmail}>{user.email}</div>
                           {user.isAdmin   && <span className="badge badge-purple">👑 ADMIN</span>}
                           {user.isAdminJr && <span className="badge badge-cyan">🛡️ ADMIN JR</span>}
                         </div>
                       </div>
                       <div className={styles.dropDivider} />
-                      <Link to={`/profile/${user.uid}`} className={styles.dropItem} onClick={() => setDropOpen(false)}>👤 Mi perfil</Link>
-                      <Link to="/upload" className={styles.dropItem} onClick={() => setDropOpen(false)}>📤 Subir publicación</Link>
-                      {user.isStaff && <Link to="/admin" className={styles.dropItem} onClick={() => setDropOpen(false)}>🛡️ Panel de Admin</Link>}
+                      <Link to={`/profile/${user.uid}`} className={styles.dropItem} onClick={() => setDropOpen(false)}>
+                        👤 Mi perfil
+                      </Link>
+                      <Link to="/upload" className={styles.dropItem} onClick={() => setDropOpen(false)}>
+                        📤 Subir publicación
+                      </Link>
+                      {user.isStaff && (
+                        <Link to="/admin" className={styles.dropItem} onClick={() => setDropOpen(false)}>
+                          🛡️ Panel de Admin
+                        </Link>
+                      )}
                       <div className={styles.dropDivider} />
-                      <button className={styles.dropLogout} onClick={handleLogout}>🚪 Cerrar sesión</button>
+                      <button className={styles.dropLogout} onClick={handleLogout}>
+                        🚪 Cerrar sesión
+                      </button>
                     </div>
                   )}
                 </div>
               </>
             ) : (
               <>
-                <button className="btn btn-ghost btn-sm" onClick={() => setShowAuth('login')}>Entrar</button>
-                <button className="btn btn-primary btn-sm" onClick={() => setShowAuth('register')}>Registrarse</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setShowAuth('login')}>
+                  Entrar
+                </button>
+                <button className="btn btn-primary btn-sm" onClick={() => setShowAuth('register')}>
+                  Registrarse
+                </button>
               </>
             )}
 
+            {/* Burger */}
             <button className={styles.burger} onClick={() => setMenuOpen(o => !o)}>
               <span /><span /><span />
             </button>
@@ -167,33 +187,47 @@ export default function Navbar() {
             <Link to="/feed/games"  className={styles.mobileLink}>🎮 Juegos</Link>
             <Link to="/feed/script" className={styles.mobileLink}>⚙️ Scripts</Link>
             <Link to="/search"      className={styles.mobileLink}>🔍 Buscar</Link>
-            {user && <>
-              <div className={styles.mobileDivider} />
-              <Link to="/upload"               className={styles.mobileLink}>📤 Subir</Link>
-              <Link to={`/profile/${user.uid}`} className={styles.mobileLink}>👤 Mi perfil</Link>
-              {user.isStaff && <Link to="/admin" className={styles.mobileLink}>🛡️ Panel Admin</Link>}
-            </>}
+            {user && (
+              <>
+                <div className={styles.mobileDivider} />
+                <Link to="/upload"               className={styles.mobileLink}>📤 Subir</Link>
+                <Link to={`/profile/${user.uid}`} className={styles.mobileLink}>👤 Mi perfil</Link>
+                {user.isStaff && <Link to="/admin" className={styles.mobileLink}>🛡️ Panel Admin</Link>}
+              </>
+            )}
             <div className={styles.mobileDivider} />
             <div className={styles.mobileSocial}>
               {SOCIAL_LINKS.map(s => (
-                <a key={s.label} href={s.url} target="_blank" rel="noopener noreferrer" className={styles.mobileSocialBtn}>
-                  {s.icon} {s.label}
-                </a>
+                <a key={s.label} href={s.url} target="_blank" rel="noopener noreferrer"
+                  className={styles.mobileSocialBtn}>{s.icon} {s.label}</a>
               ))}
             </div>
             <div className={styles.mobileDivider} />
             {user
               ? <button className={styles.mobileLogout} onClick={handleLogout}>🚪 Cerrar sesión</button>
               : <div className={styles.mobileAuthBtns}>
-                  <button className="btn btn-ghost" style={{flex:1}} onClick={() => { setShowAuth('login'); setMenuOpen(false) }}>Entrar</button>
-                  <button className="btn btn-primary" style={{flex:1}} onClick={() => { setShowAuth('register'); setMenuOpen(false) }}>Registrarse</button>
+                  <button className="btn btn-ghost" style={{ flex: 1 }}
+                    onClick={() => { setShowAuth('login'); setMenuOpen(false) }}>Entrar</button>
+                  <button className="btn btn-primary" style={{ flex: 1 }}
+                    onClick={() => { setShowAuth('register'); setMenuOpen(false) }}>Registrarse</button>
                 </div>
             }
           </div>
         )}
       </nav>
 
-      {showAuth && <AuthModal initialMode={showAuth} onClose={() => setShowAuth(false)} />}
+      {/* InboxPanel como PORTAL — fuera del nav, sin overflow hidden */}
+      {inboxOpen && createPortal(
+        <InboxPanel
+          notifications={notifications}
+          onClose={() => setInboxOpen(false)}
+        />,
+        document.body
+      )}
+
+      {showAuth && (
+        <AuthModal initialMode={showAuth} onClose={() => setShowAuth(false)} />
+      )}
     </>
   )
 }
@@ -201,5 +235,9 @@ export default function Navbar() {
 function NavLink({ to, label }) {
   const location = useLocation()
   const active = location.pathname === to || location.pathname.startsWith(to + '/')
-  return <Link to={to} className={`${styles.navLink} ${active ? styles.active : ''}`}>{label}</Link>
+  return (
+    <Link to={to} className={`${styles.navLink} ${active ? styles.active : ''}`}>
+      {label}
+    </Link>
+  )
 }

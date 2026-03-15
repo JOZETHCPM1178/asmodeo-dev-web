@@ -1,195 +1,256 @@
 /* src/components/ui/InboxPanel.module.css */
 
-/* ─── Panel container ─── */
+/* ── Overlay — cubre toda la pantalla ── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  /* En desktop: fondo semitransparente */
+  background: rgba(0,0,0,0.3);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding-top: var(--nav-h);
+}
+
+/* ── Panel ── */
 .panel {
-  position: absolute;
-  top: calc(100% + 10px);
-  right: 0;
-  width: 360px;
-  height: 520px;
+  width: 380px;
+  height: calc(100vh - var(--nav-h));
   background: var(--card);
-  border: 1px solid var(--border2);
-  border-radius: var(--r2);
-  box-shadow: 0 20px 60px rgba(0,0,0,.65);
-  z-index: 950;
+  border-left: 1px solid var(--border2);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: scaleIn .18s ease;
+  animation: slideIn .2s ease;
+  box-shadow: -8px 0 40px rgba(0,0,0,.5);
 }
 
-/* ─── Header ─── */
+/* En móvil: panel ocupa toda la pantalla */
+@media (max-width: 640px) {
+  .overlay {
+    padding-top: var(--nav-h);
+    align-items: stretch;
+    justify-content: stretch;
+    background: rgba(0,0,0,0.5);
+  }
+  .panel {
+    width: 100%;
+    height: calc(100vh - var(--nav-h));
+    border-left: none;
+    border-radius: 0;
+  }
+}
+
+/* ── Header ── */
 .header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0.8rem 1rem;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-  gap: 0.5rem;
-  min-height: 52px;
+  min-height: 56px;
+  background: var(--card);
 }
 .panelTitle {
   font-family: var(--font1);
-  font-size: 0.9rem;
+  font-size: 1rem;
   font-weight: 700;
+  flex: 1;
 }
 .closeBtn {
-  background: none; border: none; color: var(--t3);
-  font-size: 1rem; cursor: pointer; padding: 4px 6px;
-  border-radius: 6px; transition: var(--tr);
+  background: rgba(255,255,255,.06);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--t2);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.35rem 0.6rem;
+  transition: var(--tr);
 }
-.closeBtn:hover { color: var(--t1); background: rgba(255,255,255,.06); }
+.closeBtn:hover { color: var(--t1); background: rgba(255,255,255,.1); }
 
 .backBtn {
-  background: none; border: none; color: var(--p2);
-  font-size: 0.82rem; font-weight: 700; cursor: pointer;
-  padding: 4px 8px; border-radius: 6px; transition: var(--tr);
-  white-space: nowrap; flex-shrink: 0;
+  background: none; border: none;
+  color: var(--p2); font-size: 1.2rem;
+  font-weight: 700; cursor: pointer;
+  padding: 4px 10px; border-radius: 8px;
+  transition: var(--tr); flex-shrink: 0;
 }
 .backBtn:hover { background: rgba(124,58,237,.1); }
 
 .convHeaderInfo {
-  display: flex; align-items: center; gap: 0.6rem; flex: 1;
+  display: flex; align-items: center;
+  gap: 0.6rem; flex: 1;
 }
 .convHeaderName { font-weight: 700; font-size: 0.9rem; }
 
-/* ─── Tabs ─── */
+.blockBtn {
+  background: rgba(239,68,68,.08);
+  border: 1px solid rgba(239,68,68,.2);
+  border-radius: 8px;
+  color: var(--red);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.35rem 0.6rem;
+  transition: var(--tr);
+  flex-shrink: 0;
+}
+.blockBtn:hover { background: rgba(239,68,68,.15); }
+
+/* ── Tabs ── */
 .tabs {
   display: flex;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  background: var(--card);
 }
-.tabBtn {
-  flex: 1; padding: 0.6rem; background: none; border: none;
-  color: var(--t3); font-family: var(--font2); font-size: 0.82rem;
-  font-weight: 600; cursor: pointer; transition: var(--tr);
-  display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+.tab {
+  flex: 1; padding: 0.75rem 0.5rem;
+  background: none; border: none;
+  color: var(--t3); font-family: var(--font2);
+  font-size: 0.85rem; font-weight: 600;
+  cursor: pointer; transition: var(--tr);
+  display: flex; align-items: center;
+  justify-content: center; gap: 0.4rem;
   border-bottom: 2px solid transparent;
 }
-.tabBtn:hover { color: var(--t1); background: rgba(255,255,255,.03); }
-.tabBtn.tabActive { color: var(--p2); border-bottom-color: var(--p2); background: transparent; }
-
+.tab:hover { color: var(--t1); }
+.tab.tabActive { color: var(--p2); border-bottom-color: var(--p2); }
 .tabBadge {
   background: var(--red); color: #fff;
-  font-size: 0.62rem; font-weight: 700;
-  min-width: 16px; height: 16px; border-radius: 20px;
-  display: flex; align-items: center; justify-content: center; padding: 0 3px;
+  font-size: 0.65rem; font-weight: 700;
+  min-width: 18px; height: 18px;
+  border-radius: 20px;
+  display: flex; align-items: center;
+  justify-content: center; padding: 0 4px;
 }
 
-/* ─── Scrollable body ─── */
-.scrollBody {
-  flex: 1;
-  overflow-y: auto;
+/* ── Body scrollable ── */
+.body {
+  flex: 1; overflow-y: auto;
+  display: flex; flex-direction: column;
+}
+
+/* Activity filters */
+.activityFilters {
   display: flex;
-  flex-direction: column;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+}
+.filterChip {
+  font-size: 0.75rem;
+  color: var(--t2);
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
 }
 
 .markAllBtn {
-  padding: 0.45rem 1rem; background: none; border: none;
-  border-bottom: 1px solid var(--border); color: var(--p2);
-  font-size: 0.76rem; font-family: var(--font2); cursor: pointer;
-  text-align: left; transition: background 0.15s; flex-shrink: 0;
+  padding: 0.5rem 1rem;
+  background: none; border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--p2); font-size: 0.78rem;
+  font-family: var(--font2); cursor: pointer;
+  text-align: left; transition: background 0.15s;
+  flex-shrink: 0;
 }
 .markAllBtn:hover { background: rgba(124,58,237,.05); }
 
-/* ─── Notification row ─── */
+/* Notification row */
 .notifRow {
-  display: flex; align-items: flex-start; gap: 0.65rem;
-  padding: 0.7rem 1rem; cursor: pointer; transition: background 0.15s;
-  border-bottom: 1px solid rgba(255,255,255,.025);
+  display: flex; align-items: flex-start;
+  gap: 0.65rem; padding: 0.8rem 1rem;
+  cursor: pointer; transition: background 0.15s;
+  border-bottom: 1px solid rgba(255,255,255,.03);
 }
 .notifRow:hover { background: rgba(255,255,255,.03); }
 .notifRow.unread { background: rgba(124,58,237,.05); }
-
-.notifIcon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+.notifIcon { font-size: 1.2rem; flex-shrink: 0; margin-top: 1px; }
 .notifBody { flex: 1; min-width: 0; }
-.notifMsg { font-size: 0.82rem; color: var(--t1); line-height: 1.4; word-break: break-word; }
+.notifMsg { font-size: 0.85rem; color: var(--t1); line-height: 1.4; word-break: break-word; }
 .notifMsg strong { color: var(--p2); }
-.notifTime { font-size: 0.7rem; color: var(--t3); margin-top: 0.2rem; display: block; }
+.notifTime { font-size: 0.72rem; color: var(--t3); margin-top: 0.2rem; display: block; }
 .unreadDot {
   width: 8px; height: 8px; border-radius: 50%;
-  background: var(--p); flex-shrink: 0; margin-top: 5px;
+  background: var(--p); flex-shrink: 0; margin-top: 6px;
 }
 
-/* ─── Conversation row ─── */
+/* Conversation row */
 .convRow {
-  display: flex; align-items: center; gap: 0.7rem;
-  padding: 0.75rem 1rem; cursor: pointer; transition: background 0.15s;
-  border-bottom: 1px solid rgba(255,255,255,.025);
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.85rem 1rem; cursor: pointer;
+  transition: background 0.15s;
+  border-bottom: 1px solid rgba(255,255,255,.03);
 }
 .convRow:hover { background: rgba(255,255,255,.03); }
-
 .avatarFb {
-  width: 42px; height: 42px; border-radius: 50%;
+  width: 44px; height: 44px; border-radius: 50%;
   background: linear-gradient(135deg, var(--p), var(--p2));
-  color: #fff; font-weight: 700; font-size: 1rem;
+  color: #fff; font-weight: 700; font-size: 1.1rem;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
-
 .convInfo { flex: 1; min-width: 0; }
-.convName { font-weight: 700; font-size: 0.875rem; }
+.convName { font-weight: 700; font-size: 0.9rem; }
 .convLast {
-  font-size: 0.78rem; color: var(--t3);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 0.1rem;
+  font-size: 0.8rem; color: var(--t3);
+  white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; margin-top: 0.15rem;
 }
-.convMeta { display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem; flex-shrink: 0; }
-.convTime { font-size: 0.68rem; color: var(--t3); }
+.convMeta {
+  display: flex; flex-direction: column;
+  align-items: flex-end; gap: 0.3rem; flex-shrink: 0;
+}
+.convTime { font-size: 0.7rem; color: var(--t3); }
 .convBadge {
   background: var(--p); color: #fff;
   font-size: 0.65rem; font-weight: 700;
-  min-width: 18px; height: 18px; border-radius: 20px;
-  display: flex; align-items: center; justify-content: center; padding: 0 4px;
+  min-width: 20px; height: 20px; border-radius: 20px;
+  display: flex; align-items: center; justify-content: center; padding: 0 5px;
 }
 
-/* ─── DM Messages ─── */
+/* DM messages */
 .dmMessages {
   flex: 1; overflow-y: auto;
-  padding: 0.75rem; display: flex; flex-direction: column; gap: 0.45rem;
+  padding: 0.85rem; display: flex;
+  flex-direction: column; gap: 0.5rem;
 }
-
 .bubble {
-  max-width: 80%; padding: 0.5rem 0.8rem;
-  border-radius: 16px; display: flex; flex-direction: column; gap: 0.15rem;
-  word-break: break-word;
+  max-width: 78%; padding: 0.55rem 0.85rem;
+  border-radius: 16px; display: flex;
+  flex-direction: column; gap: 0.2rem;
+  word-break: break-word; font-size: 0.875rem;
+  line-height: 1.4;
 }
 .bubbleOwn {
-  align-self: flex-end;
-  background: var(--p); color: #fff;
-  border-bottom-right-radius: 4px;
+  align-self: flex-end; background: var(--p);
+  color: #fff; border-bottom-right-radius: 4px;
 }
 .bubbleOther {
-  align-self: flex-start;
-  background: var(--bg2); border: 1px solid var(--border);
+  align-self: flex-start; background: var(--bg2);
+  border: 1px solid var(--border);
   color: var(--t1); border-bottom-left-radius: 4px;
 }
-.bubbleText { font-size: 0.85rem; line-height: 1.4; }
 .bubbleTime { font-size: 0.65rem; opacity: 0.55; align-self: flex-end; }
 
-/* ─── DM Input ─── */
+/* DM input */
 .dmInputRow {
   display: flex; gap: 0.5rem;
-  padding: 0.6rem 0.75rem;
+  padding: 0.7rem 0.85rem;
   border-top: 1px solid var(--border);
-  flex-shrink: 0;
+  flex-shrink: 0; background: var(--card);
 }
 
-/* ─── Empty state ─── */
+/* Empty */
 .emptyState {
   flex: 1; display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  gap: 0.5rem; color: var(--t3); font-size: 0.85rem;
-  padding: 2rem; text-align: center;
-}
-
-/* ─── Mobile: full screen ─── */
-@media (max-width: 480px) {
-  .panel {
-    position: fixed;
-    top: var(--nav-h);
-    left: 0; right: 0; bottom: 0;
-    width: 100%; height: auto;
-    border-radius: 0;
-    border: none;
-  }
+  gap: 0.5rem; color: var(--t3); font-size: 0.875rem;
+  padding: 3rem; text-align: center;
 }
