@@ -214,6 +214,18 @@ export default function PostDetailPage() {
 
               {post.description && <p className={styles.desc}>{post.description}</p>}
 
+              {/* VirusTotal */}
+              {post.vtClean === true && !post.vtSkipped && (
+                <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.5rem 0.85rem', background:'rgba(16,185,129,.08)', border:'1px solid rgba(16,185,129,.2)', borderRadius:'var(--r)', fontSize:'0.82rem', color:'var(--green)' }}>
+                  🛡️ <strong>Verificado por VirusTotal</strong> — Sin amenazas detectadas
+                </div>
+              )}
+              {post.vtClean === false && (
+                <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.5rem 0.85rem', background:'rgba(239,68,68,.08)', border:'1px solid rgba(239,68,68,.2)', borderRadius:'var(--r)', fontSize:'0.82rem', color:'var(--red)' }}>
+                  ⚠️ VirusTotal detectó posibles amenazas en este archivo
+                </div>
+              )}
+
               {/* Stats */}
               <div className={styles.metaGrid}>
                 {post.version && <MetaItem icon="🏷️" label="Versión"   value={post.version} />}
