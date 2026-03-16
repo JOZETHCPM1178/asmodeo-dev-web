@@ -79,23 +79,27 @@ export default function UploadForm() {
       const imageData = await uploadImage(imageFile, { folder: 'posts' })
       setProgress(35)
 
-      // 2. Escanear APK con VirusTotal si es modo archivo
+      // 2. Escanear APK con VirusTotal si es modo archivo (solo archivos < 650MB)
       let vtScan = null
       if (uploadMode === 'file' && apkFile) {
-        setProgressLabel('🔍 Escaneando con VirusTotal...')
-        setProgress(38)
-        try {
-          vtScan = await scanFile(apkFile, label => setProgressLabel(label))
-          setVtResult(vtScan)
-          if (!vtScan.clean && !vtScan.skipped) {
-            setLoading(false)
-            setProgress(0)
-            toast.error(`⚠️ VirusTotal detectó amenazas en el archivo. No se puede subir.`)
-            return
+        if (apkFile.size < 650 * 1024 * 1024) {
+          setProgressLabel('🔍 Escaneando con VirusTotal...')
+          setProgress(38)
+          try {
+            vtScan = await scanFile(apkFile, label => setProgressLabel(label))
+            setVtResult(vtScan)
+            if (!vtScan.clean && !vtScan.skipped) {
+              setLoading(false)
+              setProgress(0)
+              toast.error(`⚠️ VirusTotal detectó amenazas en el archivo. No se puede subir.`)
+              return
+            }
+          } catch {
+            vtScan = { clean: true, skipped: true, message: 'Escaneo omitido' }
           }
-        } catch {
-          // Si falla VirusTotal, continuar sin bloquear
-          vtScan = { clean: true, skipped: true, message: 'Escaneo omitido' }
+        } else {
+          // Archivo > 650MB → omitir escaneo (límite de VirusTotal)
+          vtScan = { clean: true, skipped: true, message: 'Archivo grande — escaneo omitido' }
         }
       }
 
@@ -258,7 +262,7 @@ export default function UploadForm() {
                   <div className={styles.apkPlaceholder}>
                     <span style={{ fontSize: '2.2rem' }}>📦</span>
                     <span className={styles.apkPlaceholderText}>Toca para seleccionar APK</span>
-                    <span className={styles.apkHint}>APK, ZIP, RAR · máx 500 MB · Descarga directa gratis</span>
+                    <span className={styles.apkHint}>APK, ZIP, RAR · máx 15 GB · Descarga directa gratis</span>
                   </div>
                 )}
                 <input ref={apkRef} type="file"
