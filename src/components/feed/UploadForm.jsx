@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext'
 import { createPost } from '../../services/posts'
 import { uploadImage } from '../../services/cloudinary'
 import { uploadToArchive, validateApkFile } from '../../services/archive'
-import { scanFile } from '../../services/virustotal'
+import { notifyTelegramNewPost } from '../../services/notifications'
 import styles from './UploadForm.module.css'
 
 const CATS = {
@@ -34,7 +34,6 @@ export default function UploadForm() {
   const [loading, setLoading]             = useState(false)
   const [progress, setProgress]           = useState(0)
   const [progressLabel, setProgressLabel] = useState('')
-  const [vtResult, setVtResult]           = useState(null) // resultado VirusTotal
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -79,37 +78,12 @@ export default function UploadForm() {
       const imageData = await uploadImage(imageFile, { folder: 'posts' })
       setProgress(35)
 
-      // 2. Escanear APK con VirusTotal si es modo archivo (solo archivos < 650MB)
-      let vtScan = null
-      if (uploadMode === 'file' && apkFile) {
-        if (apkFile.size < 650 * 1024 * 1024) {
-          setProgressLabel('🔍 Escaneando con VirusTotal...')
-          setProgress(38)
-          try {
-            vtScan = await scanFile(apkFile, label => setProgressLabel(label))
-            setVtResult(vtScan)
-            if (!vtScan.clean && !vtScan.skipped) {
-              setLoading(false)
-              setProgress(0)
-              toast.error(`⚠️ VirusTotal detectó amenazas en el archivo. No se puede subir.`)
-              return
-            }
-          } catch {
-            vtScan = { clean: true, skipped: true, message: 'Escaneo omitido' }
-          }
-        } else {
-          // Archivo > 650MB → omitir escaneo (límite de VirusTotal)
-          vtScan = { clean: true, skipped: true, message: 'Archivo grande — escaneo omitido' }
-        }
-      }
-
-      // 3. Subir APK a Archive.org si es modo archivo
+      // 2. Subir APK a Archive.org si es modo archivo
       let finalDownloadUrl = form.downloadUrl.trim()
       if (uploadMode === 'file' && apkFile) {
         setProgressLabel('📦 Subiendo APK a Archive.org...')
-        const archiveResult = await uploadToArchive(apkFile, (pct, label) => {
+        const archiveResult = await uploadToArchive(apkFile, (pct) => {
           setProgress(35 + Math.round(pct * 0.55))
-          if (label) setProgressLabel(label)
         })
         finalDownloadUrl = archiveResult.url
       }
@@ -137,9 +111,6 @@ export default function UploadForm() {
         authorVerified: user.verified === true,
         authorIsStaff:  user.isStaff === true,
         directDownload: uploadMode === 'file',
-        vtClean:   vtScan ? vtScan.clean   : null,
-        vtMessage: vtScan ? vtScan.message : null,
-        vtSkipped: vtScan ? vtScan.skipped : true,
       }
 
       const result = await createPost(postData, user.uid)
@@ -154,6 +125,11 @@ export default function UploadForm() {
       } else {
         setProgressLabel('🎉 ¡Publicado!')
         toast.success('¡Publicación creada! 🎉')
+        // Notificar al canal de Telegram automáticamente
+        notifyTelegramNewPost({
+          id: postId,
+          ...postData,
+        }).catch(() => {}) // no bloquear si falla
         navigate(`/post/${postId}`)
       }
     } catch (err) {
@@ -263,7 +239,7 @@ export default function UploadForm() {
                   <div className={styles.apkPlaceholder}>
                     <span style={{ fontSize: '2.2rem' }}>📦</span>
                     <span className={styles.apkPlaceholderText}>Toca para seleccionar APK</span>
-                    <span className={styles.apkHint}>APK, ZIP, RAR · máx 15 GB · Descarga directa gratis</span>
+                    <span className={styles.apkHint}>APK, ZIP, RAR · máx 500 MB · Descarga directa gratis</span>
                   </div>
                 )}
                 <input ref={apkRef} type="file"
@@ -318,12 +294,6 @@ export default function UploadForm() {
             <span className={styles.progressText}>{progressLabel || 'Procesando...'}</span>
             <span className={styles.progressPct}>{progress}%</span>
           </div>
-          {/* Barra de velocidad visual extra para archivos grandes */}
-          {progressLabel?.includes('MB/s') && (
-            <div className={styles.speedInfo}>
-              <span>⚡ La velocidad depende de tu conexión a internet</span>
-            </div>
-          )}
         </div>
       )}
 
