@@ -107,6 +107,30 @@ export async function publishToTelegram(post) {
   })
 }
 
+// ─── PUBLICAR EN TELEGRAM + ONESIGNAL via Worker ───
+export async function notifyTelegramNewPost(post) {
+  if (!WORKER_URL || WORKER_URL.includes('your-worker')) return
+  try {
+    await fetch(`${WORKER_URL}/notify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        post: {
+          id:          post.id,
+          name:        post.name,
+          title:       post.name,
+          description: post.description,
+          category:    post.category,
+          imageUrl:    post.imageUrl,
+          downloadUrl: post.downloadUrl,
+        }
+      }),
+    })
+  } catch (e) {
+    console.warn('Worker notify error:', e)
+  }
+}
+
 // ─── VERIFICAR PERMISO DE NOTIFICACIONES ───
 export async function getNotificationPermission() {
   if (!('Notification' in window)) return 'unsupported'
