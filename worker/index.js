@@ -1,215 +1,773 @@
-// worker/index.js
-// ════════════════════════════════════════
-//  CLOUDFLARE WORKER — Notificaciones + Bot Telegram
-// ════════════════════════════════════════
-//
-//  Variables de entorno en Cloudflare Dashboard → Workers → Settings → Variables:
-//    ONESIGNAL_APP_ID      - ID de tu app en OneSignal
-//    ONESIGNAL_REST_KEY    - REST API Key de OneSignal
-//    TELEGRAM_BOT_TOKEN    - Token del bot de Telegram
-//    TELEGRAM_CHANNEL_ID   - ID del canal de Telegram (ej: -1001234567890)
-//    WORKER_SECRET         - Secret para autenticar llamadas desde tu frontend
-//
-// ════════════════════════════════════════
+// Cloudflare Worker — ASMODEO DEV
+// Bot Telegram + OneSignal + Google + Subir apps + Login + Descarga videos
+
+const ONESIGNAL_APP_ID   = '57488b36-1bd3-4f46-9d9b-2729c0055a23';
+const ONESIGNAL_REST_KEY = 'os_v2_app_k5eiwnq32nhunhm3e4u4abk2enhd4hhrv4eekquijnincjjlmmdwptixxi3iyt7ybt4ldk4mqsaomemlb5p4dzmlfaevwn6tugk3jdy';
+const TELEGRAM_TOKEN     = '8756414415:AAFR-Uwks3cyr_RJHTPdhvFHCHXvXomIs94';
+const TELEGRAM_CHAT_ID   = '-1003857525980';
+const FIREBASE_PROJECT   = 'modzone-asmodeo';
+const ALLOWED_ORIGIN     = 'https://asmodeo-dev-web.pages.dev';
+const SITE_URL           = 'https://asmodeo-dev-web.pages.dev';
+const BOT_ADMINS         = ['8015489755'];
 
 const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+// ─── Comandos con autocompletado ───
+const BOT_COMMANDS = [
+  { command: 'start',         description: '⚡ Bienvenida e información del bot' },
+  { command: 'ayuda',         description: '📋 Ver todos los comandos' },
+  { command: 'publicaciones', description: '📦 Últimas apps subidas' },
+  { command: 'buscar',        description: '🔍 Buscar en ASMODEO DEV' },
+  { command: 'google',        description: '🌐 Buscar en Google' },
+  { command: 'ranking',       description: '🏆 Top 5 más populares' },
+  { command: 'recomendar',    description: '⭐ App destacada del día' },
+  { command: 'video',         description: '🎬 Descargar video TikTok/YouTube/etc' },
+  { command: 'scan',          description: '🔬 Verificar app en VirusTotal' },
+  { command: 'subir',         description: '📤 Subir app con link' },
+  { command: 'login',         description: '🔐 Vincular cuenta con la web' },
+  { command: 'recompensas',   description: '🎁 Recoger puntos diarios' },
+];
+
+// ─── Stores en memoria (se resetean al reiniciar el worker) ───
+const loginCodes   = new Map(); // uid → { code, chatId, expires }
+const rewardStore  = {};
+function getTodayKey(uid) { return `${uid}_${new Date().toISOString().slice(0,10)}`; }
+
+// ─── Helpers Telegram ───
+async function tgSend(chatId, text, extra = {}) {
+  await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown', disable_web_page_preview: true, ...extra })
+  });
 }
 
-export default {
-  async fetch(request, env) {
-    // Preflight CORS
-    if (request.method === 'OPTIONS') {
-      return new Response(null, { headers: CORS })
-    }
+async function tgSendPhoto(chatId, photo, caption, extra = {}) {
+  const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, photo, caption, parse_mode: 'Markdown', ...extra })
+  });
+  if (!res.ok) await tgSend(chatId, caption);
+}
 
-    const url = new URL(request.url)
-    const path = url.pathname
+// ─── Helper Firestore REST ───
+async function fbGet(path) {
+  const res = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/${path}`
+  );
+  if (!res.ok) return null;
+  return res.json();
+}
 
-    // ─── RUTAS ───
-    if (path === '/notify' && request.method === 'POST') {
-      return handleNotify(request, env)
-    }
-    if (path === '/telegram' && request.method === 'POST') {
-      return handleTelegramWebhook(request, env)
-    }
-    if (path === '/health') {
-      return json({ status: 'ok', time: new Date().toISOString() })
-    }
-
-    return json({ error: 'Not found' }, 404)
+async function fbCreate(collection, data) {
+  const fields = {};
+  for (const [k, v] of Object.entries(data)) {
+    if (typeof v === 'string')  fields[k] = { stringValue: v };
+    else if (typeof v === 'number') fields[k] = { integerValue: String(v) };
+    else if (typeof v === 'boolean') fields[k] = { booleanValue: v };
+    else if (v === null) fields[k] = { nullValue: null };
+    else fields[k] = { stringValue: String(v) };
   }
+  const res = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/${collection}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields })
+    }
+  );
+  return res.json();
 }
 
-// ─── HANDLER: Notificaciones ───
-async function handleNotify(request, env) {
+// ─── Verificar si usuario está vinculado ───
+async function getLinkedUser(telegramId) {
   try {
-    const body = await request.json()
-    const { type, ...payload } = body
-
-    switch (type) {
-      case 'notify_user':
-        await sendOneSignalToPlayer(env, payload.playerId, {
-          title: payload.title,
-          message: payload.message,
-          url: payload.url,
-        })
-        break
-
-      case 'notify_admins':
-        await sendTelegramMessage(env,
-          `⚠️ <b>Contenido sospechoso detectado</b>\n` +
-          `📝 Post: ${payload.postName || payload.postId}\n` +
-          `🔍 Razón: ${payload.reason || 'Sin razón'}\n` +
-          `⚡ Issues: ${(payload.issues || []).join(', ')}`
-        )
-        break
-
-      case 'telegram_post':
-        await publishPostToTelegram(env, payload.post)
-        break
-
-      default:
-        return json({ error: 'Unknown type' }, 400)
-    }
-
-    return json({ success: true })
-  } catch (err) {
-    console.error('notify error:', err)
-    return json({ error: err.message }, 500)
-  }
+    const res = await fbGet(`users?pageSize=200`);
+    const docs = res?.documents || [];
+    return docs.find(d => d.fields?.telegramId?.stringValue === String(telegramId)) || null;
+  } catch { return null; }
 }
 
-// ─── HANDLER: Webhook del Bot de Telegram ───
-async function handleTelegramWebhook(request, env) {
+// ─── Verificar admin ───
+async function isAdmin(chatId, userId) {
+  if (BOT_ADMINS.includes(String(userId))) return true;
   try {
-    const update = await request.json()
-    const msg = update.message || update.channel_post
-    if (!msg) return json({ ok: true })
+    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/getChatMember`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, user_id: userId })
+    });
+    const d = await res.json();
+    return ['creator', 'administrator'].includes(d.result?.status);
+  } catch { return false; }
+}
 
-    const text = msg.text || ''
-    const chatId = msg.chat.id
-    const from = msg.from
+// ─── Registrar comandos ───
+async function registrarComandos() {
+  await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/setMyCommands`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ commands: BOT_COMMANDS })
+  });
+}
 
-    // Comandos del bot
-    if (text.startsWith('/start')) {
-      await sendTelegramTo(env, chatId,
-        '👋 Hola! Soy el bot de <b>AsmodeoDev</b>.\n' +
-        'Te mantendré al tanto de las últimas publicaciones.\n\n' +
-        '📱 Visita: https://asmodeodev.com'
-      )
+// ─── Búsqueda Google via DuckDuckGo ───
+async function buscarGoogle(query) {
+  try {
+    const res = await fetch(
+      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`,
+      { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1)' } }
+    );
+    const html = await res.text();
+    const results = [];
+    // Regex más robusto para extraer resultados
+    const linkRx   = /class="result__a"[^>]*href="([^"]+)"/g;
+    const titleRx  = /class="result__a"[^>]*>([^<]+)<\/a>/g;
+    const snippRx  = /class="result__snippet"[^>]*>([^<]*(?:<[^>]+>[^<]*)*)<\/a>/g;
+
+    const links   = [...html.matchAll(/result__a[^>]+href="([^"]+)"/g)].map(m => m[1]);
+    const titles  = [...html.matchAll(/result__a[^>]*>([^<]+)<\/a>/g)].map(m => m[1].trim());
+    const snippets= [...html.matchAll(/result__snippet[^>]*>([^<]+)</g)].map(m => m[1].trim());
+
+    for (let i = 0; i < Math.min(links.length, 5); i++) {
+      let url = links[i];
+      // Decodificar URLs de DuckDuckGo
+      if (url.includes('uddg=')) {
+        url = decodeURIComponent(url.split('uddg=')[1].split('&')[0]);
+      }
+      if (url.startsWith('http') && titles[i]) {
+        results.push({
+          url,
+          title:   titles[i].replace(/&amp;/g,'&').replace(/&#x27;/g,"'"),
+          snippet: (snippets[i] || '').replace(/&amp;/g,'&').substring(0, 100),
+        });
+      }
     }
-    else if (text.startsWith('/latest')) {
-      await sendTelegramTo(env, chatId,
-        '🔥 Ver las últimas publicaciones:\nhttps://asmodeodev.com/feed'
-      )
+    return results;
+  } catch (e) { return []; }
+}
+
+// ─── Descarga de videos con múltiples APIs de fallback ───
+async function descargarVideo(link) {
+  // API 1: cobalt.tools (versión actualizada)
+  try {
+    const res = await fetch('https://api.cobalt.tools/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0',
+      },
+      body: JSON.stringify({
+        url: link,
+        videoQuality: '720',
+        audioFormat: 'mp3',
+        filenameStyle: 'pretty',
+        downloadMode: 'auto',
+      })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.status === 'redirect' || data.status === 'stream' || data.status === 'tunnel') {
+        return { url: data.url, source: 'cobalt' };
+      }
+      if (data.status === 'picker' && data.picker?.length) {
+        return { url: data.picker[0].url, source: 'cobalt' };
+      }
     }
-    // Comandos admin (puedes añadir validación de adminId)
-    else if (text.startsWith('/ban ')) {
-      const userId = text.split(' ')[1]
-      await sendTelegramTo(env, chatId, `🚫 Comando ban recibido para usuario: ${userId}\n⚠️ Implementa la lógica de baneo aquí.`)
+  } catch {}
+
+  // API 2: Para TikTok específicamente — tikwm
+  if (link.includes('tiktok')) {
+    try {
+      const encoded = encodeURIComponent(link);
+      const res = await fetch(`https://www.tikwm.com/api/?url=${encoded}&hd=1`, {
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      });
+      const data = await res.json();
+      if (data.code === 0 && data.data) {
+        const videoUrl = data.data.hdplay || data.data.play || data.data.wmplay;
+        if (videoUrl) return { url: videoUrl, source: 'tikwm' };
+      }
+    } catch {}
+  }
+
+  // API 3: Para YouTube — y2mate alternativa
+  if (link.includes('youtube') || link.includes('youtu.be')) {
+    try {
+      const videoId = link.match(/(?:v=|youtu\.be\/)([^&\n?#]+)/)?.[1];
+      if (videoId) {
+        return {
+          url: `https://www.y2mate.com/youtube/${videoId}`,
+          source: 'y2mate',
+          isPage: true
+        };
+      }
+    } catch {}
+  }
+
+  return null;
+}
+
+// ─── Handler principal de comandos ───
+async function handleCommand(msg) {
+  const chatId = msg.chat.id;
+  const userId = String(msg.from?.id);
+  const text   = msg.text || '';
+  const parts  = text.trim().split(/\s+/);
+  const cmd    = parts[0].split('@')[0].toLowerCase();
+  const args   = parts.slice(1).join(' ');
+
+  // ══ /start ══
+  if (cmd === '/start') {
+    await tgSend(chatId,
+      `⚡ *¡Bienvenido a ASMODEO DEV Bot!*\n\n` +
+      `Tu fuente de APKs Mod, Juegos y Scripts gratis.\n\n` +
+      `📌 Escribe */* para ver todos los comandos.\n` +
+      `🔐 Usa /login para vincular tu cuenta.\n\n` +
+      `🌐 [Visitar web](${SITE_URL})`
+    );
+    return;
+  }
+
+  // ══ /ayuda ══
+  if (cmd === '/ayuda') {
+    await tgSend(chatId,
+      `⚡ *ASMODEO DEV Bot — Comandos*\n\n` +
+      `📦 *Publicaciones*\n` +
+      `/publicaciones — Últimas apps subidas\n` +
+      `/buscar <nombre> — Buscar en la web\n` +
+      `/ranking — Top 5 más populares\n` +
+      `/recomendar — App destacada del día\n\n` +
+      `🌐 *Búsqueda*\n` +
+      `/google <consulta> — Buscar en Google\n\n` +
+      `🎬 *Videos*\n` +
+      `/video <link> — Descargar sin marca de agua\n` +
+      `_(TikTok, YouTube, Instagram, Twitter...)_\n\n` +
+      `📤 *Subir contenido*\n` +
+      `/subir <nombre> | <link> | <categoría>\n` +
+      `_Requiere cuenta vinculada_\n\n` +
+      `🔐 *Cuenta*\n` +
+      `/login — Vincular cuenta con la web\n` +
+      `/recompensas — Puntos diarios\n\n` +
+      `🔒 *Seguridad*\n` +
+      `/scan <nombre> — Verificar en VirusTotal\n\n` +
+      `🛡️ *Admin*\n` +
+      `/admin — Dar admin · /ban — Banear`
+    );
+    return;
+  }
+
+  // ══ /login — Genera código para vincular con la web ══
+  if (cmd === '/login') {
+    // Verificar si ya está vinculado
+    const linked = await getLinkedUser(userId);
+    if (linked) {
+      const name = linked.fields?.displayName?.stringValue || 'Usuario';
+      await tgSend(chatId,
+        `✅ *Ya tienes una cuenta vinculada*\n\n` +
+        `👤 ${name}\n\n` +
+        `Tu cuenta de Telegram está conectada con ASMODEO DEV.\n\n` +
+        `🌐 [Ver mi perfil](${SITE_URL}/profile/${linked.name.split('/').pop()})`
+      );
+      return;
     }
 
-    return json({ ok: true })
-  } catch (err) {
-    console.error('telegram webhook error:', err)
-    return json({ error: err.message }, 500)
+    // Generar código de 6 dígitos
+    const code    = Math.floor(100000 + Math.random() * 900000).toString();
+    const expires = Date.now() + 10 * 60 * 1000; // 10 minutos
+
+    loginCodes.set(userId, { code, chatId, expires, telegramId: userId, telegramName: msg.from?.first_name });
+
+    await tgSend(chatId,
+      `🔐 *Vincular cuenta ASMODEO DEV*\n\n` +
+      `Tu código de verificación es:\n\n` +
+      `\`${code}\`\n\n` +
+      `*Pasos:*\n` +
+      `1. Ve a ${SITE_URL}\n` +
+      `2. Inicia sesión en tu cuenta\n` +
+      `3. Ve a *Perfil → Vincular Telegram*\n` +
+      `4. Ingresa el código: \`${code}\`\n\n` +
+      `⏱️ _Código válido por 10 minutos_`
+    );
+    return;
+  }
+
+  // ══ /subir — Subir app con link ══
+  if (cmd === '/subir') {
+    // Verificar que esté vinculado
+    const linked = await getLinkedUser(userId);
+    if (!linked) {
+      await tgSend(chatId,
+        `🔐 *Necesitas vincular tu cuenta primero*\n\n` +
+        `Usa /login para vincular tu cuenta de ASMODEO DEV con Telegram.`
+      );
+      return;
+    }
+
+    if (!args) {
+      await tgSend(chatId,
+        `📤 *Subir app a ASMODEO DEV*\n\n` +
+        `*Formato:*\n` +
+        `/subir <nombre> | <link> | <categoría>\n\n` +
+        `*Categorías:* apk · games · script · tutorials\n\n` +
+        `*Ejemplo:*\n` +
+        `/subir Minecraft Mod v1.21 | https://mediafire.com/xxx | games\n\n` +
+        `*Plataformas soportadas:*\n` +
+        `✅ MediaFire · Google Drive · Mega · OneDrive · Dropbox · Cualquier link directo`
+      );
+      return;
+    }
+
+    const partes = args.split('|').map(s => s.trim());
+    if (partes.length < 2) {
+      await tgSend(chatId,
+        `❌ Formato incorrecto.\n\n` +
+        `Uso: /subir <nombre> | <link> | <categoría>\n\n` +
+        `Ejemplo:\n/subir Minecraft Mod | https://mediafire.com/xxx | games`
+      );
+      return;
+    }
+
+    const nombre    = partes[0];
+    const linkUrl   = partes[1];
+    const categoria = (partes[2] || 'apk').toLowerCase().trim();
+
+    // Validar categoría
+    const catsValidas = ['apk', 'games', 'script', 'tutorials'];
+    const catFinal = catsValidas.includes(categoria) ? categoria : 'apk';
+
+    // Validar link
+    if (!linkUrl.startsWith('http')) {
+      await tgSend(chatId, `❌ El link debe empezar con https://`);
+      return;
+    }
+
+    const authorId   = linked.name.split('/').pop();
+    const authorName = linked.fields?.displayName?.stringValue || 'Usuario';
+
+    await tgSend(chatId, `⏳ Subiendo *${nombre}*...`);
+
+    try {
+      const doc = await fbCreate('posts', {
+        name:        nombre,
+        category:    catFinal,
+        downloadUrl: linkUrl,
+        authorId,
+        authorName,
+        description: `Subido por ${authorName} vía Telegram Bot`,
+        status:      'active',
+        likes:       0,
+        downloads:   0,
+        commentCount:0,
+        views:       0,
+        score:       0,
+        featured:    false,
+        verified:    false,
+        source:      'telegram_bot',
+      });
+
+      const postId = doc.name?.split('/').pop();
+
+      await tgSend(chatId,
+        `✅ *¡Publicación creada exitosamente!*\n\n` +
+        `📱 *${nombre}*\n` +
+        `📁 Categoría: ${catFinal}\n` +
+        `👤 Por: ${authorName}\n\n` +
+        `[🔗 Ver publicación](${SITE_URL}/post/${postId})`
+      );
+
+      // Anunciar en el canal
+      await anunciarTelegram({
+        id:          postId,
+        name:        nombre,
+        category:    catFinal,
+        downloadUrl: linkUrl,
+        description: `Subido por ${authorName} vía Telegram Bot`,
+      });
+
+    } catch(e) {
+      await tgSend(chatId, `❌ Error al crear la publicación: ${e.message}`);
+    }
+    return;
+  }
+
+  // ══ /video — Descarga de videos con múltiples APIs ══
+  if (cmd === '/video') {
+    if (!args) {
+      await tgSend(chatId,
+        `🎬 *Descargador de Videos ASMODEO DEV*\n\nUso: /video <link>\n\n` +
+        `✅ Soporta:\n` +
+        `📱 TikTok — sin marca de agua\n` +
+        `▶️ YouTube — hasta 720p\n` +
+        `📸 Instagram — reels y posts\n` +
+        `🐦 Twitter/X\n` +
+        `🎵 SoundCloud\n` +
+        `📌 Pinterest`
+      );
+      return;
+    }
+
+    const link = args.trim();
+    if (!link.startsWith('http')) {
+      await tgSend(chatId, `❌ Manda un link válido que empiece con https://`);
+      return;
+    }
+
+    await tgSend(chatId, `⏳ Procesando video, espera un momento...`);
+
+    const result = await descargarVideo(link);
+
+    if (!result) {
+      // Fallback: dar links alternativos según plataforma
+      let alternativa = '';
+      if (link.includes('tiktok')) {
+        alternativa = `\n\n*Alternativas para TikTok:*\n[snaptik.app](https://snaptik.app) · [tikmate.online](https://tikmate.online)`;
+      } else if (link.includes('youtube') || link.includes('youtu.be')) {
+        alternativa = `\n\n*Alternativas para YouTube:*\n[y2mate.com](https://y2mate.com) · [savefrom.net](https://en.savefrom.net)`;
+      } else if (link.includes('instagram')) {
+        alternativa = `\n\n*Alternativas para Instagram:*\n[instafinsta.com](https://instafinsta.com)`;
+      }
+      await tgSend(chatId,
+        `❌ No se pudo descargar automáticamente.${alternativa}\n\n` +
+        `_Pega el link en cualquiera de esas webs para descargarlo._`,
+        { disable_web_page_preview: false }
+      );
+      return;
+    }
+
+    const platform = link.includes('tiktok') ? '📱 TikTok'
+      : link.includes('youtube') || link.includes('youtu.be') ? '▶️ YouTube'
+      : link.includes('instagram') ? '📸 Instagram'
+      : link.includes('twitter') || link.includes('x.com') ? '🐦 Twitter/X'
+      : link.includes('soundcloud') ? '🎵 SoundCloud'
+      : '🎬 Video';
+
+    if (result.isPage) {
+      // Para YouTube — dar link a página de descarga
+      await tgSend(chatId,
+        `${platform}\n\n` +
+        `[⬇️ Descargar en y2mate](${result.url})\n\n` +
+        `_Abre el link y toca "Download"_`,
+        { disable_web_page_preview: false }
+      );
+    } else {
+      await tgSend(chatId,
+        `${platform} ✅\n\n` +
+        `[⬇️ Toca para descargar](${result.url})\n\n` +
+        `_Sin marca de agua · @asmodeoDEVbot_`,
+        { disable_web_page_preview: false }
+      );
+    }
+    return;
+  }
+
+  // ══ /publicaciones ══
+  if (cmd === '/publicaciones') {
+    try {
+      const res  = await fbGet('posts?pageSize=5');
+      const docs = res?.documents || [];
+      if (!docs.length) { await tgSend(chatId, '📭 No hay publicaciones aún.'); return; }
+      const cats = { apk:'📱', games:'🎮', script:'⚙️', tutorials:'📚' };
+      const lines = docs.map((d, i) => {
+        const f     = d.fields || {};
+        const title = f.name?.stringValue || 'Sin título';
+        const cat   = f.category?.stringValue || '';
+        const id    = d.name.split('/').pop();
+        return `${i+1}. ${cats[cat]||'⚡'} *${title}*\n   [Ver](${SITE_URL}/post/${id})`;
+      });
+      await tgSend(chatId, `📦 *Últimas publicaciones:*\n\n${lines.join('\n\n')}\n\n🌐 [Ver todas](${SITE_URL}/feed)`);
+    } catch(e) { await tgSend(chatId, '❌ Error al obtener publicaciones.'); }
+    return;
+  }
+
+  // ══ /buscar ══
+  if (cmd === '/buscar') {
+    if (!args) { await tgSend(chatId, '❓ Uso: `/buscar nombre`'); return; }
+    try {
+      const res  = await fbGet('posts?pageSize=100');
+      const docs = res?.documents || [];
+      const q    = args.toLowerCase();
+      const matches = docs.filter(d => {
+        const name = d.fields?.name?.stringValue || '';
+        const desc = d.fields?.description?.stringValue || '';
+        return name.toLowerCase().includes(q) || desc.toLowerCase().includes(q);
+      }).slice(0, 5);
+      if (!matches.length) {
+        await tgSend(chatId, `🔍 Sin resultados para "*${args}*" en ASMODEO DEV.\n\nPrueba: /google ${args}`);
+        return;
+      }
+      const cats  = { apk:'📱', games:'🎮', script:'⚙️', tutorials:'📚' };
+      const lines = matches.map(d => {
+        const f   = d.fields || {};
+        const cat = f.category?.stringValue || '';
+        const id  = d.name.split('/').pop();
+        return `${cats[cat]||'⚡'} *${f.name?.stringValue||'Sin título'}*\n[Ver](${SITE_URL}/post/${id})`;
+      });
+      await tgSend(chatId, `🔍 *Resultados para "${args}":*\n\n${lines.join('\n\n')}`);
+    } catch(e) { await tgSend(chatId, '❌ Error al buscar.'); }
+    return;
+  }
+
+  // ══ /google ══
+  if (cmd === '/google') {
+    if (!args) {
+      await tgSend(chatId, `🌐 Uso: /google <consulta>\n\nEjemplo: /google minecraft mod gratis 2026`);
+      return;
+    }
+    await tgSend(chatId, `🔍 Buscando "*${args}*"...`);
+    const results = await buscarGoogle(args);
+    if (!results.length) {
+      await tgSend(chatId,
+        `❌ Sin resultados.\n[Buscar en Google](https://www.google.com/search?q=${encodeURIComponent(args)})`,
+        { disable_web_page_preview: false }
+      );
+      return;
+    }
+    const lines = results.map((r, i) =>
+      `${i+1}. *${r.title}*\n${r.snippet ? `_${r.snippet}_\n` : ''}[🔗 Abrir](${r.url})`
+    );
+    await tgSend(chatId,
+      `🌐 *Google — "${args}":*\n\n${lines.join('\n\n')}\n\n[Ver más](https://www.google.com/search?q=${encodeURIComponent(args)})`
+    );
+    return;
+  }
+
+  // ══ /ranking ══
+  if (cmd === '/ranking') {
+    try {
+      const res  = await fbGet('posts?pageSize=50');
+      const docs = res?.documents || [];
+      const sorted = docs
+        .map(d => ({ ...d.fields, id: d.name.split('/').pop() }))
+        .sort((a,b) => (parseInt(b.likes?.integerValue||0)) - (parseInt(a.likes?.integerValue||0)))
+        .slice(0, 5);
+      const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+      const lines  = sorted.map((p,i) =>
+        `${medals[i]} *${p.name?.stringValue||'Sin título'}*\n❤️ ${p.likes?.integerValue||0}\n[Ver](${SITE_URL}/post/${p.id})`
+      );
+      await tgSend(chatId, `🏆 *Top 5:*\n\n${lines.join('\n\n')}`);
+    } catch(e) { await tgSend(chatId, '❌ Error.'); }
+    return;
+  }
+
+  // ══ /recomendar ══
+  if (cmd === '/recomendar') {
+    try {
+      const res  = await fbGet('posts?pageSize=50');
+      const docs = res?.documents || [];
+      const top  = docs.map(d => ({ ...d.fields, id: d.name.split('/').pop() }))
+        .sort((a,b) => parseInt(b.likes?.integerValue||0) - parseInt(a.likes?.integerValue||0))[0];
+      if (!top) { await tgSend(chatId, '📭 Sin publicaciones aún.'); return; }
+      const title   = top.name?.stringValue || 'Sin título';
+      const desc    = (top.description?.stringValue || '').substring(0, 200);
+      const img     = top.imageUrl?.stringValue || null;
+      const caption = `⭐ *Recomendación:*\n\n*${title}*\n\n${desc}\n\n[📥 Ver y Descargar](${SITE_URL}/post/${top.id})`;
+      if (img) await tgSendPhoto(chatId, img, caption);
+      else await tgSend(chatId, caption);
+    } catch(e) { await tgSend(chatId, '❌ Error.'); }
+    return;
+  }
+
+  // ══ /scan ══
+  if (cmd === '/scan') {
+    if (!args) { await tgSend(chatId, '❓ Uso: `/scan nombre_app`'); return; }
+    const vtUrl = `https://www.virustotal.com/gui/search/${encodeURIComponent(args)}`;
+    await tgSend(chatId,
+      `🔬 *VirusTotal — ${args}*\n\n[🔗 Ver análisis](${vtUrl})\n\n_Verifica antes de instalar._`,
+      { disable_web_page_preview: false }
+    );
+    return;
+  }
+
+  // ══ /recompensas ══
+  if (cmd === '/recompensas') {
+    const key = getTodayKey(userId);
+    if (rewardStore[key]) {
+      await tgSend(chatId, `🎁 Ya recogiste tus puntos hoy ✅\nVuelve mañana.`);
+    } else {
+      rewardStore[key] = true;
+      await tgSend(chatId, `🎁 *¡+1 punto ganado!*\n\nAcumula 10 y canjéalos por acceso VIP.\n_Vuelve mañana._`);
+    }
+    return;
+  }
+
+  // ══ /admin ══
+  if (cmd === '/admin') {
+    if (!await isAdmin(chatId, userId)) { await tgSend(chatId, '⛔ Solo admins.'); return; }
+    if (!msg.reply_to_message) { await tgSend(chatId, '↩️ Responde un mensaje para dar admin.'); return; }
+    const tid = msg.reply_to_message.from.id;
+    const tn  = msg.reply_to_message.from.first_name;
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/promoteChatMember`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, user_id: tid, can_post_messages: true, can_delete_messages: true, can_invite_users: true })
+    });
+    await tgSend(chatId, `✅ *${tn}* ahora es admin.`);
+    return;
+  }
+
+  // ══ /ban ══
+  if (cmd === '/ban') {
+    if (!await isAdmin(chatId, userId)) { await tgSend(chatId, '⛔ Solo admins.'); return; }
+    if (!msg.reply_to_message) { await tgSend(chatId, '↩️ Responde un mensaje para banear.'); return; }
+    const tid = msg.reply_to_message.from.id;
+    const tn  = msg.reply_to_message.from.first_name;
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/banChatMember`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, user_id: tid })
+    });
+    await tgSend(chatId, `🔨 *${tn}* baneado.`);
+    return;
   }
 }
 
-// ─── ONESIGNAL: Notificar a un jugador específico ───
-async function sendOneSignalToPlayer(env, playerId, { title, message, url }) {
-  if (!env.ONESIGNAL_APP_ID || !env.ONESIGNAL_REST_KEY) {
-    console.warn('OneSignal no configurado')
-    return
-  }
+// ─── OneSignal: todos los usuarios ───
+async function enviarOneSignal(post) {
+  const cats  = { apk:'📱', games:'🎮', script:'⚙️', tutorials:'📚' };
+  const emoji = cats[post.category] || '⚡';
+  const res   = await fetch('https://onesignal.com/api/v1/notifications', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Basic ${ONESIGNAL_REST_KEY}` },
+    body: JSON.stringify({
+      app_id: ONESIGNAL_APP_ID,
+      included_segments: ['Total Subscriptions'],
+      headings: { en: `${emoji} ${post.name || post.title}` },
+      contents: { en: (post.description || '').substring(0, 100) },
+      big_picture: post.imageUrl || undefined,
+      url: `${SITE_URL}/post/${post.id}`,
+      chrome_web_icon: `${SITE_URL}/icon-192x192.png`,
+    })
+  });
+  return res.json();
+}
 
+// ─── OneSignal: usuario específico ───
+async function enviarOneSignalUsuario(playerId, title, message, pushUrl) {
   const res = await fetch('https://onesignal.com/api/v1/notifications', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Basic ${env.ONESIGNAL_REST_KEY}`,
-    },
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Basic ${ONESIGNAL_REST_KEY}` },
     body: JSON.stringify({
-      app_id: env.ONESIGNAL_APP_ID,
+      app_id: ONESIGNAL_APP_ID,
       include_player_ids: [playerId],
-      headings: { es: title, en: title },
-      contents: { es: message, en: message },
-      url: url || 'https://asmodeodev.com',
-      chrome_web_icon: 'https://asmodeodev.com/icon-192x192.png',
-    }),
-  })
-
-  if (!res.ok) {
-    const err = await res.json()
-    throw new Error(`OneSignal error: ${JSON.stringify(err)}`)
-  }
-  return res.json()
-}
-
-// ─── TELEGRAM: Publicar nuevo post en canal ───
-async function publishPostToTelegram(env, post) {
-  if (!post) return
-  const msg =
-    `🚀 <b>Nueva publicación en AsmodeoDev</b>\n\n` +
-    `📱 <b>${escapeHtml(post.name)}</b>\n` +
-    `📁 Categoría: ${post.category}\n\n` +
-    `📝 ${escapeHtml((post.description || '').slice(0, 200))}\n\n` +
-    `⬇️ <a href="${post.downloadUrl}">Descargar</a> | ` +
-    `🔗 <a href="https://asmodeodev.com/post/${post.id}">Ver en web</a>`
-
-  await sendTelegramMessage(env, msg, post.imageUrl)
-}
-
-// ─── TELEGRAM: Enviar mensaje al canal principal ───
-async function sendTelegramMessage(env, text, photoUrl = null) {
-  if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHANNEL_ID) {
-    console.warn('Telegram no configurado')
-    return
-  }
-  return sendTelegramTo(env, env.TELEGRAM_CHANNEL_ID, text, photoUrl)
-}
-
-// ─── TELEGRAM: Enviar a chat específico ───
-async function sendTelegramTo(env, chatId, text, photoUrl = null) {
-  const base = `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}`
-
-  if (photoUrl) {
-    // Enviar foto con caption
-    await fetch(`${base}/sendPhoto`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        photo: photoUrl,
-        caption: text,
-        parse_mode: 'HTML',
-      }),
+      headings: { en: title },
+      contents: { en: message || ' ' },
+      url: pushUrl || SITE_URL,
+      chrome_web_icon: `${SITE_URL}/icon-192x192.png`
     })
-  } else {
-    await fetch(`${base}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        parse_mode: 'HTML',
-        disable_web_page_preview: false,
-      }),
-    })
+  });
+  return res.json();
+}
+
+// ─── Telegram: anunciar nuevo post en canal ───
+async function anunciarTelegram(post) {
+  const cats = { apk:'📱 APK Mod', games:'🎮 Juegos Mod', script:'⚙️ Scripts', tutorials:'📚 Tutoriales' };
+  const cat  = cats[post.category] || '⚡';
+  const name = post.name || post.title || 'Nueva publicación';
+  const desc = (post.description || '').substring(0, 200);
+  const text = `⚡ *ASMODEO DEV — Nueva publicación*\n\n*${name}*\n${cat}\n\n${desc}${desc.length>=200?'...':''}\n\n[📥 Ver y Descargar](${SITE_URL}/post/${post.id})`;
+  if (post.imageUrl) await tgSendPhoto(TELEGRAM_CHAT_ID, post.imageUrl, text);
+  else await tgSend(TELEGRAM_CHAT_ID, text);
+}
+
+// ─── Export principal ───
+export default {
+  async fetch(request) {
+    if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
+
+    const url = new URL(request.url);
+
+    // Webhook Telegram
+    if (url.pathname === '/telegram') {
+      try {
+        const update = await request.json();
+        const msg    = update.message || update.channel_post;
+        if (msg?.text?.startsWith('/')) await handleCommand(msg);
+      } catch(e) {}
+      return new Response('ok');
+    }
+
+    // Verificar código de login desde la web
+    if (url.pathname === '/verify-login' && request.method === 'POST') {
+      try {
+        const { uid, code } = await request.json();
+        const entry = loginCodes.get(uid);
+        if (!entry) {
+          return new Response(JSON.stringify({ ok: false, error: 'Código no encontrado o expirado' }), { headers: { 'Content-Type': 'application/json', ...CORS } });
+        }
+        if (Date.now() > entry.expires) {
+          loginCodes.delete(uid);
+          return new Response(JSON.stringify({ ok: false, error: 'Código expirado' }), { headers: { 'Content-Type': 'application/json', ...CORS } });
+        }
+        if (entry.code !== code) {
+          return new Response(JSON.stringify({ ok: false, error: 'Código incorrecto' }), { headers: { 'Content-Type': 'application/json', ...CORS } });
+        }
+        // Código correcto — devolver telegramId para guardar en Firestore
+        loginCodes.delete(uid);
+        // Notificar al usuario por Telegram
+        await tgSend(entry.chatId,
+          `✅ *¡Cuenta vinculada exitosamente!*\n\n` +
+          `Tu Telegram está ahora conectado con ASMODEO DEV.\n\n` +
+          `[🌐 Ver mi perfil](${SITE_URL})`
+        );
+        return new Response(JSON.stringify({ ok: true, telegramId: entry.telegramId, telegramName: entry.telegramName }), {
+          headers: { 'Content-Type': 'application/json', ...CORS }
+        });
+      } catch(e) {
+        return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers: CORS });
+      }
+    }
+
+    // Setup — registrar comandos
+    if (url.pathname === '/setup') {
+      await registrarComandos();
+      return new Response(JSON.stringify({ ok: true, msg: 'Comandos registrados ✅' }), {
+        headers: { 'Content-Type': 'application/json', ...CORS }
+      });
+    }
+
+    // Health check
+    if (url.pathname === '/health') {
+      return new Response(JSON.stringify({ status: 'ok', time: new Date().toISOString() }), {
+        headers: { 'Content-Type': 'application/json', ...CORS }
+      });
+    }
+
+    if (request.method === 'POST') {
+      const origin = request.headers.get('Origin') || '';
+      if (origin !== ALLOWED_ORIGIN) return new Response('Forbidden', { status: 403 });
+
+      // Push a usuario específico
+      if (url.pathname === '/push-user') {
+        try {
+          const { playerId, title, message, url: pushUrl } = await request.json();
+          if (!playerId) return new Response('Missing playerId', { status: 400, headers: CORS });
+          const data = await enviarOneSignalUsuario(playerId, title, message, pushUrl);
+          return new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json', ...CORS } });
+        } catch(e) {
+          return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: CORS });
+        }
+      }
+
+      // Nuevo post → Telegram + OneSignal
+      if (url.pathname === '/notify' || url.pathname === '/') {
+        try {
+          const body = await request.json();
+          const post = body.post || body;
+          await Promise.all([enviarOneSignal(post), anunciarTelegram(post)]);
+          return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json', ...CORS } });
+        } catch(e) {
+          return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: CORS });
+        }
+      }
+    }
+
+    return new Response('ASMODEO DEV Bot activo ⚡');
   }
-}
-
-// ─── UTILS ───
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...CORS, 'Content-Type': 'application/json' },
-  })
-}
-
-function escapeHtml(str = '') {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-}
+};
