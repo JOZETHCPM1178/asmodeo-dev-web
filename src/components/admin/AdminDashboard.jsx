@@ -4,22 +4,23 @@ import { toast } from 'react-hot-toast'
 import { useAuth } from '../../context/AuthContext'
 import {
   getStats, getAllUsers, setUserRole, banUser, unbanUser,
-  verifyUser, getPendingPosts, getReports, replyToReport,
+  verifyUser, getPendingPosts, getAllPosts, getReports, replyToReport,
   resolveReport, getAdminLogs, addFakeFollowers, removeFakeFollowers,
 } from '../../services/admin'
 import { deletePost, toggleFeatured, verifyPost, setPostStatus } from '../../services/posts'
-import { setChatStatus } from '../../services/social'
+import { setChatStatus, setMaintenanceMode, getMaintenanceMode } from '../../services/social'
 import styles from './AdminDashboard.module.css'
 
 const TABS_CONFIG = [
-  { id: 'owner',      label: '👑 Owner',      minRole: 'owner' },
-  { id: 'stats',      label: '📊 Stats',      minRole: 'admin' },
-  { id: 'users',      label: '👥 Usuarios',   minRole: 'admin' },
-  { id: 'posts',      label: '📝 Posts',      minRole: 'staff' },
-  { id: 'reports',    label: '⚠️ Reportes',   minRole: 'staff' },
-  { id: 'followers',  label: '🤖 Bot',        minRole: 'admin' },
-  { id: 'logs',       label: '📋 Logs',       minRole: 'admin' },
-  { id: 'config',     label: '⚙️ Config',     minRole: 'admin' },
+  { id: 'owner',      label: '👑 Owner',       minRole: 'owner' },
+  { id: 'stats',      label: '📊 Stats',       minRole: 'admin' },
+  { id: 'users',      label: '👥 Usuarios',    minRole: 'admin' },
+  { id: 'allposts',   label: '📋 Publicaciones', minRole: 'staff' },
+  { id: 'posts',      label: '⏳ Pendientes',  minRole: 'staff' },
+  { id: 'reports',    label: '⚠️ Reportes',    minRole: 'staff' },
+  { id: 'followers',  label: '🤖 Bot',         minRole: 'admin' },
+  { id: 'logs',       label: '📋 Logs',        minRole: 'admin' },
+  { id: 'config',     label: '⚙️ Config',      minRole: 'admin' },
 ]
 
 function canSeeTab(user, minRole) {
@@ -55,6 +56,7 @@ export default function AdminDashboard() {
       if (tabId === 'stats')     result = await getStats()
       else if (tabId === 'users' || tabId === 'owner' || tabId === 'followers')
                                   result = await getAllUsers()
+      else if (tabId === 'allposts') result = await getAllPosts()
       else if (tabId === 'posts') result = await getPendingPosts()
       else if (tabId === 'reports') result = await getReports()
       else if (tabId === 'logs')  result = await getAdminLogs()
@@ -122,6 +124,7 @@ export default function AdminDashboard() {
             {activeTab === 'owner'     && <OwnerPanel    user={user} users={Array.isArray(data) ? data : []} onRefresh={() => loadTab('owner')} />}
             {activeTab === 'stats'     && <StatsPanel    stats={data} />}
             {activeTab === 'users'     && <UsersPanel    users={Array.isArray(data) ? data : []} me={user} onRefresh={() => loadTab('users')} />}
+            {activeTab === 'allposts'  && <AllPostsPanel posts={Array.isArray(data) ? data : []} onRefresh={() => loadTab('allposts')} />}
             {activeTab === 'posts'     && <PostsPanel    posts={Array.isArray(data) ? data : []} onRefresh={() => loadTab('posts')} />}
             {activeTab === 'reports'   && <ReportsPanel  reports={Array.isArray(data) ? data : []} user={user} onRefresh={() => loadTab('reports')} />}
             {activeTab === 'followers' && <BotsPanel     users={Array.isArray(data) ? data : []} admin={user} />}
@@ -346,6 +349,9 @@ function OwnerPanel({ user, users, onRefresh }) {
           <InfoCard icon="⭐" label="Tasa verificados" value={`${users.length > 0 ? ((totalVerified/users.length)*100).toFixed(1) : 0}%`} color="var(--green)" />
         </div>
       )}
+
+      {/* ── MANTENIMIENTO ── */}
+      {activeSection === 'platform' && <MaintenanceToggle />}
 
       {/* ── ZONA PELIGROSA ── */}
       {activeSection === 'danger' && (
@@ -732,6 +738,185 @@ function ConfigPanel() {
         <button className={`btn ${chatClosed?'btn-primary':'btn-danger'}`} onClick={toggleChat}>
           {chatClosed ? '🔓 Abrir chat' : '🔒 Cerrar chat'}
         </button>
+      </div>
+    </div>
+  )
+}
+
+// ══════════════════════
+//  MANTENIMIENTO (solo owner)
+// ══════════════════════
+function MaintenanceToggle() {
+  const [active, setActive] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    getMaintenanceMode().then(setActive).catch(() => {})
+  }, [])
+
+  async function toggle() {
+    setLoading(true)
+    try {
+      await setMaintenanceMode(!active)
+      setActive(a => !a)
+      toast.success(!active ? '🔧 Mantenimiento ACTIVADO — solo tú ves la web' : '✅ Web restaurada para todos')
+    } catch (e) { toast.error(e.message) }
+    finally { setLoading(false) }
+  }
+
+  return (
+    <div className={styles.maintenanceBox}>
+      <div className={styles.maintenanceInfo}>
+        <span style={{ fontSize: '1.5rem' }}>🔧</span>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Sistema de Mantenimiento</div>
+          <div style={{ fontSize: '0.78rem', color: 'var(--t3)', marginTop: 2 }}>
+            Al activar, todos los usuarios verán "En Mantenimiento". Solo tú (owner) verás la web normal.
+          </div>
+        </div>
+        <span className={`badge ${active ? 'badge-red' : 'badge-green'}`} style={{ flexShrink: 0 }}>
+          {active ? '🔴 ACTIVO' : '🟢 NORMAL'}
+        </span>
+      </div>
+      <button
+        className={`btn btn-lg ${active ? 'btn-primary' : 'btn-danger'}`}
+        onClick={toggle} disabled={loading} style={{ width: '100%' }}>
+        {loading
+          ? <span className="spinner" style={{ width: 18, height: 18 }} />
+          : active ? '✅ Restaurar web para todos' : '🔧 Activar mantenimiento'}
+      </button>
+    </div>
+  )
+}
+
+// ══════════════════════
+//  TODAS LAS PUBLICACIONES
+// ══════════════════════
+function AllPostsPanel({ posts, onRefresh }) {
+  const [search, setSearch]     = useState('')
+  const [filterStatus, setFilterStatus] = useState('all')
+  const [filterCat, setFilterCat] = useState('all')
+
+  const filtered = posts.filter(p => {
+    const matchSearch = !search ||
+      (p.name||'').toLowerCase().includes(search.toLowerCase()) ||
+      (p.authorName||'').toLowerCase().includes(search.toLowerCase())
+    const matchStatus = filterStatus === 'all' || p.status === filterStatus
+    const matchCat    = filterCat === 'all' || p.category === filterCat
+    return matchSearch && matchStatus && matchCat
+  })
+
+  async function act(id, action, extra) {
+    try {
+      if (action === 'delete')  { if (!window.confirm('¿Eliminar?')) return; await deletePost(id) }
+      if (action === 'feature') await toggleFeatured(id, extra)
+      if (action === 'verify')  await verifyPost(id, extra)
+      if (action === 'status')  await setPostStatus(id, extra)
+      toast.success('✅ Listo'); onRefresh()
+    } catch (e) { toast.error(e.message) }
+  }
+
+  const CATS  = { apk: '📱', games: '🎮', script: '⚙️', tutorials: '📚' }
+  const STATUS = { active: '✅ Activo', pending: '⏳ Pendiente', hidden: '👁️ Oculto', rejected: '❌ Rechazado' }
+
+  return (
+    <div>
+      {/* Filtros */}
+      <div className={styles.filterRow}>
+        <input className="inp" placeholder="🔍 Buscar por nombre o autor..."
+          value={search} onChange={e => setSearch(e.target.value)}
+          style={{ flex: 1, fontSize: '0.85rem' }} />
+        <select className="inp" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+          style={{ width: 140, fontSize: '0.82rem' }}>
+          <option value="all">Todos los estados</option>
+          <option value="active">✅ Activos</option>
+          <option value="pending">⏳ Pendientes</option>
+          <option value="hidden">👁️ Ocultos</option>
+        </select>
+        <select className="inp" value={filterCat} onChange={e => setFilterCat(e.target.value)}
+          style={{ width: 140, fontSize: '0.82rem' }}>
+          <option value="all">Todas las categorías</option>
+          <option value="apk">📱 APK Mod</option>
+          <option value="games">🎮 Juegos</option>
+          <option value="script">⚙️ Scripts</option>
+          <option value="tutorials">📚 Tutoriales</option>
+        </select>
+      </div>
+
+      <div style={{ fontSize: '0.78rem', color: 'var(--t3)', marginBottom: '0.5rem' }}>
+        {filtered.length} publicaciones
+      </div>
+
+      <div className={styles.tableWrap}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>Publicación</th>
+              <th>Autor</th>
+              <th>Cat.</th>
+              <th>Estado</th>
+              <th>VirusTotal</th>
+              <th>Stats</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0
+              ? <tr><td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: 'var(--t3)' }}>Sin publicaciones</td></tr>
+              : filtered.map(p => (
+              <tr key={p.id}>
+                <td>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {p.imageUrl && <img src={p.imageUrl} alt="" style={{ width: 40, height: 30, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />}
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '0.83rem' }}>{p.name}</div>
+                      {p.featured && <span className="badge badge-gold" style={{ fontSize: '0.6rem' }}>⭐</span>}
+                      {p.verified && <span className="badge badge-cyan" style={{ fontSize: '0.6rem', marginLeft: 2 }}>✓</span>}
+                    </div>
+                  </div>
+                </td>
+                <td className={styles.muted}>{p.authorName || '—'}</td>
+                <td><span style={{ fontSize: '1.1rem' }}>{CATS[p.category] || '?'}</span></td>
+                <td>
+                  <span className={`badge ${p.status === 'active' ? 'badge-green' : p.status === 'pending' ? 'badge-gold' : 'badge-red'}`}
+                    style={{ fontSize: '0.68rem' }}>
+                    {STATUS[p.status] || p.status}
+                  </span>
+                </td>
+                <td>
+                  {p.vtClean === true && !p.vtSkipped
+                    ? <span style={{ color: 'var(--green)', fontSize: '0.75rem' }}>✅ Limpio</span>
+                    : p.vtClean === false
+                      ? <span style={{ color: 'var(--red)', fontSize: '0.75rem' }}>⚠️ Amenaza</span>
+                      : <span style={{ color: 'var(--t3)', fontSize: '0.75rem' }}>— Sin escanear</span>
+                  }
+                </td>
+                <td className={styles.muted}>
+                  ❤️{p.likes||0} ⬇️{p.downloads||0}
+                </td>
+                <td>
+                  <div className={styles.actionBtns}>
+                    {p.status !== 'active' && (
+                      <button className="btn btn-sm btn-primary" onClick={() => act(p.id,'status','active')}>✅</button>
+                    )}
+                    {p.status === 'active' && (
+                      <button className="btn btn-sm btn-ghost" onClick={() => act(p.id,'status','hidden')}>👁️</button>
+                    )}
+                    <button className="btn btn-sm btn-ghost"
+                      onClick={() => act(p.id,'feature',!p.featured)}>
+                      {p.featured ? '⭐' : '☆'}
+                    </button>
+                    <button className="btn btn-sm btn-ghost"
+                      onClick={() => act(p.id,'verify',!p.verified)}>
+                      {p.verified ? '✓' : '○'}
+                    </button>
+                    <button className="btn btn-sm btn-danger" onClick={() => act(p.id,'delete')}>🗑️</button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )
