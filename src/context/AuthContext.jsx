@@ -1,24 +1,32 @@
 // src/context/AuthContext.jsx
-// ════════════════════════════════════════
-//  AUTH CONTEXT — Estado global de autenticación
-// ════════════════════════════════════════
 import { createContext, useContext, useEffect, useState } from 'react'
 import { auth, onAuthStateChanged } from '../services/firebase'
 import { buildUserObject } from '../services/auth'
 import { saveOneSignalId } from '../services/notifications'
+import { getMaintenanceMode } from '../services/social'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(undefined) // undefined = cargando, null = no autenticado
-  const [loading, setLoading] = useState(true)
+  const [user, setUser]           = useState(undefined)
+  const [loading, setLoading]     = useState(true)
+  const [maintenance, setMaintenance] = useState(false)
+
+  useEffect(() => {
+    // Chequear modo mantenimiento
+    getMaintenanceMode().then(setMaintenance).catch(() => {})
+    // Polling cada 30s para detectar cambios
+    const interval = setInterval(() => {
+      getMaintenanceMode().then(setMaintenance).catch(() => {})
+    }, 30000)
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         const fullUser = await buildUserObject(firebaseUser)
         setUser(fullUser)
-        // Guardar OneSignal ID si está disponible
         setTimeout(() => saveOneSignalId(firebaseUser.uid), 3000)
       } else {
         setUser(null)
@@ -36,7 +44,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, maintenance, setMaintenance, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )
