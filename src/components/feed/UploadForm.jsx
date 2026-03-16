@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext'
 import { createPost } from '../../services/posts'
 import { uploadImage } from '../../services/cloudinary'
 import { uploadToArchive, validateApkFile } from '../../services/archive'
+import { scanFile } from '../../services/virustotal'
 import styles from './UploadForm.module.css'
 
 const CATS = {
@@ -33,6 +34,7 @@ export default function UploadForm() {
   const [loading, setLoading]             = useState(false)
   const [progress, setProgress]           = useState(0)
   const [progressLabel, setProgressLabel] = useState('')
+  const [vtResult, setVtResult]           = useState(null) // resultado VirusTotal
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -77,7 +79,27 @@ export default function UploadForm() {
       const imageData = await uploadImage(imageFile, { folder: 'posts' })
       setProgress(35)
 
-      // 2. Subir APK a Archive.org si es modo archivo
+      // 2. Escanear APK con VirusTotal si es modo archivo
+      let vtScan = null
+      if (uploadMode === 'file' && apkFile) {
+        setProgressLabel('🔍 Escaneando con VirusTotal...')
+        setProgress(38)
+        try {
+          vtScan = await scanFile(apkFile, label => setProgressLabel(label))
+          setVtResult(vtScan)
+          if (!vtScan.clean && !vtScan.skipped) {
+            setLoading(false)
+            setProgress(0)
+            toast.error(`⚠️ VirusTotal detectó amenazas en el archivo. No se puede subir.`)
+            return
+          }
+        } catch {
+          // Si falla VirusTotal, continuar sin bloquear
+          vtScan = { clean: true, skipped: true, message: 'Escaneo omitido' }
+        }
+      }
+
+      // 3. Subir APK a Archive.org si es modo archivo
       let finalDownloadUrl = form.downloadUrl.trim()
       if (uploadMode === 'file' && apkFile) {
         setProgressLabel('📦 Subiendo APK a Archive.org...')
@@ -110,6 +132,9 @@ export default function UploadForm() {
         authorVerified: user.verified === true,
         authorIsStaff:  user.isStaff === true,
         directDownload: uploadMode === 'file',
+        vtClean:   vtScan ? vtScan.clean   : null,
+        vtMessage: vtScan ? vtScan.message : null,
+        vtSkipped: vtScan ? vtScan.skipped : true,
       }
 
       const result = await createPost(postData, user.uid)

@@ -263,6 +263,14 @@ export default function PostCard({ post, compact = false, onDeleted }) {
             ))}
           </div>
         )}
+
+        {/* VirusTotal badge */}
+        {post.vtClean === true && !post.vtSkipped && (
+          <div className={styles.vtBadge}>
+            <span>🛡️</span>
+            <span>Verificado por VirusTotal — Sin amenazas detectadas</span>
+          </div>
+        )}
       </div>
 
       {/* ── ACCIONES ── */}
