@@ -178,7 +178,80 @@ export default function ProfilePage() {
   )
 }
 
-// ─── MODAL EDITAR PERFIL ───
+// ─── VINCULAR TELEGRAM ───
+function TelegramLinkSection({ uid, profile }) {
+  const [code, setCode]       = useState('')
+  const [linking, setLinking] = useState(false)
+  const [linked, setLinked]   = useState(!!profile?.telegramId)
+  const WORKER_URL = import.meta.env.VITE_WORKER_URL
+
+  async function handleLink() {
+    if (!code.trim() || code.length !== 6) { toast.error('El código debe ser de 6 dígitos'); return }
+    if (!WORKER_URL) { toast.error('Worker no configurado'); return }
+    setLinking(true)
+    try {
+      const res  = await fetch(`${WORKER_URL}/verify-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid, code: code.trim() }),
+      })
+      const data = await res.json()
+      if (!data.ok) { toast.error(data.error || 'Código incorrecto'); return }
+      // Guardar telegramId en Firestore
+      const { updateUserProfile } = await import('../services/auth')
+      await updateUserProfile(uid, { telegramId: data.telegramId, telegramName: data.telegramName })
+      setLinked(true)
+      toast.success('✅ Telegram vinculado correctamente')
+    } catch (e) {
+      toast.error(e.message || 'Error al vincular')
+    } finally {
+      setLinking(false)
+    }
+  }
+
+  return (
+    <div style={{
+      background: 'rgba(0,136,204,.08)', border: '1px solid rgba(0,136,204,.2)',
+      borderRadius: 'var(--r)', padding: '0.85rem',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+        <span style={{ fontSize: '1.1rem' }}>✈️</span>
+        <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>Vincular Telegram</span>
+        {linked && <span className="badge badge-cyan" style={{ fontSize: '0.65rem' }}>✓ Vinculado</span>}
+      </div>
+      {linked ? (
+        <p style={{ fontSize: '0.8rem', color: 'var(--t2)' }}>
+          Tu cuenta de Telegram está vinculada. Puedes subir apps desde el bot con /subir.
+        </p>
+      ) : (
+        <>
+          <p style={{ fontSize: '0.8rem', color: 'var(--t2)', marginBottom: '0.6rem' }}>
+            1. Escribe <strong>/login</strong> en el bot de Telegram<br/>
+            2. Copia el código de 6 dígitos<br/>
+            3. Pégalo aquí
+          </p>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <input
+              className="inp"
+              placeholder="Código de 6 dígitos"
+              value={code}
+              onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              maxLength={6}
+              style={{ flex: 1, letterSpacing: '0.3em', fontFamily: 'monospace', fontSize: '1rem' }}
+            />
+            <button className="btn btn-primary btn-sm" onClick={handleLink} disabled={linking || code.length !== 6}>
+              {linking ? <span className="spinner" style={{ width: 14, height: 14 }} /> : 'Vincular'}
+            </button>
+          </div>
+          <a href="https://t.me/asmodeoDEVbot" target="_blank" rel="noopener noreferrer"
+            style={{ display: 'block', marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--cyan)' }}>
+            → Abrir @asmodeoDEVbot en Telegram
+          </a>
+        </>
+      )}
+    </div>
+  )
+}
 function EditProfileModal({ profile, onClose, onSaved }) {
   const { user } = useAuth()
   const fileRef  = useRef(null)
@@ -278,6 +351,9 @@ function EditProfileModal({ profile, onClose, onSaved }) {
             />
             <div className={styles.charCount}>{form.bio.length}/200</div>
           </div>
+
+          {/* Vincular Telegram */}
+          <TelegramLinkSection uid={user.uid} profile={profile} />
         </div>
 
         {/* Botones */}
