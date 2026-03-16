@@ -221,3 +221,13 @@ export async function cleanOldChatMessages(daysOld = 7) {
   await batch.commit()
   return snap.docs.length
 }
+
+// ─── MANTENIMIENTO ───
+export async function setMaintenanceMode(active) {
+  await setDoc(doc(db, 'config', 'maintenance'), { active, updatedAt: serverTimestamp() })
+}
+
+export async function getMaintenanceMode() {
+  const snap = await getDoc(doc(db, 'config', 'maintenance'))
+  return snap.exists() ? snap.data().active : false
+}

@@ -145,6 +145,13 @@ export async function getPendingPosts() {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }))
 }
 
+export async function getAllPosts({ pageSize = 100, status = null } = {}) {
+  let constraints = [orderBy('createdAt', 'desc'), limit(pageSize)]
+  if (status) constraints = [where('status', '==', status), ...constraints]
+  const snap = await getDocs(query(collection(db, 'posts'), ...constraints))
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+}
+
 // ═══════════════════════════════════════
 //  SISTEMA DE REPORTES CON RESPUESTA
 // ═══════════════════════════════════════
