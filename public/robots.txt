@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://asmodeo-dev-web.pages.dev/sitemap.xml
