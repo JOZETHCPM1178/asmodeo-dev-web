@@ -107,8 +107,9 @@ export default function UploadForm() {
       let finalDownloadUrl = form.downloadUrl.trim()
       if (uploadMode === 'file' && apkFile) {
         setProgressLabel('📦 Subiendo APK a Archive.org...')
-        const archiveResult = await uploadToArchive(apkFile, (pct) => {
+        const archiveResult = await uploadToArchive(apkFile, (pct, label) => {
           setProgress(35 + Math.round(pct * 0.55))
+          if (label) setProgressLabel(label)
         })
         finalDownloadUrl = archiveResult.url
       }
@@ -317,6 +318,12 @@ export default function UploadForm() {
             <span className={styles.progressText}>{progressLabel || 'Procesando...'}</span>
             <span className={styles.progressPct}>{progress}%</span>
           </div>
+          {/* Barra de velocidad visual extra para archivos grandes */}
+          {progressLabel?.includes('MB/s') && (
+            <div className={styles.speedInfo}>
+              <span>⚡ La velocidad depende de tu conexión a internet</span>
+            </div>
+          )}
         </div>
       )}
 
