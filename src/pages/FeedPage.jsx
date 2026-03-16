@@ -1,6 +1,7 @@
 // src/pages/FeedPage.jsx
 import { useParams, Link } from 'react-router-dom'
 import Feed from '../components/feed/Feed'
+import SEO from '../components/ui/SEO'
 import styles from './FeedPage.module.css'
 
 const CATS = {
@@ -16,6 +17,18 @@ export default function FeedPage() {
 
   return (
     <div className={styles.page}>
+      <SEO
+        title={cat ? `${cat.label} Gratis` : 'Feed — Todo el contenido'}
+        description={cat
+          ? `Descarga ${cat.label} gratis. ${cat.desc}. Verificado por la comunidad de AsmodeoDev.`
+          : 'Explora todo el contenido de AsmodeoDev — APK Mods, Juegos, Scripts y Tutoriales gratis.'
+        }
+        keywords={cat
+          ? `${cat.label.toLowerCase()}, descargar gratis, mod, apk`
+          : 'apk mod, juegos mod, scripts, tutoriales gratis'
+        }
+        url={category ? `/feed/${category}` : '/feed'}
+      />
       <div className="container">
         {/* Header */}
         <div className={styles.header}>

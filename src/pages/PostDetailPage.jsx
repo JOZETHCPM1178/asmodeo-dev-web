@@ -14,7 +14,7 @@ import { optimizeUrl, uploadImage } from '../services/cloudinary'
 import CommentsPanel from '../components/social/CommentsPanel'
 import FollowButton from '../components/social/FollowButton'
 import VerifiedBadge from '../components/ui/VerifiedBadge'
-import DownloadModal from '../components/ui/DownloadModal'
+import SEO from '../components/ui/SEO'
 import styles from './PostDetailPage.module.css'
 
 const CATS = {
@@ -41,7 +41,6 @@ export default function PostDetailPage() {
   const [likeCount, setLikeCount] = useState(0)
   const [showVideo, setShowVideo] = useState(false)
   const [showEdit, setShowEdit]   = useState(false)
-  const [showDownload, setShowDownload] = useState(false)
 
   useEffect(() => {
     getPost(id)
@@ -55,9 +54,12 @@ export default function PostDetailPage() {
     hasLiked(id, user.uid).then(setLiked).catch(() => {})
   }, [user?.uid, id])
 
+  // Permisos de edición:
+  // - Owner/Admin: puede editar cualquier post
+  // - Admin Jr: solo sus propios posts
+  // - Usuario normal: solo sus propios posts
   const isOwnerOfPost = user?.uid === post?.authorId
-  const canEdit       = isOwnerOfPost || user?.isAdmin || user?.isOwner
-  const canManage     = user?.isStaff || user?.isOwner || isOwnerOfPost
+  const canEdit = isOwnerOfPost || user?.isAdmin || user?.isOwner
 
   async function handleLike() {
     if (!user) { toast.error('Inicia sesión para dar like'); return }
@@ -71,11 +73,20 @@ export default function PostDetailPage() {
   async function handleDownload() {
     if (!post?.downloadUrl) { toast.error('Link no disponible'); return }
     await registerDownload(id).catch(() => {})
-    setShowDownload(true)
+    if (post.directDownload) {
+      const a = document.createElement('a')
+      a.href = post.downloadUrl
+      a.download = (post.name || 'archivo') + '.apk'
+      a.target = '_blank'; a.rel = 'noopener noreferrer'
+      document.body.appendChild(a); a.click(); document.body.removeChild(a)
+      toast.success('⬇️ Descargando...')
+    } else {
+      window.open(post.downloadUrl, '_blank', 'noopener,noreferrer')
+    }
   }
 
   async function handleShare() {
-    const url  = `https://asmodeo-og.asmodeotayson.workers.dev/?post=${id}`
+    const url  = `${window.location.origin}/post/${id}`
     const text = `${post.name} — Descárgalo en AsmodeoDev`
     if (navigator.share) {
       try { await navigator.share({ title: post.name, text, url }) } catch {}
@@ -114,7 +125,6 @@ export default function PostDetailPage() {
           await setPostStatus(id, 'hidden')
           toast.success('Ocultada'); navigate('/feed')
           break
-        default: break
       }
     } catch (e) { toast.error(e.message || 'Error') }
   }
@@ -135,12 +145,21 @@ export default function PostDetailPage() {
 
   const cat        = CATS[post.category] || CATS.apk
   const ytId       = getYouTubeId(post.youtubeUrl)
+  const canManage  = user?.isStaff || user?.isOwner || isOwnerOfPost
   const createdAgo = post.createdAt?.toDate
     ? formatDistanceToNow(post.createdAt.toDate(), { addSuffix: true, locale: es })
     : ''
 
   return (
     <div className={styles.page}>
+      <SEO
+        title={post.name}
+        description={post.description || `Descarga ${post.name} gratis en AsmodeoDev. ${cat.label} verificado por la comunidad.`}
+        image={post.imageUrl || undefined}
+        url={`/post/${post.id}`}
+        type="article"
+        keywords={[post.category, post.name, ...(post.tags || []), 'mod', 'gratis', 'apk', 'descargar'].join(', ')}
+      />
       <div className={styles.inner}>
 
         {/* Breadcrumb */}
@@ -153,7 +172,6 @@ export default function PostDetailPage() {
         </div>
 
         <div className={styles.grid}>
-
           {/* ── COLUMNA PRINCIPAL ── */}
           <div className={styles.main}>
 
@@ -164,9 +182,7 @@ export default function PostDetailPage() {
               {showVideo && ytId ? (
                 <iframe className={styles.ytEmbed}
                   src={`https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0`}
-                  title={post.name}
-                  allow="autoplay; encrypted-media; picture-in-picture"
-                  allowFullScreen />
+                  title={post.name} allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen />
               ) : (
                 <>
                   {post.imageUrl && (
@@ -186,6 +202,7 @@ export default function PostDetailPage() {
             {/* Info card */}
             <div className={styles.infoCard}>
 
+              {/* Categoría + badges */}
               <div className={styles.topRow}>
                 <span className={styles.catPill} style={{ color: cat.color }}>
                   {cat.icon} {cat.label}
@@ -193,7 +210,7 @@ export default function PostDetailPage() {
                 <div className={styles.badges}>
                   {post.featured && <span className="badge badge-gold">⭐ Destacado</span>}
                   {post.verified && <VerifiedBadge title="Publicación verificada" />}
-                  {post.directDownload && <span className="badge badge-green">⚡ Directa</span>}
+                  {post.directDownload && <span className="badge badge-green">⚡ Descarga directa</span>}
                 </div>
               </div>
 
@@ -214,18 +231,6 @@ export default function PostDetailPage() {
 
               {post.description && <p className={styles.desc}>{post.description}</p>}
 
-              {/* VirusTotal */}
-              {post.vtClean === true && !post.vtSkipped && (
-                <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.5rem 0.85rem', background:'rgba(16,185,129,.08)', border:'1px solid rgba(16,185,129,.2)', borderRadius:'var(--r)', fontSize:'0.82rem', color:'var(--green)' }}>
-                  🛡️ <strong>Verificado por VirusTotal</strong> — Sin amenazas detectadas
-                </div>
-              )}
-              {post.vtClean === false && (
-                <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.5rem 0.85rem', background:'rgba(239,68,68,.08)', border:'1px solid rgba(239,68,68,.2)', borderRadius:'var(--r)', fontSize:'0.82rem', color:'var(--red)' }}>
-                  ⚠️ VirusTotal detectó posibles amenazas en este archivo
-                </div>
-              )}
-
               {/* Stats */}
               <div className={styles.metaGrid}>
                 {post.version && <MetaItem icon="🏷️" label="Versión"   value={post.version} />}
@@ -244,11 +249,9 @@ export default function PostDetailPage() {
                 </div>
               )}
 
-              {/* Acciones */}
+              {/* ── ACCIONES ── */}
               <div className={styles.actions}>
-                <button
-                  className={`btn btn-lg ${liked ? 'btn-danger' : 'btn-secondary'}`}
-                  onClick={handleLike}>
+                <button className={`btn btn-lg ${liked ? 'btn-danger' : 'btn-secondary'}`} onClick={handleLike}>
                   ❤️ {likeCount}
                 </button>
                 <button className="btn btn-primary btn-lg" onClick={handleDownload}>
@@ -264,35 +267,36 @@ export default function PostDetailPage() {
                 )}
               </div>
 
-              {/* Panel gestión */}
+              {/* ── PANEL DE GESTIÓN ── */}
               {canManage && (
                 <div className={styles.adminPanel}>
                   <div className={styles.adminTitle}>
                     {user?.isOwner ? '👑 Gestión Owner' : user?.isAdmin ? '🛡️ Moderación' : '⚙️ Mi publicación'}
                   </div>
                   <div className={styles.adminBtns}>
+                    {/* Editar — owner/admin pueden editar cualquier post; admin_jr y user solo los suyos */}
                     {canEdit && (
                       <button className="btn btn-sm btn-secondary" onClick={() => setShowEdit(true)}>
                         ✏️ Editar
                       </button>
                     )}
+                    {/* Herramientas de moderación — solo admin y owner */}
                     {(user?.isAdmin || user?.isOwner) && (
                       <>
-                        <button
-                          className={`btn btn-sm ${post.featured ? 'btn-ghost' : 'btn-secondary'}`}
+                        <button className={`btn btn-sm ${post.featured ? 'btn-ghost' : 'btn-secondary'}`}
                           onClick={() => adminAction('feature')}>
-                          {post.featured ? '⭐ Quitar' : '⭐ Destacar'}
+                          {post.featured ? '⭐ Quitar destacado' : '⭐ Destacar'}
                         </button>
-                        <button
-                          className={`btn btn-sm ${post.verified ? 'btn-ghost' : 'btn-secondary'}`}
+                        <button className={`btn btn-sm ${post.verified ? 'btn-ghost' : 'btn-secondary'}`}
                           onClick={() => adminAction('verify')}>
-                          {post.verified ? '✓ Quitar' : '✓ Verificar'}
+                          {post.verified ? '✓ Quitar verificado' : '✓ Verificar'}
                         </button>
                         <button className="btn btn-sm btn-ghost" onClick={() => adminAction('hide')}>
                           👁️ Ocultar
                         </button>
                       </>
                     )}
+                    {/* Eliminar — cualquiera que pueda gestionar */}
                     <button className="btn btn-sm btn-danger" onClick={() => adminAction('delete')}>
                       🗑️ Eliminar
                     </button>
@@ -302,7 +306,7 @@ export default function PostDetailPage() {
             </div>
           </div>
 
-          {/* Sidebar comentarios */}
+          {/* ── SIDEBAR COMENTARIOS ── */}
           <div className={styles.sidebar}>
             <div className={styles.sideCard}>
               <CommentsPanel postId={id} onClose={() => {}} />
@@ -311,7 +315,7 @@ export default function PostDetailPage() {
         </div>
       </div>
 
-      {/* Modales — FUERA del .inner pero DENTRO del return */}
+      {/* Modal de edición */}
       {showEdit && (
         <EditPostModal
           post={post}
@@ -324,18 +328,16 @@ export default function PostDetailPage() {
           }}
         />
       )}
-
-      {showDownload && (
-        <DownloadModal post={post} onClose={() => setShowDownload(false)} />
-      )}
     </div>
   )
 }
 
 // ══════════════════════════════════════
-//  MODAL DE EDICIÓN
+//  MODAL DE EDICIÓN DE PUBLICACIÓN
 // ══════════════════════════════════════
 function EditPostModal({ post, user, onClose, onSaved }) {
+  // Solo el link de descarga está restringido para usuarios normales
+  // Admin Jr, Admin y Owner pueden cambiar todo
   const canEditDownloadUrl = user?.isStaff || user?.isOwner
 
   const [form, setForm] = useState({
@@ -369,6 +371,7 @@ function EditPostModal({ post, user, onClose, onSaved }) {
     if (!form.name.trim()) { toast.error('El nombre es obligatorio'); return }
     setSaving(true)
     try {
+      // Todos pueden editar estos campos
       const updates = {
         name:        form.name.trim(),
         description: form.description.trim(),
@@ -378,12 +381,19 @@ function EditPostModal({ post, user, onClose, onSaved }) {
         size:        form.size.trim(),
         tags:        form.tags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean).slice(0, 8),
       }
-      if (canEditDownloadUrl) updates.downloadUrl = form.downloadUrl.trim()
+
+      // Solo staff (admin_jr, admin, owner) pueden cambiar el link
+      if (canEditDownloadUrl) {
+        updates.downloadUrl = form.downloadUrl.trim()
+      }
+
+      // Imagen — todos pueden cambiarla
       if (imageFile) {
         const imgData = await uploadImage(imageFile, { folder: 'posts' })
         updates.imageUrl   = imgData.url
         updates.imageThumb = imgData.thumbnailUrl
       }
+
       await updatePost(post.id, updates)
       onSaved(updates)
     } catch (e) {
@@ -393,21 +403,33 @@ function EditPostModal({ post, user, onClose, onSaved }) {
     }
   }
 
-  const EDIT_CATS = {
-    apk: '📱 APK Mod', games: '🎮 Juegos', script: '⚙️ Scripts', tutorials: '📚 Tutoriales',
+  const CATS = {
+    apk:       '📱 APK Mod',
+    games:     '🎮 Juegos Mod',
+    script:    '⚙️ Scripts',
+    tutorials: '📚 Tutoriales',
   }
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className={`modal-box ${styles.editModal}`}>
 
+        {/* Header */}
         <div className={styles.editHeader}>
-          <h2 className={styles.editTitle}>✏️ Editar publicación</h2>
+          <div>
+            <h2 className={styles.editTitle}>✏️ Editar publicación</h2>
+            {!canEditDownloadUrl && (
+              <p style={{ fontSize: '0.75rem', color: 'var(--t3)', marginTop: '0.15rem' }}>
+                Solo el link de descarga no se puede cambiar
+              </p>
+            )}
+          </div>
           <button className="btn btn-icon btn" onClick={onClose} disabled={saving}>✕</button>
         </div>
 
         <div className={styles.editBody}>
 
+          {/* Imagen — todos */}
           <div className={styles.editImgWrap} onClick={() => imageRef.current?.click()}>
             {imagePreview
               ? <img src={imagePreview} alt="" className={styles.editImgPreview} />
@@ -418,12 +440,14 @@ function EditPostModal({ post, user, onClose, onSaved }) {
               onChange={handleImageChange} style={{ display: 'none' }} />
           </div>
 
+          {/* Nombre — todos */}
           <div className="inp-group">
             <label className="inp-label">Nombre *</label>
             <input className="inp" value={form.name}
               onChange={e => set('name', e.target.value)} maxLength={100} />
           </div>
 
+          {/* Descripción — todos */}
           <div className="inp-group">
             <label className="inp-label">Descripción</label>
             <textarea className="inp" value={form.description}
@@ -431,10 +455,11 @@ function EditPostModal({ post, user, onClose, onSaved }) {
               rows={3} maxLength={1000} style={{ resize: 'vertical' }} />
           </div>
 
+          {/* Categoría — todos */}
           <div className="inp-group">
             <label className="inp-label">Categoría</label>
             <div className={styles.editCatGrid}>
-              {Object.entries(EDIT_CATS).map(([id, label]) => (
+              {Object.entries(CATS).map(([id, label]) => (
                 <button key={id} type="button"
                   className={`btn btn-sm ${form.category === id ? 'btn-primary' : 'btn-ghost'}`}
                   onClick={() => set('category', id)}>
@@ -444,6 +469,7 @@ function EditPostModal({ post, user, onClose, onSaved }) {
             </div>
           </div>
 
+          {/* Link descarga — SOLO staff (admin jr, admin, owner) */}
           {canEditDownloadUrl ? (
             <div className="inp-group">
               <label className="inp-label">Link de descarga</label>
@@ -457,6 +483,7 @@ function EditPostModal({ post, user, onClose, onSaved }) {
             </div>
           )}
 
+          {/* YouTube — todos */}
           <div className="inp-group">
             <label className="inp-label">Video YouTube (opcional)</label>
             <input className="inp" value={form.youtubeUrl}
@@ -464,6 +491,7 @@ function EditPostModal({ post, user, onClose, onSaved }) {
               placeholder="https://youtube.com/watch?v=..." />
           </div>
 
+          {/* Versión + Tamaño — todos */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
             <div className="inp-group">
               <label className="inp-label">Versión</label>
@@ -477,6 +505,7 @@ function EditPostModal({ post, user, onClose, onSaved }) {
             </div>
           </div>
 
+          {/* Tags — todos */}
           <div className="inp-group">
             <label className="inp-label">Tags (separados por coma)</label>
             <input className="inp" value={form.tags}
@@ -485,6 +514,7 @@ function EditPostModal({ post, user, onClose, onSaved }) {
           </div>
         </div>
 
+        {/* Botones */}
         <div className={styles.editFooter}>
           <button className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancelar</button>
           <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
@@ -497,6 +527,8 @@ function EditPostModal({ post, user, onClose, onSaved }) {
     </div>
   )
 }
+
+// Necesario para el useRef en EditPostModal — ya importado arriba
 
 function MetaItem({ icon, label, value }) {
   return (

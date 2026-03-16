@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { getFeed } from '../services/posts'
 import PostCard from '../components/feed/PostCard'
+import SEO from '../components/ui/SEO'
 import SmartSearch from '../components/search/SmartSearch'
 import styles from './HomePage.module.css'
 
@@ -31,6 +32,12 @@ export default function HomePage() {
 
   return (
     <div className={styles.page}>
+      <SEO
+        title="APK Mods, Juegos y Scripts Gratis"
+        description="La plataforma #1 de mods y APKs. Descarga Minecraft, GTA, apps modificadas con recursos ilimitados. Todo gratis y verificado."
+        keywords="apk mod gratis, minecraft mod, juegos modificados, scripts, descargar apk, recursos ilimitados"
+        url="/"
+      />
       {/* Hero */}
       <section className={styles.hero}>
         <div className={styles.heroBg}>

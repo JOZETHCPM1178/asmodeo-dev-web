@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import Fuse from 'fuse.js'
 import { searchPosts } from '../services/posts'
+import SEO from '../components/ui/SEO'
 import PostCard from '../components/feed/PostCard'
 import SmartSearch from '../components/search/SmartSearch'
 import styles from './SearchPage.module.css'
@@ -42,6 +43,15 @@ export default function SearchPage() {
 
   return (
     <div className={styles.page}>
+      <SEO
+        title={q ? `Buscar "${q}"` : 'Buscar mods y APKs'}
+        description={q
+          ? `Resultados para "${q}" en AsmodeoDev — APK mods, juegos y scripts gratis.`
+          : 'Busca entre miles de APK mods, juegos modificados y scripts gratis en AsmodeoDev.'
+        }
+        keywords={q ? `${q}, mod, apk, gratis` : 'buscar apk mod, juegos mod gratis, scripts'}
+        url={q ? `/search?q=${encodeURIComponent(q)}` : '/search'}
+      />
       <div className="container">
         <div className={styles.header}>
           <h1 className={styles.title}>🔍 Búsqueda</h1>

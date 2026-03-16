@@ -10,6 +10,7 @@ import PostCard from '../components/feed/PostCard'
 import { uploadAvatar, optimizeUrl } from '../services/cloudinary'
 import { getOrCreateConversation } from '../services/dm'
 import VerifiedBadge from '../components/ui/VerifiedBadge'
+import SEO from '../components/ui/SEO'
 import styles from './ProfilePage.module.css'
 
 export default function ProfilePage() {
@@ -73,6 +74,12 @@ export default function ProfilePage() {
 
   return (
     <div className={styles.page}>
+      <SEO
+        title={profile.displayName || profile.username}
+        description={profile.bio || `Perfil de ${profile.displayName || profile.username} en AsmodeoDev. ${posts.length} publicaciones.`}
+        url={`/profile/${uid}`}
+        keywords={`${profile.displayName}, apk mod, perfil, asmodeoDev`}
+      />
       <div className={styles.banner} />
       <div className={styles.inner}>
         <div className={styles.profileCard}>
