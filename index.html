@@ -5,12 +5,65 @@
     <link rel="icon" type="image/png" href="/icon-192x192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#7c3aed" />
+
+    <!-- SEO base — se sobreescribe dinámicamente por el componente SEO.jsx -->
     <title>AsmodeoDev – APK Mods · Juegos · Scripts</title>
-    <meta name="description" content="La plataforma #1 de mods, APKs y scripts. Descarga apps modificadas de forma segura." />
+    <meta name="description" content="La plataforma #1 de mods, APKs y scripts. Descarga apps modificadas, juegos con recursos ilimitados y scripts potentes. Todo gratis." />
+    <meta name="keywords" content="apk mod gratis, juegos modificados, minecraft mod, scripts android, descargar apk, recursos ilimitados" />
+    <meta name="author" content="AsmodeoDev" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://asmodeo-dev-web.pages.dev" />
+
+    <!-- Open Graph -->
+    <meta property="og:type"        content="website" />
+    <meta property="og:site_name"   content="AsmodeoDev" />
+    <meta property="og:title"       content="AsmodeoDev – APK Mods · Juegos · Scripts" />
+    <meta property="og:description" content="La plataforma #1 de mods y APKs. Todo gratis y verificado." />
+    <meta property="og:image"       content="https://asmodeo-dev-web.pages.dev/icon-512x512.png" />
+    <meta property="og:url"         content="https://asmodeo-dev-web.pages.dev" />
+    <meta property="og:locale"      content="es_ES" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card"        content="summary_large_image" />
+    <meta name="twitter:site"        content="@asmodeodev" />
+    <meta name="twitter:title"       content="AsmodeoDev – APK Mods · Juegos · Scripts" />
+    <meta name="twitter:description" content="La plataforma #1 de mods y APKs. Todo gratis y verificado." />
+    <meta name="twitter:image"       content="https://asmodeo-dev-web.pages.dev/icon-512x512.png" />
+
+    <!-- PWA -->
     <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icon-192x192.png" />
+
+    <!-- Schema.org JSON-LD para Google -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "AsmodeoDev",
+      "url": "https://asmodeo-dev-web.pages.dev",
+      "description": "La plataforma #1 de mods, APKs y scripts gratis para Android",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://asmodeo-dev-web.pages.dev/search?q={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      },
+      "sameAs": [
+        "https://t.me/asmodeodev",
+        "https://tiktok.com/@asmodeodev",
+        "https://youtube.com/@asmodeodev"
+      ]
+    }
+    </script>
+
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+    <!-- OneSignal -->
     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
   </head>
   <body>
