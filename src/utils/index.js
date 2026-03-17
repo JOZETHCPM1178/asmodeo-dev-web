@@ -22,13 +22,19 @@ export function getYouTubeThumbnail(url, quality = 'hqdefault') {
 }
 
 /**
- * Formatea número grande: 1500 → "1.5K"
+ * Formatea número grande:
+ * 1_000_000_000 → "1B"  |  1_500_000_000 → "1.5B"
+ * 1_000_000     → "1M"  |  1_500_000     → "1.5M"
+ * 5_000         → "5K"  |  5_400         → "5.4K"
+ * 999           → "999"
  */
 export function formatNumber(n) {
-  if (!n) return '0'
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace('.0', '') + 'M'
-  if (n >= 1_000) return (n / 1_000).toFixed(1).replace('.0', '') + 'K'
-  return String(n)
+  if (!n || isNaN(n)) return '0'
+  const num = Number(n)
+  if (num >= 1_000_000_000) return (num / 1_000_000_000).toFixed(1).replace('.0', '') + 'B'
+  if (num >= 1_000_000)     return (num / 1_000_000).toFixed(1).replace('.0', '') + 'M'
+  if (num >= 5_000)         return (num / 1_000).toFixed(1).replace('.0', '') + 'K'
+  return num.toLocaleString('es')
 }
 
 /**
