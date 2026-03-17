@@ -6,6 +6,7 @@ import {
   getStats, getAllUsers, setUserRole, banUser, unbanUser,
   verifyUser, getPendingPosts, getAllPosts, getReports, replyToReport,
   resolveReport, getAdminLogs, addFakeFollowers, removeFakeFollowers,
+  banInactiveUsers, resetAllBotFollowers, notifyAllUsers,
 } from '../../services/admin'
 import { deletePost, toggleFeatured, verifyPost, setPostStatus } from '../../services/posts'
 import { setChatStatus, setMaintenanceMode, getMaintenanceMode } from '../../services/social'
@@ -365,26 +366,7 @@ function OwnerPanel({ user, users, onRefresh }) {
               </div>
             </div>
           </div>
-          <div className={styles.dangerActions}>
-            <DangerAction
-              icon="🧹"
-              title="Banear todos los inactivos"
-              desc="Banea usuarios que no han publicado ni interactuado"
-              onConfirm={() => toast.error('Función no implementada aún')}
-            />
-            <DangerAction
-              icon="📢"
-              title="Notificar a todos"
-              desc="Envía una notificación a todos los usuarios de la plataforma"
-              onConfirm={() => toast.error('Función no implementada aún')}
-            />
-            <DangerAction
-              icon="🔄"
-              title="Resetear contador de bots"
-              desc="Elimina todos los seguidores bot de todos los usuarios"
-              onConfirm={() => toast.error('Función no implementada aún')}
-            />
-          </div>
+          <DangerZoneActions user={user} users={users} onRefresh={onRefresh} />
         </div>
       )}
     </div>
@@ -425,7 +407,7 @@ function InfoCard({ icon, label, value, color }) {
   )
 }
 
-function DangerAction({ icon, title, desc, onConfirm }) {
+function DangerAction({ icon, title, desc, onConfirm, loading }) {
   return (
     <div className={styles.dangerAction}>
       <span style={{ fontSize: '1.4rem', flexShrink: 0 }}>{icon}</span>
@@ -433,10 +415,101 @@ function DangerAction({ icon, title, desc, onConfirm }) {
         <div style={{ fontWeight: 700, fontSize: '0.88rem' }}>{title}</div>
         <div style={{ fontSize: '0.76rem', color: 'var(--t3)', marginTop: 2 }}>{desc}</div>
       </div>
-      <button className="btn btn-sm btn-danger"
+      <button className="btn btn-sm btn-danger" disabled={loading}
         onClick={() => { if (window.confirm('¿Estás seguro? Esta acción puede ser irreversible.')) onConfirm() }}>
-        Ejecutar
+        {loading ? <span className="spinner" style={{ width: 14, height: 14 }} /> : 'Ejecutar'}
       </button>
+    </div>
+  )
+}
+
+function DangerZoneActions({ user, users, onRefresh }) {
+  const [loadingBan,    setLoadingBan]    = useState(false)
+  const [loadingNotify, setLoadingNotify] = useState(false)
+  const [loadingReset,  setLoadingReset]  = useState(false)
+  const [notifyMsg,     setNotifyMsg]     = useState('')
+  const [showNotifyInput, setShowNotifyInput] = useState(false)
+
+  async function handleBanInactive() {
+    setLoadingBan(true)
+    try {
+      const count = await banInactiveUsers(user.uid)
+      toast.success(`✅ ${count} usuarios inactivos baneados`)
+      onRefresh()
+    } catch(e) { toast.error(e.message) }
+    finally { setLoadingBan(false) }
+  }
+
+  async function handleNotifyAll() {
+    if (!notifyMsg.trim()) { toast.error('Escribe un mensaje primero'); return }
+    setLoadingNotify(true)
+    try {
+      const count = await notifyAllUsers(notifyMsg.trim(), user.uid)
+      toast.success(`✅ Notificación enviada a ${count} usuarios`)
+      setNotifyMsg('')
+      setShowNotifyInput(false)
+    } catch(e) { toast.error(e.message) }
+    finally { setLoadingNotify(false) }
+  }
+
+  async function handleResetBots() {
+    setLoadingReset(true)
+    try {
+      const count = await resetAllBotFollowers(user.uid)
+      toast.success(`✅ Seguidores bot eliminados de ${count} usuarios`)
+      onRefresh()
+    } catch(e) { toast.error(e.message) }
+    finally { setLoadingReset(false) }
+  }
+
+  return (
+    <div className={styles.dangerActions}>
+      <DangerAction
+        icon="🧹"
+        title="Banear usuarios inactivos"
+        desc="Banea usuarios sin posts, sin seguidores y sin actividad reciente (cuentas fantasma)"
+        loading={loadingBan}
+        onConfirm={handleBanInactive}
+      />
+
+      {/* Notificar a todos — requiere input */}
+      <div className={styles.dangerAction}>
+        <span style={{ fontSize: '1.4rem', flexShrink: 0 }}>📢</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: '0.88rem' }}>Notificar a todos</div>
+          <div style={{ fontSize: '0.76rem', color: 'var(--t3)', marginTop: 2 }}>
+            Envía una notificación push a todos los usuarios de la plataforma
+          </div>
+          {showNotifyInput && (
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <input className="inp" style={{ flex: 1, fontSize: '0.82rem' }}
+                placeholder="Mensaje para todos los usuarios..."
+                value={notifyMsg}
+                onChange={e => setNotifyMsg(e.target.value)}
+                maxLength={100}
+              />
+              <button className="btn btn-sm btn-primary" disabled={loadingNotify}
+                onClick={() => { if (window.confirm('¿Enviar notificación a TODOS los usuarios?')) handleNotifyAll() }}>
+                {loadingNotify ? <span className="spinner" style={{ width: 14, height: 14 }} /> : 'Enviar'}
+              </button>
+              <button className="btn btn-sm btn-ghost" onClick={() => setShowNotifyInput(false)}>✕</button>
+            </div>
+          )}
+        </div>
+        {!showNotifyInput && (
+          <button className="btn btn-sm btn-danger" onClick={() => setShowNotifyInput(true)}>
+            Ejecutar
+          </button>
+        )}
+      </div>
+
+      <DangerAction
+        icon="🔄"
+        title="Resetear seguidores bot"
+        desc="Pone a 0 los seguidores falsos (fakeFollowers) de todos los usuarios"
+        loading={loadingReset}
+        onConfirm={handleResetBots}
+      />
     </div>
   )
 }
