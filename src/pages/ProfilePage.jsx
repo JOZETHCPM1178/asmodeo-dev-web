@@ -180,34 +180,38 @@ export default function ProfilePage() {
 
 // ─── VINCULAR TELEGRAM ───
 function TelegramLinkSection({ uid, profile }) {
-  const [code, setCode]       = useState('')
   const [linking, setLinking] = useState(false)
   const [linked, setLinked]   = useState(!!profile?.telegramId)
   const WORKER_URL = import.meta.env.VITE_WORKER_URL
 
-  async function handleLink() {
-    if (!code.trim() || code.length !== 6) { toast.error('El código debe ser de 6 dígitos'); return }
-    if (!WORKER_URL) { toast.error('Worker no configurado'); return }
+  // Auto-vincular si viene de Telegram con token en URL
+  useEffect(() => {
+    if (linked) return
+    const params      = new URLSearchParams(window.location.search)
+    const token       = params.get('token')
+    const telegramId  = params.get('tid')
+    const telegramName= params.get('name')
+    if (!token || !telegramId || !WORKER_URL) return
+
     setLinking(true)
-    try {
-      const res  = await fetch(`${WORKER_URL}/verify-login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uid, code: code.trim() }),
+    fetch(`${WORKER_URL}/verify-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid, token, telegramId, telegramName }),
+    })
+      .then(r => r.json())
+      .then(async data => {
+        if (!data.ok) { toast.error(data.error || 'Link inválido'); return }
+        const { updateUserProfile } = await import('../services/auth')
+        await updateUserProfile(uid, { telegramId: data.telegramId, telegramName: data.telegramName })
+        setLinked(true)
+        toast.success('✅ Telegram vinculado correctamente')
+        // Limpiar URL
+        window.history.replaceState({}, '', window.location.pathname)
       })
-      const data = await res.json()
-      if (!data.ok) { toast.error(data.error || 'Código incorrecto'); return }
-      // Guardar telegramId en Firestore
-      const { updateUserProfile } = await import('../services/auth')
-      await updateUserProfile(uid, { telegramId: data.telegramId, telegramName: data.telegramName })
-      setLinked(true)
-      toast.success('✅ Telegram vinculado correctamente')
-    } catch (e) {
-      toast.error(e.message || 'Error al vincular')
-    } finally {
-      setLinking(false)
-    }
-  }
+      .catch(e => toast.error(e.message))
+      .finally(() => setLinking(false))
+  }, [uid])
 
   return (
     <div style={{
@@ -219,33 +223,23 @@ function TelegramLinkSection({ uid, profile }) {
         <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>Vincular Telegram</span>
         {linked && <span className="badge badge-cyan" style={{ fontSize: '0.65rem' }}>✓ Vinculado</span>}
       </div>
-      {linked ? (
+      {linking ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--t2)', fontSize: '0.85rem' }}>
+          <span className="spinner" style={{ width: 16, height: 16 }} />
+          Vinculando cuenta...
+        </div>
+      ) : linked ? (
         <p style={{ fontSize: '0.8rem', color: 'var(--t2)' }}>
-          Tu cuenta de Telegram está vinculada. Puedes subir apps desde el bot con /subir.
+          Tu cuenta de Telegram está vinculada. Puedes subir apps con /subir desde el bot.
         </p>
       ) : (
         <>
           <p style={{ fontSize: '0.8rem', color: 'var(--t2)', marginBottom: '0.6rem' }}>
-            1. Escribe <strong>/login</strong> en el bot de Telegram<br/>
-            2. Copia el código de 6 dígitos<br/>
-            3. Pégalo aquí
+            Escribe <strong>/login</strong> en el bot y toca el link que te envíe.
           </p>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <input
-              className="inp"
-              placeholder="Código de 6 dígitos"
-              value={code}
-              onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              maxLength={6}
-              style={{ flex: 1, letterSpacing: '0.3em', fontFamily: 'monospace', fontSize: '1rem' }}
-            />
-            <button className="btn btn-primary btn-sm" onClick={handleLink} disabled={linking || code.length !== 6}>
-              {linking ? <span className="spinner" style={{ width: 14, height: 14 }} /> : 'Vincular'}
-            </button>
-          </div>
           <a href="https://t.me/asmodeoDEVbot" target="_blank" rel="noopener noreferrer"
-            style={{ display: 'block', marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--cyan)' }}>
-            → Abrir @asmodeoDEVbot en Telegram
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.85rem', background: 'rgba(0,136,204,.15)', border: '1px solid rgba(0,136,204,.3)', borderRadius: 'var(--r)', color: 'var(--cyan)', fontSize: '0.82rem', fontWeight: 600, textDecoration: 'none' }}>
+            ✈️ Abrir @asmodeoDEVbot
           </a>
         </>
       )}
