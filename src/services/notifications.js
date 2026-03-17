@@ -143,3 +143,5 @@ export async function requestNotificationPermission() {
   const result = await Notification.requestPermission()
   return result === 'granted'
 }
+
+
