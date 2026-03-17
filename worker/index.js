@@ -700,10 +700,16 @@ export default {
         // Validar token — decodificar y verificar que el telegramId coincida y no haya expirado
         let valid = false;
         try {
-          const decoded  = atob(token.replace(/-/g, '+').replace(/_/g, '/'));
-          const [tid, timestamp] = decoded.split(':');
-          const age = Date.now() - parseInt(timestamp);
-          valid = tid === telegramId && age < 10 * 60 * 1000; // 10 minutos
+          // Restaurar padding de base64 que se eliminó al generar el token
+          let b64 = token.replace(/-/g, '+').replace(/_/g, '/');
+          while (b64.length % 4 !== 0) b64 += '=';
+          const decoded = atob(b64);
+          // El token tiene 3 partes: userId:timestamp:chatId
+          const parts = decoded.split(':');
+          const tid       = parts[0];
+          const timestamp = parts[1];  // CORRECTO: índice 1, no destructuring que falló
+          const age = Date.now() - parseInt(timestamp, 10);
+          valid = tid === String(telegramId) && !isNaN(age) && age < 10 * 60 * 1000; // 10 minutos
         } catch {}
 
         if (!valid) {
@@ -746,6 +752,19 @@ export default {
 
     if (request.method === 'POST') {
       const origin = request.headers.get('Origin') || '';
+
+      // Nuevo post → Telegram + OneSignal (sin restricción de origin para permitir llamadas del worker/server)
+      if (url.pathname === '/notify' || url.pathname === '/') {
+        try {
+          const body = await request.json();
+          const post = body.post || body;
+          await Promise.all([enviarOneSignal(post), anunciarTelegram(post)]);
+          return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json', ...CORS } });
+        } catch(e) {
+          return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: CORS });
+        }
+      }
+
       if (origin !== ALLOWED_ORIGIN) return new Response('Forbidden', { status: 403 });
 
       // Push a usuario específico
@@ -755,18 +774,6 @@ export default {
           if (!playerId) return new Response('Missing playerId', { status: 400, headers: CORS });
           const data = await enviarOneSignalUsuario(playerId, title, message, pushUrl);
           return new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json', ...CORS } });
-        } catch(e) {
-          return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: CORS });
-        }
-      }
-
-      // Nuevo post → Telegram + OneSignal
-      if (url.pathname === '/notify' || url.pathname === '/') {
-        try {
-          const body = await request.json();
-          const post = body.post || body;
-          await Promise.all([enviarOneSignal(post), anunciarTelegram(post)]);
-          return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json', ...CORS } });
         } catch(e) {
           return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: CORS });
         }
