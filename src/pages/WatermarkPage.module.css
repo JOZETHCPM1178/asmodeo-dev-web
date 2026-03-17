@@ -1,0 +1,237 @@
+/* src/pages/WatermarkPage.module.css */
+
+.page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+.title {
+  font-family: var(--font1);
+  font-size: clamp(1.4rem, 4vw, 2rem);
+  font-weight: 900;
+  color: var(--t1);
+  margin-bottom: 0.5rem;
+}
+.sub {
+  font-size: 0.9rem;
+  color: var(--t2);
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+/* ── DROP ZONE ── */
+.dropzone {
+  border: 1.5px dashed var(--border2);
+  border-radius: var(--r2);
+  padding: 3.5rem 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all .2s;
+  background: var(--bg2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+.dropzone:hover, .dragOver {
+  border-color: var(--p2);
+  background: rgba(124,58,237,.05);
+}
+.dropTitle {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--t1);
+}
+.dropSub { font-size: 0.82rem; color: var(--t3); }
+
+/* ── WORKSPACE ── */
+.workspace { display: flex; flex-direction: column; gap: 1.5rem; }
+
+.config {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.configSection { display: flex; flex-direction: column; gap: 0.6rem; }
+.label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--t2);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.getKeyLink {
+  color: var(--p2);
+  font-size: 0.78rem;
+  text-decoration: none;
+  font-weight: 600;
+  margin-left: auto;
+}
+.getKeyLink:hover { text-decoration: underline; }
+
+/* Métodos */
+.methodGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+@media(max-width:480px) { .methodGrid { grid-template-columns: 1fr; } }
+
+.methodBtn {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 0.65rem 0.9rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  text-align: left;
+  transition: all .15s;
+  color: var(--t1);
+}
+.methodBtn:hover { border-color: var(--border2); background: var(--bg3, var(--bg2)); }
+.methodActive {
+  border-color: var(--p2) !important;
+  background: rgba(124,58,237,.1) !important;
+}
+.methodDesc { font-size: 0.72rem; color: var(--t3); }
+
+/* API Key */
+.toggleKey {
+  background: none;
+  border: none;
+  color: var(--p2);
+  font-size: 0.78rem;
+  cursor: pointer;
+  padding: 0;
+  width: fit-content;
+}
+.keyNote {
+  font-size: 0.75rem;
+  color: var(--t3);
+  padding: 0.5rem 0.75rem;
+  background: rgba(16,185,129,.06);
+  border: 1px solid rgba(16,185,129,.15);
+  border-radius: var(--r);
+}
+
+/* Sliders */
+.sliders { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+@media(max-width:540px) { .sliders { grid-template-columns: 1fr; } }
+.sliderGroup { display: flex; flex-direction: column; gap: 0.4rem; }
+.sliderHint { font-size: 0.72rem; color: var(--t3); }
+
+.actionRow {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* Progreso */
+.progressWrap { display: flex; flex-direction: column; gap: 0.4rem; }
+.progressTrack {
+  height: 4px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.progressBar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--p), var(--p2));
+  border-radius: 4px;
+  transition: width .25s;
+}
+.progressMsg { font-size: 0.78rem; color: var(--t2); }
+
+/* Comparación */
+.compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+@media(max-width:600px) { .compare { grid-template-columns: 1fr; } }
+
+.comparePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.compareLabel {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--t2);
+}
+.compareImg {
+  width: 100%;
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  display: block;
+  max-height: 400px;
+  object-fit: contain;
+  background: repeating-conic-gradient(#808080 0% 25%, transparent 0% 50%) 0 0/20px 20px;
+}
+.compareMeta { font-size: 0.72rem; color: var(--t3); }
+.resultPlaceholder {
+  width: 100%;
+  min-height: 200px;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--r);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--t3);
+  font-size: 0.85rem;
+  background: var(--bg2);
+}
+
+/* Descarga */
+.downloadRow {
+  display: flex;
+  justify-content: center;
+}
+
+/* Info */
+.infoBox {
+  margin-top: 2.5rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 1.25rem;
+}
+.infoBox h3 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--t1);
+  margin-bottom: 0.85rem;
+}
+.steps {
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--t2);
+  margin-bottom: 0.85rem;
+}
+.steps a { color: var(--p2); }
+.infoNote {
+  font-size: 0.8rem;
+  color: var(--t3);
+  padding: 0.6rem 0.9rem;
+  background: rgba(124,58,237,.06);
+  border-radius: var(--r);
+  border: 1px solid rgba(124,58,237,.15);
+}
