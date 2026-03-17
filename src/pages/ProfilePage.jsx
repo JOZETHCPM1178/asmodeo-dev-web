@@ -184,14 +184,14 @@ function TelegramLinkSection({ uid, profile }) {
   const [linked, setLinked]   = useState(!!profile?.telegramId)
   const WORKER_URL = import.meta.env.VITE_WORKER_URL
 
-  // Auto-vincular si viene de Telegram con token en URL
+  // Auto-vincular al montar: funciona tanto en /profile/:uid como en /link-telegram
   useEffect(() => {
     if (linked) return
-    const params      = new URLSearchParams(window.location.search)
-    const token       = params.get('token')
-    const telegramId  = params.get('tid')
-    const telegramName= params.get('name')
-    if (!token || !telegramId || !WORKER_URL) return
+    const params       = new URLSearchParams(window.location.search)
+    const token        = params.get('token')
+    const telegramId   = params.get('tid')
+    const telegramName = params.get('name') || 'Usuario'
+    if (!token || !telegramId || !uid || !WORKER_URL) return
 
     setLinking(true)
     fetch(`${WORKER_URL}/verify-login`, {
@@ -201,12 +201,16 @@ function TelegramLinkSection({ uid, profile }) {
     })
       .then(r => r.json())
       .then(async data => {
-        if (!data.ok) { toast.error(data.error || 'Link inválido'); return }
+        if (!data.ok) { toast.error(data.error || 'Link inválido o expirado. Usa /login de nuevo.'); return }
+        // Guardar telegramId en Firestore del usuario
         const { updateUserProfile } = await import('../services/auth')
-        await updateUserProfile(uid, { telegramId: data.telegramId, telegramName: data.telegramName })
+        await updateUserProfile(uid, {
+          telegramId:   data.telegramId,
+          telegramName: data.telegramName,
+        })
         setLinked(true)
         toast.success('✅ Telegram vinculado correctamente')
-        // Limpiar URL
+        // Limpiar parámetros del URL sin recargar
         window.history.replaceState({}, '', window.location.pathname)
       })
       .catch(e => toast.error(e.message))
