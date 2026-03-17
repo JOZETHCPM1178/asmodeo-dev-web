@@ -11,7 +11,14 @@ account_id = "TU_ACCOUNT_ID"   # Reemplaza con tu Account ID de Cloudflare
 [vars]
 ENVIRONMENT = "production"
 
-# Rutas del worker (opcional si usas un dominio propio)
-# [[routes]]
-# pattern = "api.asmodeodev.com/*"
-# zone_name = "asmodeodev.com"
+# ─── KV Namespace ───
+# Paso 1: Crea el namespace con:
+#   wrangler kv:namespace create "KV"
+# Paso 2: Copia el id que te da y pégalo abajo en "id"
+# Paso 3: Para preview local usa:
+#   wrangler kv:namespace create "KV" --preview
+# y copia ese id en "preview_id"
+[[kv_namespaces]]
+binding     = "KV"
+id          = "PEGA_AQUI_EL_ID_DEL_NAMESPACE"
+preview_id  = "PEGA_AQUI_EL_PREVIEW_ID"

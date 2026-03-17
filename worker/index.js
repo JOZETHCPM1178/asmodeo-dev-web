@@ -32,11 +32,22 @@ const BOT_COMMANDS = [
   { command: 'recompensas',   description: '🎁 Recoger puntos diarios' },
 ];
 
-// ─── Stores en memoria (se resetean al reiniciar el worker) ───
-// code → { chatId, userId, firstName, expires }
-const loginCodes   = new Map();
-const rewardStore  = {};
-function getTodayKey(uid) { return `${uid}_${new Date().toISOString().slice(0,10)}`; }
+// ─── KV helpers — persisten entre requests en Cloudflare KV ───
+// Requiere binding KV en wrangler.toml (namespace: KV)
+let _env = null; // se setea en cada request
+
+async function kvSet(key, value, ttlSeconds) {
+  await _env.KV.put(key, JSON.stringify(value), { expirationTtl: ttlSeconds });
+}
+async function kvGet(key) {
+  const raw = await _env.KV.get(key);
+  return raw ? JSON.parse(raw) : null;
+}
+async function kvDel(key) {
+  await _env.KV.delete(key);
+}
+
+function getTodayKey(uid) { return `reward_${uid}_${new Date().toISOString().slice(0,10)}`; }
 
 // ─── Helpers Telegram ───
 async function tgSend(chatId, text, extra = {}) {
@@ -278,21 +289,15 @@ async function handleCommand(msg) {
       return;
     }
 
-    // Generar código de 6 dígitos único
-    let code;
-    do { code = String(Math.floor(100000 + Math.random() * 900000)); }
-    while (loginCodes.has(code));
+    // Generar código de 6 dígitos único (colisión improbable en KV)
+    const code = String(Math.floor(100000 + Math.random() * 900000));
 
-    // Guardar con expiración de 10 minutos
-    loginCodes.set(code, {
+    // Guardar en KV con expiración de 10 minutos (600 segundos)
+    await kvSet(`login_${code}`, {
       chatId:    String(chatId),
       userId:    String(userId),
       firstName: msg.from?.first_name || 'Usuario',
-      expires:   Date.now() + 10 * 60 * 1000,
-    });
-
-    // Limpiar el código tras 10 minutos
-    setTimeout(() => loginCodes.delete(code), 10 * 60 * 1000);
+    }, 600);
 
     await tgSend(chatId,
       `🔐 *Tu código de verificación:*\n\n` +
@@ -632,10 +637,11 @@ async function handleCommand(msg) {
   // ══ /recompensas ══
   if (cmd === '/recompensas') {
     const key = getTodayKey(userId);
-    if (rewardStore[key]) {
+    const already = await kvGet(key);
+    if (already) {
       await tgSend(chatId, `🎁 Ya recogiste tus puntos hoy ✅\nVuelve mañana.`);
     } else {
-      rewardStore[key] = true;
+      await kvSet(key, true, 86400); // expira en 24 horas
       await tgSend(chatId, `🎁 *¡+1 punto ganado!*\n\nAcumula 10 y canjéalos por acceso VIP.\n_Vuelve mañana._`);
     }
     return;
@@ -722,7 +728,8 @@ async function anunciarTelegram(post) {
 
 // ─── Export principal ───
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
+    _env = env; // exponer KV al resto del worker
     if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
 
     const url = new URL(request.url);
@@ -747,7 +754,7 @@ export default {
           });
         }
 
-        const entry = loginCodes.get(String(code));
+        const entry = await kvGet(`login_${code}`);
 
         if (!entry) {
           return new Response(JSON.stringify({ ok: false, error: 'Código incorrecto o ya usado.' }), {
@@ -755,15 +762,8 @@ export default {
           });
         }
 
-        if (Date.now() > entry.expires) {
-          loginCodes.delete(code);
-          return new Response(JSON.stringify({ ok: false, error: 'El código expiró. Usa /login en el bot para generar uno nuevo.' }), {
-            headers: { 'Content-Type': 'application/json', ...CORS }
-          });
-        }
-
-        // Código válido — usarlo una sola vez
-        loginCodes.delete(code);
+        // Código válido — borrar para que sea de un solo uso
+        await kvDel(`login_${code}`);
 
         // Notificar al usuario por Telegram
         try {
