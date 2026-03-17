@@ -224,7 +224,11 @@ export default function PostDetailPage() {
                   : <div className={styles.avatarFb}>{(post.authorName || 'U')[0].toUpperCase()}</div>
                 }
                 <div className={styles.authorInfo}>
-                  <div className={styles.authorName}>{post.authorName || 'Usuario'}</div>
+                  <div className={styles.authorName} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    {post.authorName || 'Usuario'}
+                    {post.authorVerified && <VerifiedBadge title={`${post.authorName} está verificado`} />}
+                    {post.authorIsStaff && <span className="badge badge-purple" style={{ fontSize: '0.6rem' }}>STAFF</span>}
+                  </div>
                   {createdAgo && <div className={styles.authorDate}>{createdAgo}</div>}
                 </div>
                 <FollowButton targetId={post.authorId} />
