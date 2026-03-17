@@ -150,23 +150,24 @@ export default function WatermarkPage() {
     setStats({ w: W, h: H, pct: ((detected / (W*H)) * 100).toFixed(1) })
   }
 
-  // ─── Quitar marca de agua de Gemini/Nono — Reverse Alpha Blending + Texture Synthesis ───
+  // ─── Quitar marca de agua de Gemini/Nono — Reverse Alpha Blending ───
   async function processGemini() {
     setProgress(8); setProgressMsg('Analizando imagen...')
     await tick()
 
     const W = img.naturalWidth, H = img.naturalHeight
 
-    // Gemini siempre: esquina inferior derecha
-    // ≤1024px → 48×48px con margen 32px
-    // >1024px → 96×96px con margen 32px
+    // Gemini: logo chispa, esquina inferior derecha
+    // La marca puede ser de distintos tamaños según resolución
+    // Probamos múltiples zonas para cubrir todos los casos
     const isLarge = W > 1024 || H > 1024
     const wmSize  = isLarge ? 96 : 48
-    const margin  = 32
+    const margin  = 20  // margen más conservador para cubrir más casos
+
     const x0 = W - wmSize - margin
     const y0 = H - wmSize - margin
-    const x1 = x0 + wmSize
-    const y1 = y0 + wmSize
+    const x1 = Math.min(W, x0 + wmSize + margin) // ampliar un poco por seguridad
+    const y1 = Math.min(H, y0 + wmSize + margin)
 
     setProgress(20); setProgressMsg('Cargando en canvas...')
     await tick()
@@ -179,144 +180,127 @@ export default function WatermarkPage() {
     const d = imageData.data
     const out = new Uint8ClampedArray(d)
 
-    setProgress(35); setProgressMsg('Paso 1: Estimando alpha del logo...')
+    setProgress(35); setProgressMsg('Paso 1: Detectando marca...')
     await tick()
 
-    // ── PASO 1: Calcular alpha map de la zona WM ──
-    // Para cada píxel en la zona, comparamos con el píxel espejo
-    // (reflejado horizontalmente fuera de la zona) para estimar alpha
-    const alphaMap = new Float32Array(wmSize * wmSize)
+    // ── Detectar píxeles de la marca dentro de la zona ──
+    // La marca de Gemini es más brillante que el fondo circundante
+    // Comparamos cada píxel con su entorno inmediato FUERA de la zona
+    const isWatermark = new Uint8Array(W * H)
+    const alphaMap    = new Float32Array(W * H)
 
     for (let y = y0; y < y1; y++) {
       for (let x = x0; x < x1; x++) {
-        const lx = x - x0, ly = y - y0
         const i = (y * W + x) * 4
         const r = d[i], g = d[i+1], b = d[i+2]
+        const lum = (r * 299 + g * 587 + b * 114) / 1000
 
-        // Buscar píxel de referencia: usamos el espejo horizontal
-        // Si no está disponible, usamos el vecino más cercano fuera de la zona
-        let refR = -1, refG = -1, refB = -1
-
-        // Intentar espejo horizontal (mismo y, x espejado)
-        const mirrorX = x0 - (lx + 1)
-        if (mirrorX >= 0 && mirrorX < W) {
-          const mi = (y * W + mirrorX) * 4
-          refR = d[mi]; refG = d[mi+1]; refB = d[mi+2]
+        // Buscar píxeles de referencia fuera de la zona — vecinos directos
+        const refs = []
+        const offsets = [
+          [-1,0],[1,0],[0,-1],[0,1],
+          [-2,0],[2,0],[0,-2],[0,2],
+          [-3,0],[3,0],[0,-3],[0,3],
+        ]
+        for (const [dx, dy] of offsets) {
+          const nx = x + dx, ny = y + dy
+          if (nx < 0||nx >= W||ny < 0||ny >= H) continue
+          if (nx >= x0 && nx < x1 && ny >= y0 && ny < y1) continue
+          const ni = (ny * W + nx) * 4
+          refs.push([d[ni], d[ni+1], d[ni+2]])
         }
 
-        // Si el espejo no funciona, buscar vecino más cercano fuera de zona
-        if (refR < 0) {
-          let bestDist = 999999
-          const checkPts = [
-            [x0 - 1, y], [x1, y],       // izq / der
-            [x, y0 - 1], [x, y1],        // arriba / abajo
-            [x0 - 1, y0 - 1], [x1, y1],  // esquinas
-          ]
-          for (const [cx, cy] of checkPts) {
-            if (cx < 0 || cx >= W || cy < 0 || cy >= H) continue
-            const dist = Math.abs(cx - x) + Math.abs(cy - y)
-            if (dist < bestDist) {
-              bestDist = dist
-              const ci = (cy * W + cx) * 4
-              refR = d[ci]; refG = d[ci+1]; refB = d[ci+2]
-            }
-          }
-        }
+        if (refs.length === 0) continue
 
-        // Logo Gemini = chispa blanca (255,255,255)
-        // alpha = (C_out - C_orig) / (255 - C_orig)
-        const aR = refR < 255 ? Math.max(0, (r - refR) / (255 - refR)) : 0
-        const aG = refG < 255 ? Math.max(0, (g - refG) / (255 - refG)) : 0
-        const aB = refB < 255 ? Math.max(0, (b - refB) / (255 - refB)) : 0
-        alphaMap[ly * wmSize + lx] = Math.min(1, (aR + aG + aB) / 3)
+        const avgR = refs.reduce((s,p)=>s+p[0],0) / refs.length
+        const avgG = refs.reduce((s,p)=>s+p[1],0) / refs.length
+        const avgB = refs.reduce((s,p)=>s+p[2],0) / refs.length
+        const avgLum = (avgR*299 + avgG*587 + avgB*114) / 1000
+
+        // Si el píxel es significativamente más brillante que sus vecinos → es parte de la marca
+        const lumDiff = lum - avgLum
+        if (lumDiff > 8) {
+          isWatermark[y * W + x] = 1
+          // Estimar alpha: qué fracción del brillo extra viene de la marca blanca (255,255,255)
+          const maxAlpha = Math.max(
+            avgR < 255 ? (r - avgR) / (255 - avgR) : 0,
+            avgG < 255 ? (g - avgG) / (255 - avgG) : 0,
+            avgB < 255 ? (b - avgB) / (255 - avgB) : 0,
+          )
+          alphaMap[y * W + x] = Math.max(0.05, Math.min(0.95, maxAlpha))
+        }
       }
     }
 
-    setProgress(55); setProgressMsg('Paso 2: Revirtiendo alpha blending...')
+    setProgress(55); setProgressMsg('Paso 2: Reverse Alpha Blending...')
     await tick()
 
-    // ── PASO 2: Reverse alpha blending ──
-    // C_orig = (C_out - 255 * alpha) / (1 - alpha)
+    // ── Revertir la mezcla: C_orig = (C_out - 255*alpha) / (1-alpha) ──
     for (let y = y0; y < y1; y++) {
       for (let x = x0; x < x1; x++) {
-        const lx = x - x0, ly = y - y0
-        const alpha = alphaMap[ly * wmSize + lx]
-        if (alpha < 0.03) continue  // Sin marca aquí
-
+        if (!isWatermark[y * W + x]) continue
         const i = (y * W + x) * 4
-        const inv = 1 - alpha
+        const alpha = alphaMap[y * W + x]
+        const inv   = 1 - alpha
 
-        if (inv < 0.03) {
-          // Píxel casi 100% cubierto por la marca — copiar del vecino más cercano fuera de zona
-          const srcX = x < (x0 + x1) / 2 ? x0 - 1 : x1
-          const srcY = Math.max(0, Math.min(H - 1, y))
-          const si   = (srcY * W + Math.max(0, Math.min(W - 1, srcX))) * 4
-          out[i] = d[si]; out[i+1] = d[si+1]; out[i+2] = d[si+2]
+        if (inv < 0.05) {
+          // Píxel casi 100% cubierto — copiar del vecino más limpio
+          let bestRef = null, bestDist = 9999
+          for (let dy = -5; dy <= 5; dy++) {
+            for (let dx = -5; dx <= 5; dx++) {
+              const nx = x+dx, ny = y+dy
+              if (nx < 0||nx >= W||ny < 0||ny >= H) continue
+              if (isWatermark[ny*W+nx]) continue
+              const dist = Math.abs(dx)+Math.abs(dy)
+              if (dist < bestDist) { bestDist = dist; bestRef = (ny*W+nx)*4 }
+            }
+          }
+          if (bestRef !== null) {
+            out[i] = d[bestRef]; out[i+1] = d[bestRef+1]; out[i+2] = d[bestRef+2]
+          }
         } else {
-          // Reverse: C_orig = (C_out - 255*alpha) / (1-alpha)
-          out[i]   = Math.max(0, Math.min(255, Math.round((d[i]   - 255 * alpha) / inv)))
-          out[i+1] = Math.max(0, Math.min(255, Math.round((d[i+1] - 255 * alpha) / inv)))
-          out[i+2] = Math.max(0, Math.min(255, Math.round((d[i+2] - 255 * alpha) / inv)))
+          out[i]   = Math.max(0, Math.min(255, Math.round((d[i]   - 255*alpha) / inv)))
+          out[i+1] = Math.max(0, Math.min(255, Math.round((d[i+1] - 255*alpha) / inv)))
+          out[i+2] = Math.max(0, Math.min(255, Math.round((d[i+2] - 255*alpha) / inv)))
         }
         out[i+3] = 255
       }
     }
 
-    setProgress(72); setProgressMsg('Paso 3: Restaurando textura...')
+    setProgress(75); setProgressMsg('Paso 3: Suavizando bordes...')
     await tick()
 
-    // ── PASO 3: Texture synthesis — elimina el borroso ──
-    // Para píxeles con alpha alto (>0.5) que quedaron planos,
-    // tomamos el patrón de textura del área vecina y lo aplicamos
+    // ── Suavizar bordes de la zona reconstruida ──
+    // Para píxeles en el borde de la máscara, mezclar con vecinos limpios
     for (let y = y0; y < y1; y++) {
       for (let x = x0; x < x1; x++) {
-        const lx = x - x0, ly = y - y0
-        const alpha = alphaMap[ly * wmSize + lx]
-        if (alpha < 0.4) continue  // Solo corrección en zonas muy cubiertas
+        if (!isWatermark[y * W + x]) continue
 
-        const i = (y * W + x) * 4
-
-        // Encontrar el parche más similar en la zona limpia adyacente
-        // Usamos un área 5x5 de referencia fuera de la zona WM
-        // y buscamos el parche con menor diferencia de color
-        let bestMatch = null
-        let bestScore = Infinity
-        const patchR = 2  // radio del parche de búsqueda
-
-        // Zona de búsqueda: banda de 40px fuera de los bordes de la WM
-        const searchZones = [
-          // Banda izquierda
-          { xs: Math.max(0, x0 - 40), xe: x0 - 1, ys: Math.max(0, y0 - 10), ye: Math.min(H-1, y1 + 10) },
-          // Banda derecha  
-          { xs: x1 + 1, xe: Math.min(W-1, x1 + 40), ys: Math.max(0, y0 - 10), ye: Math.min(H-1, y1 + 10) },
-          // Banda inferior
-          { xs: Math.max(0, x0 - 10), xe: Math.min(W-1, x1 + 10), ys: y1 + 1, ye: Math.min(H-1, y1 + 40) },
-        ]
-
-        for (const zone of searchZones) {
-          for (let sy = zone.ys; sy <= zone.ye; sy += 3) {
-            for (let sx = zone.xs; sx <= zone.xe; sx += 3) {
-              // Calcular diferencia de color entre current y candidate
-              const ci = (sy * W + sx) * 4
-              const dr = out[i] - d[ci], dg = out[i+1] - d[ci+1], db = out[i+2] - d[ci+2]
-              const score = dr*dr + dg*dg + db*db
-              if (score < bestScore) {
-                bestScore = score
-                bestMatch = { y: sy, x: sx }
-              }
-            }
-          }
-          if (bestScore < 50) break  // Encontramos match casi exacto
+        // Verificar si es píxel de borde (tiene vecino no-marca)
+        let hasBorderNeighbor = false
+        for (const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+          const nx = x+dx, ny = y+dy
+          if (nx < 0||nx >= W||ny < 0||ny >= H) continue
+          if (!isWatermark[ny*W+nx]) { hasBorderNeighbor = true; break }
         }
+        if (!hasBorderNeighbor) continue
 
-        if (bestMatch && bestScore < 2000) {
-          // Blend: mezcla el resultado del reverse con la textura del match
-          // El peso del blend depende de qué tan cubierto estaba (alpha)
-          const blendW = Math.min(0.7, (alpha - 0.4) * 2)
-          const mi = (bestMatch.y * W + bestMatch.x) * 4
-          out[i]   = Math.round(out[i]   * (1-blendW) + d[mi]   * blendW)
-          out[i+1] = Math.round(out[i+1] * (1-blendW) + d[mi+1] * blendW)
-          out[i+2] = Math.round(out[i+2] * (1-blendW) + d[mi+2] * blendW)
+        // Mezcla suave con vecinos limpios
+        const i = (y * W + x) * 4
+        let sr = out[i], sg = out[i+1], sb = out[i+2], cnt = 1
+        for (const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,1],[-1,1],[1,-1]]) {
+          const nx = x+dx, ny = y+dy
+          if (nx < 0||nx >= W||ny < 0||ny >= H) continue
+          if (isWatermark[ny*W+nx]) continue
+          sr += out[(ny*W+nx)*4]
+          sg += out[(ny*W+nx)*4+1]
+          sb += out[(ny*W+nx)*4+2]
+          cnt++
+        }
+        if (cnt > 1) {
+          out[i]   = Math.round(sr/cnt)
+          out[i+1] = Math.round(sg/cnt)
+          out[i+2] = Math.round(sb/cnt)
         }
       }
     }
