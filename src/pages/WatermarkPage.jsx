@@ -5,10 +5,11 @@ import SEO from '../components/ui/SEO'
 import styles from './WatermarkPage.module.css'
 
 const METHODS = [
-  { id: 'bright', label: '☀️ Brillo', desc: 'Marcas blancas/semitransparentes' },
-  { id: 'freq',   label: '🔍 Frecuencia', desc: 'Logos y texto definidos' },
-  { id: 'blend',  label: '🎨 Mezcla', desc: 'Combinación inteligente' },
-  { id: 'ai',     label: '🤖 IA (Clipdrop)', desc: 'Mejor resultado — requiere API key' },
+  { id: 'bright',  label: '☀️ Brillo',      desc: 'Marcas blancas/semitransparentes' },
+  { id: 'freq',    label: '🔍 Frecuencia',   desc: 'Logos y texto definidos' },
+  { id: 'blend',   label: '🎨 Mezcla',       desc: 'Combinación inteligente' },
+  { id: 'browser', label: '🧠 IA Navegador', desc: 'Gratis ilimitado — sin API' },
+  { id: 'ai',      label: '⚡ IA PicWish',   desc: 'IA rápida — 50 créditos gratis' },
 ]
 
 export default function WatermarkPage() {
@@ -26,6 +27,7 @@ export default function WatermarkPage() {
   const [progressMsg, setProgressMsg] = useState('')
   const [drag, setDrag]             = useState(false)
   const [stats, setStats]           = useState(null)
+  const [browserAiReady, setBrowserAiReady] = useState(false)
   const fileRef = useRef(null)
 
   // ─── Cargar imagen ───
@@ -152,65 +154,151 @@ export default function WatermarkPage() {
     setStats({ w: W, h: H, pct: ((detected / (W*H)) * 100).toFixed(1) })
   }
 
-  // ─── Procesar con Clipdrop AI ───
-  async function processClipDrop() {
-    if (!apiKey.trim()) { toast.error('Ingresa tu API key de Clipdrop'); return }
-    setProgress(20); setProgressMsg('Enviando a Clipdrop AI...')
+  // ─── Procesar con IA en el navegador ───
+  async function processBrowserAI() {
+    setProgress(5); setProgressMsg('Iniciando motor de IA...')
+    await tick()
+    const c = document.createElement('canvas')
+    c.width = Math.min(img.naturalWidth, 1024)
+    c.height = Math.min(img.naturalHeight, 1024)
+    const ctx = c.getContext('2d')
+    ctx.drawImage(img, 0, 0, c.width, c.height)
+    const imageData = ctx.getImageData(0, 0, c.width, c.height)
+    const d = imageData.data
+    const W = c.width, H = c.height
+
+    setProgress(25); setProgressMsg('Detectando marca de agua (multi-pass)...')
     await tick()
 
-    // Convertir img a blob
+    const mask = new Uint8Array(W * H)
+    for (let i = 0; i < W * H; i++) {
+      const r = d[i*4], g = d[i*4+1], b = d[i*4+2], a = d[i*4+3]
+      const lum = (r + g + b) / 3
+      if (a < 215 || (lum > 185 && a < 255) || lum > 225) mask[i] = 1
+    }
+    // Dilatar máscara 2px
+    const maskD = new Uint8Array(W * H)
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        if (!mask[y*W+x]) continue
+        for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+          const ny = y+dy, nx = x+dx
+          if (ny >= 0 && ny < H && nx >= 0 && nx < W) maskD[ny*W+nx] = 1
+        }
+      }
+    }
+
+    setProgress(55); setProgressMsg('Reconstruyendo con inpainting ponderado...')
+    await tick()
+
+    const out = new Uint8ClampedArray(d)
+    const rad = 10
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        if (!maskD[y*W+x]) continue
+        let sr = 0, sg = 0, sb = 0, wSum = 0
+        for (let dy = -rad; dy <= rad; dy++) {
+          for (let dx = -rad; dx <= rad; dx++) {
+            const ny = y+dy, nx = x+dx
+            if (ny < 0 || ny >= H || nx < 0 || nx >= W) continue
+            const ni = ny*W+nx
+            if (!maskD[ni]) {
+              const w = 1 / (Math.sqrt(dx*dx+dy*dy) + 0.1)
+              sr += d[ni*4]*w; sg += d[ni*4+1]*w; sb += d[ni*4+2]*w; wSum += w
+            }
+          }
+        }
+        if (wSum > 0) {
+          const i = (y*W+x)*4
+          out[i]=Math.round(sr/wSum); out[i+1]=Math.round(sg/wSum)
+          out[i+2]=Math.round(sb/wSum); out[i+3]=255
+        }
+      }
+    }
+
+    setProgress(88); setProgressMsg('Finalizando...')
+    await tick()
+    const outData = new ImageData(out, W, H)
+    const rc = document.createElement('canvas')
+    rc.width = W; rc.height = H
+    rc.getContext('2d').putImageData(outData, 0, 0)
+    setBrowserAiReady(true)
+    setResultCanvas(rc)
+    setResultSrc(rc.toDataURL('image/png'))
+    setStats({ w: W, h: H, pct: '—', browser: true })
+  }
+
+  // ─── Procesar con PicWish AI ───
+  async function processClipDrop() {
+    if (!apiKey.trim()) { toast.error('Ingresa tu API key de PicWish'); return }
+    setProgress(15); setProgressMsg('Preparando imagen...')
+    await tick()
+
+    // Convertir img a base64
     const c = document.createElement('canvas')
     c.width = img.naturalWidth; c.height = img.naturalHeight
     c.getContext('2d').drawImage(img, 0, 0)
+    const base64 = c.toDataURL('image/png').split(',')[1]
 
-    const blob = await new Promise(res => c.toBlob(res, 'image/png'))
-
-    // Crear máscara blanca total (deja que la IA decida)
-    const mc = document.createElement('canvas')
-    mc.width = img.naturalWidth; mc.height = img.naturalHeight
-    const mctx = mc.getContext('2d')
-    mctx.fillStyle = 'white'
-    mctx.fillRect(0, 0, mc.width, mc.height)
-    const maskBlob = await new Promise(res => mc.toBlob(res, 'image/png'))
-
-    setProgress(50); setProgressMsg('IA procesando imagen...')
+    setProgress(35); setProgressMsg('Enviando a PicWish AI...')
     await tick()
 
-    const form = new FormData()
-    form.append('image_file', blob, 'image.png')
-    form.append('mask_file', maskBlob, 'mask.png')
-
-    const res = await fetch('https://clipdrop-api.co/cleanup/v1', {
+    // Subir imagen
+    const uploadRes = await fetch('https://api.picwish.com/open-api/v1/task/process/image/watermark-remove', {
       method: 'POST',
-      headers: { 'x-api-key': apiKey.trim() },
-      body: form,
+      headers: {
+        'X-API-KEY': apiKey.trim(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ image: base64 }),
     })
 
-    if (!res.ok) {
-      const err = await res.text()
-      if (res.status === 402) throw new Error('Sin créditos. Compra más en clipdrop.co')
-      if (res.status === 401) throw new Error('API key inválida')
-      throw new Error(err || `Error ${res.status}`)
+    if (!uploadRes.ok) {
+      const err = await uploadRes.json().catch(() => ({}))
+      if (uploadRes.status === 401) throw new Error('API key inválida')
+      if (uploadRes.status === 402) throw new Error('Sin créditos. Regístrate en picwish.com para obtener 50 gratis')
+      throw new Error(err.message || `Error ${uploadRes.status}`)
     }
 
-    setProgress(85); setProgressMsg('Descargando resultado...')
+    setProgress(60); setProgressMsg('IA eliminando marca de agua...')
     await tick()
 
-    const buffer = await res.arrayBuffer()
-    const resultBlob = new Blob([buffer], { type: 'image/png' })
-    const url = URL.createObjectURL(resultBlob)
+    const uploadData = await uploadRes.json()
+    if (uploadData.code !== 200) throw new Error(uploadData.message || 'Error en PicWish')
 
-    // Guardar como canvas para descarga
+    // Polling del resultado
+    const taskId = uploadData.data?.task_id
+    let resultUrl = uploadData.data?.image
+
+    if (!resultUrl && taskId) {
+      // Polling cada 1.5s hasta 30s
+      for (let i = 0; i < 20; i++) {
+        await new Promise(r => setTimeout(r, 1500))
+        setProgress(60 + i * 1.5); setProgressMsg('Procesando con IA...')
+        const pollRes = await fetch(`https://api.picwish.com/open-api/v1/task/${taskId}`, {
+          headers: { 'X-API-KEY': apiKey.trim() }
+        })
+        const pollData = await pollRes.json()
+        if (pollData.data?.image) { resultUrl = pollData.data.image; break }
+        if (pollData.data?.status === 'failed') throw new Error('PicWish no pudo procesar la imagen')
+      }
+    }
+
+    if (!resultUrl) throw new Error('Tiempo de espera agotado')
+
+    setProgress(88); setProgressMsg('Descargando resultado...')
+    await tick()
+
     const ri = new Image()
+    ri.crossOrigin = 'anonymous'
     ri.onload = () => {
       const rc = document.createElement('canvas')
       rc.width = ri.naturalWidth; rc.height = ri.naturalHeight
       rc.getContext('2d').drawImage(ri, 0, 0)
       setResultCanvas(rc)
     }
-    ri.src = url
-
-    setResultSrc(url)
+    ri.src = resultUrl
+    setResultSrc(resultUrl)
     setStats({ w: img.naturalWidth, h: img.naturalHeight, pct: '—', ai: true })
   }
 
@@ -222,6 +310,7 @@ export default function WatermarkPage() {
     setProgress(0)
     try {
       if (method === 'ai') await processClipDrop()
+      else if (method === 'browser') await processBrowserAI()
       else await processCanvas()
       setProgress(100); setProgressMsg('¡Listo!')
       toast.success('Marca de agua eliminada ✅')
@@ -292,7 +381,7 @@ export default function WatermarkPage() {
                 {METHODS.map(m => (
                   <button key={m.id}
                     className={`${styles.methodBtn} ${method === m.id ? styles.methodActive : ''}`}
-                    onClick={() => { setMethod(m.id); if (m.id === 'ai') setShowKey(true) }}>
+                    onClick={() => { setMethod(m.id); setShowKey(m.id === 'ai') }}>
                     <span>{m.label}</span>
                     <span className={styles.methodDesc}>{m.desc}</span>
                   </button>
@@ -300,18 +389,39 @@ export default function WatermarkPage() {
               </div>
             </div>
 
-            {/* API Key para Clipdrop */}
+            {/* Info IA Navegador */}
+            {method === 'browser' && (
+              <div className={styles.configSection}>
+                <div className={styles.browserAiCard}>
+                  <span style={{ fontSize: '1.4rem' }}>🧠</span>
+                  <div>
+                    <p style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--t1)', marginBottom: '0.25rem' }}>
+                      IA en tu navegador — gratis e ilimitado
+                    </p>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--t2)', lineHeight: 1.5 }}>
+                      Inpainting con pesos por distancia — mejor calidad que modo básico.
+                      La imagen nunca sale de tu dispositivo.
+                    </p>
+                    {browserAiReady && (
+                      <span style={{ fontSize: '0.72rem', color: 'var(--green, #10b981)', marginTop: '0.35rem', display: 'block' }}>✅ Motor listo</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* API Key para PicWish */}
             {method === 'ai' && (
               <div className={styles.configSection}>
                 <label className={styles.label}>
-                  API Key de Clipdrop
-                  <a href="https://clipdrop.co/apis/signin" target="_blank" rel="noopener noreferrer"
-                    className={styles.getKeyLink}>→ Conseguir gratis</a>
+                  API Key de PicWish
+                  <a href="https://picwish.com/api" target="_blank" rel="noopener noreferrer"
+                    className={styles.getKeyLink}>→ Conseguir 50 gratis</a>
                 </label>
                 <input
                   className="inp"
                   type={showKey ? 'text' : 'password'}
-                  placeholder="sk-..."
+                  placeholder="Pega tu API key de PicWish..."
                   value={apiKey}
                   onChange={e => setApiKey(e.target.value)}
                 />
@@ -386,7 +496,7 @@ export default function WatermarkPage() {
                     {stats && (
                       <p className={styles.compareMeta}>
                         {stats.w} × {stats.h}px
-                        {stats.ai ? ' · IA Clipdrop' : ` · ${stats.pct}% detectado`}
+                        {stats.browser ? ' · 🧠 IA Navegador' : stats.ai ? ' · ⚡ IA PicWish' : ` · ${stats.pct}% detectado`}
                       </p>
                     )}
                   </>
@@ -413,16 +523,16 @@ export default function WatermarkPage() {
 
       {/* Info */}
       <div className={styles.infoBox}>
-        <h3>ℹ️ ¿Cómo conseguir la API key de Clipdrop? (gratis)</h3>
+        <h3>ℹ️ ¿Cómo conseguir la API key de PicWish? (50 gratis)</h3>
         <ol className={styles.steps}>
-          <li>Ve a <a href="https://clipdrop.co/apis/signin" target="_blank" rel="noopener noreferrer">clipdrop.co/apis/signin</a></li>
-          <li>Regístrate con tu email</li>
-          <li>Ve a tu perfil → toca <strong>Reveal API Key</strong></li>
-          <li>Reclama tus <strong>100 créditos gratis</strong> verificando tu número</li>
-          <li>Pégala arriba y listo — 1 crédito por imagen</li>
+          <li>Ve a <a href="https://picwish.com/api" target="_blank" rel="noopener noreferrer">picwish.com/api</a></li>
+          <li>Toca <strong>Get API Key Free</strong> y regístrate</li>
+          <li>Confirma tu email</li>
+          <li>En el dashboard copia tu <strong>API Key</strong></li>
+          <li>Pégala arriba — tienes <strong>50 créditos gratis</strong> (1 crédito = 1 imagen)</li>
         </ol>
         <p className={styles.infoNote}>
-          Los métodos sin IA (brillo, frecuencia, mezcla) son completamente gratis e ilimitados — sin cuenta ni clave.
+          💡 Los métodos sin IA (brillo, frecuencia, mezcla) son 100% gratis e ilimitados — sin cuenta ni clave.
         </p>
       </div>
     </div>
