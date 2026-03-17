@@ -9,6 +9,7 @@ import {
   reportPost, deletePost, toggleFeatured, verifyPost,
   setPostStatus, updatePost,
 } from '../services/posts'
+import { formatNumber } from '../utils'
 import { useAuth } from '../context/AuthContext'
 import { optimizeUrl, uploadImage } from '../services/cloudinary'
 import CommentsPanel from '../components/social/CommentsPanel'
@@ -236,8 +237,8 @@ export default function PostDetailPage() {
                 {post.version && <MetaItem icon="🏷️" label="Versión"   value={post.version} />}
                 {post.size    && <MetaItem icon="📦" label="Tamaño"    value={post.size} />}
                 <MetaItem icon="❤️" label="Likes"     value={likeCount} />
-                <MetaItem icon="⬇️" label="Descargas" value={post.downloads || 0} />
-                <MetaItem icon="👁️" label="Vistas"    value={post.views || 0} />
+                <MetaItem icon="⬇️" label="Descargas" value={formatNumber(post.downloads || 0)} />
+                <MetaItem icon="👁️" label="Vistas"    value={formatNumber(post.views || 0)} />
               </div>
 
               {/* Tags */}
