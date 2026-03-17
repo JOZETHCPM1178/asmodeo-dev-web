@@ -125,8 +125,8 @@ export default function SmartSearch({ onResultClick }) {
                 <div className={styles.resultName}>{post.name}</div>
                 <div className={styles.resultMeta}>
                   <span style={{ color: catColors[post.category] }}>{catIcons[post.category]} {post.category}</span>
-                  <span>❤️ {post.likes || 0}</span>
-                  <span>⬇️ {post.downloads || 0}</span>
+                  <span>❤️ {formatNumber(post.likes || 0)}</span>
+                  <span>⬇️ {formatNumber(post.downloads || 0)}</span>
                 </div>
               </div>
             </button>
