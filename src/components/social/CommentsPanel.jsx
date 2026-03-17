@@ -1,6 +1,7 @@
 // src/components/social/CommentsPanel.jsx
-import { useState, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { toast } from 'react-hot-toast'
+import { useNavigate } from 'react-router-dom'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '../../context/AuthContext'
@@ -17,6 +18,7 @@ export default function CommentsPanel({ postId, onClose }) {
   const [text, setText]                   = useState('')
   const [sending, setSending]             = useState(false)
   const [replyTo, setReplyTo]             = useState(null)
+  const navigate = useNavigate()
   const [verifiedCache, setVerifiedCache] = useState({})
   const [showStickers, setShowStickers]   = useState(false)
   const inputRef    = useRef(null)
@@ -105,13 +107,19 @@ export default function CommentsPanel({ postId, onClose }) {
           <div className={styles.empty}>Sin comentarios aún. ¡Sé el primero!</div>
         ) : comments.map(c => (
           <div key={c.id} className={`${styles.comment} ${c.replyToId ? styles.isReply : ''}`}>
-            {c.photoURL
-              ? <img src={optimizeUrl(c.photoURL, { width: 60 })} alt="" className="avatar avatar-sm" />
-              : <div className={styles.avatarFb}>{(c.username || 'U')[0]}</div>
-            }
+            <div onClick={() => navigate(`/profile/${c.userId}`)}
+              style={{ cursor: 'pointer', flexShrink: 0 }}
+              title={`Ver perfil de ${c.username}`}>
+              {c.photoURL
+                ? <img src={optimizeUrl(c.photoURL, { width: 60 })} alt="" className="avatar avatar-sm" />
+                : <div className={styles.avatarFb}>{(c.username || 'U')[0]}</div>
+              }
+            </div>
             <div className={styles.commentBody}>
               <div className={styles.commentMeta}>
-                <span className={styles.commentUser}>
+                <span className={styles.commentUser}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => navigate(`/profile/${c.userId}`)}>
                   {c.username}
                   {verifiedCache[c.userId] && (
                     <VerifiedBadge title={`${c.username} está verificado`} />
