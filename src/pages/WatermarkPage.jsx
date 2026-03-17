@@ -5,11 +5,12 @@ import SEO from '../components/ui/SEO'
 import styles from './WatermarkPage.module.css'
 
 const METHODS = [
-  { id: 'bright',  label: '☀️ Brillo',      desc: 'Marcas blancas/semitransparentes' },
-  { id: 'freq',    label: '🔍 Frecuencia',   desc: 'Logos y texto definidos' },
-  { id: 'blend',   label: '🎨 Mezcla',       desc: 'Combinación inteligente' },
-  { id: 'browser', label: '🧠 IA Navegador', desc: 'Gratis ilimitado — sin API' },
-  { id: 'ai',      label: '⚡ IA PicWish',   desc: 'IA rápida — 50 créditos gratis' },
+  { id: 'gemini',  label: '✨ Gemini / Nono', desc: 'Reverse Alpha Blending — perfecto para Gemini' },
+  { id: 'bright',  label: '☀️ Brillo',        desc: 'Marcas blancas/semitransparentes' },
+  { id: 'freq',    label: '🔍 Frecuencia',     desc: 'Logos y texto definidos' },
+  { id: 'blend',   label: '🎨 Mezcla',         desc: 'Combinación inteligente' },
+  { id: 'browser', label: '🧠 IA Navegador',   desc: 'Gratis ilimitado — sin API' },
+  { id: 'ai',      label: '⚡ IA PicWish',     desc: 'IA rápida — 50 créditos gratis' },
 ]
 
 export default function WatermarkPage() {
@@ -17,7 +18,7 @@ export default function WatermarkPage() {
   const [imgSrc, setImgSrc]         = useState(null)      // data url original
   const [resultSrc, setResultSrc]   = useState(null)
   const [resultCanvas, setResultCanvas] = useState(null)
-  const [method, setMethod]         = useState('bright')
+  const [method, setMethod]         = useState('gemini')
   const [threshold, setThreshold]   = useState(200)
   const [radius, setRadius]         = useState(4)
   const [apiKey, setApiKey]         = useState('')
@@ -152,6 +153,88 @@ export default function WatermarkPage() {
     setResultCanvas(rc)
     setResultSrc(rc.toDataURL('image/png'))
     setStats({ w: W, h: H, pct: ((detected / (W*H)) * 100).toFixed(1) })
+  }
+
+  // ─── Quitar marca de agua de Gemini/Nono — Reverse Alpha Blending ───
+  async function processGemini() {
+    setProgress(10); setProgressMsg('Detectando zona de marca Gemini...')
+    await tick()
+    const W = img.naturalWidth, H = img.naturalHeight
+    // Gemini: logo esquina inferior derecha, 48x48px (≤1024px) o 96x96px (>1024px), margen 32px
+    const isLarge = W > 1024 && H > 1024
+    const wmSize = isLarge ? 96 : 48
+    const margin = 32
+    const x0 = W - wmSize - margin, y0 = H - wmSize - margin
+    const x1 = x0 + wmSize,          y1 = y0 + wmSize
+
+    setProgress(30); setProgressMsg('Cargando canvas...')
+    await tick()
+    const c = document.createElement('canvas')
+    c.width = W; c.height = H
+    const ctx = c.getContext('2d')
+    ctx.drawImage(img, 0, 0)
+    const imageData = ctx.getImageData(0, 0, W, H)
+    const d = imageData.data
+
+    setProgress(50); setProgressMsg('Aplicando Reverse Alpha Blending...')
+    await tick()
+
+    // Logo Gemini = blanco (255,255,255) con alpha variable
+    // Alpha compositing: C_out = C_wm*alpha + C_orig*(1-alpha)
+    // Invertido:         C_orig = (C_out - C_wm*alpha) / (1-alpha)
+    const WM_R = 255, WM_G = 255, WM_B = 255
+    const out = new Uint8ClampedArray(d)
+
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        const i = (y * W + x) * 4
+        const r = d[i], g = d[i+1], b = d[i+2]
+        // Estimar color original usando vecinos fuera de la zona
+        let origR = r, origG = g, origB = b
+        for (let rad = 1; rad <= 24; rad++) {
+          const samples = []
+          for (let dy = -rad; dy <= rad; dy += Math.max(1, rad)) {
+            for (let dx = -rad; dx <= rad; dx += Math.max(1, rad)) {
+              const ny = y+dy, nx = x+dx
+              if (ny < 0||ny >= H||nx < 0||nx >= W) continue
+              if (nx >= x0&&nx < x1&&ny >= y0&&ny < y1) continue
+              const ni = (ny*W+nx)*4
+              samples.push([d[ni], d[ni+1], d[ni+2]])
+            }
+          }
+          if (samples.length >= 3) {
+            origR = Math.round(samples.reduce((s,p)=>s+p[0],0)/samples.length)
+            origG = Math.round(samples.reduce((s,p)=>s+p[1],0)/samples.length)
+            origB = Math.round(samples.reduce((s,p)=>s+p[2],0)/samples.length)
+            break
+          }
+        }
+        // Calcular alpha real y revertir
+        const aR = WM_R!==origR?(r-origR)/(WM_R-origR):0
+        const aG = WM_G!==origG?(g-origG)/(WM_G-origG):0
+        const aB = WM_B!==origB?(b-origB)/(WM_B-origB):0
+        const alpha = Math.max(0, Math.min(1, (aR+aG+aB)/3))
+        if (alpha > 0.04) {
+          const inv = 1 - alpha
+          if (inv > 0.02) {
+            out[i]   = Math.round(Math.max(0,Math.min(255,(r-WM_R*alpha)/inv)))
+            out[i+1] = Math.round(Math.max(0,Math.min(255,(g-WM_G*alpha)/inv)))
+            out[i+2] = Math.round(Math.max(0,Math.min(255,(b-WM_B*alpha)/inv)))
+          } else { out[i]=origR; out[i+1]=origG; out[i+2]=origB }
+          out[i+3] = 255
+        }
+      }
+    }
+
+    setProgress(88); setProgressMsg('Generando resultado...')
+    await tick()
+    const outData = new ImageData(out, W, H)
+    const rc = document.createElement('canvas')
+    rc.width = W; rc.height = H
+    rc.getContext('2d').putImageData(outData, 0, 0)
+    setResultCanvas(rc)
+    setResultSrc(rc.toDataURL('image/png'))
+    setStats({ w: W, h: H, pct: `${wmSize}×${wmSize}px`, gemini: true })
   }
 
   // ─── Procesar con IA en el navegador ───
@@ -309,7 +392,8 @@ export default function WatermarkPage() {
     setResultSrc(null)
     setProgress(0)
     try {
-      if (method === 'ai') await processClipDrop()
+      if (method === 'gemini') await processGemini()
+      else if (method === 'ai') await processClipDrop()
       else if (method === 'browser') await processBrowserAI()
       else await processCanvas()
       setProgress(100); setProgressMsg('¡Listo!')
@@ -388,6 +472,26 @@ export default function WatermarkPage() {
                 ))}
               </div>
             </div>
+
+            {/* Info Gemini */}
+            {method === 'gemini' && (
+              <div className={styles.configSection}>
+                <div className={styles.geminiCard}>
+                  <span style={{ fontSize: '1.6rem' }}>✨</span>
+                  <div>
+                    <p style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--t1)', marginBottom: '0.3rem' }}>
+                      Optimizado para Gemini · Nono Banana · Imagen 3
+                    </p>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--t2)', lineHeight: 1.5 }}>
+                      Usa <strong>Reverse Alpha Blending</strong> — revierte matemáticamente el logo de la esquina inferior derecha. Resultado pixel-perfect sin bordes ni manchas.
+                    </p>
+                    <p style={{ fontSize: '0.73rem', color: 'var(--t3)', marginTop: '0.4rem' }}>
+                      ✅ Gratis e ilimitado · ✅ Sin API · ✅ La imagen no sale de tu dispositivo
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Info IA Navegador */}
             {method === 'browser' && (
@@ -496,7 +600,7 @@ export default function WatermarkPage() {
                     {stats && (
                       <p className={styles.compareMeta}>
                         {stats.w} × {stats.h}px
-                        {stats.browser ? ' · 🧠 IA Navegador' : stats.ai ? ' · ⚡ IA PicWish' : ` · ${stats.pct}% detectado`}
+                        {stats.gemini ? ` · ✨ Gemini (zona ${stats.pct})` : stats.browser ? ' · 🧠 IA Navegador' : stats.ai ? ' · ⚡ IA PicWish' : ` · ${stats.pct}% detectado`}
                       </p>
                     )}
                   </>

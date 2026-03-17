@@ -246,3 +246,14 @@
   border-radius: var(--r);
   padding: 0.9rem;
 }
+
+/* Gemini card */
+.geminiCard {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+  background: rgba(251,188,4,.06);
+  border: 1px solid rgba(251,188,4,.25);
+  border-radius: var(--r);
+  padding: 1rem;
+}
