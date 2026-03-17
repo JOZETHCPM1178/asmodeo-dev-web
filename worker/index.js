@@ -6,11 +6,6 @@ const ONESIGNAL_REST_KEY = 'os_v2_app_k5eiwnq32nhunhm3e4u4abk2enhd4hhrv4eekquijn
 const TELEGRAM_TOKEN     = '8756414415:AAFR-Uwks3cyr_RJHTPdhvFHCHXvXomIs94';
 const TELEGRAM_CHAT_ID   = '-1003857525980';
 const FIREBASE_PROJECT   = 'modzone-asmodeo';
-// ─── Service Account — agrega estas 2 variables en Cloudflare Dashboard
-//     Worker → Settings → Variables → Secrets:
-//     FIREBASE_SA_EMAIL  → service account email del JSON de Firebase
-//     FIREBASE_SA_KEY    → el valor de "private_key" del JSON (con los \n reales)
-// ─────────────────────────────────────────────────────────────────────
 const ALLOWED_ORIGIN     = 'https://asmodeo-dev-web.pages.dev';
 const SITE_URL           = 'https://asmodeo-dev-web.pages.dev';
 const BOT_ADMINS         = ['8015489755'];
@@ -60,29 +55,6 @@ async function tgSendPhoto(chatId, photo, caption, extra = {}) {
   if (!res.ok) await tgSend(chatId, caption);
 }
 
-// ─── Helper Firestore REST — Actualizar documento ───
-async function fbUpdate(docPath, data, env) {
-  const fields = {};
-  for (const [k, v] of Object.entries(data)) {
-    if (typeof v === 'string')       fields[k] = { stringValue: v };
-    else if (typeof v === 'number')  fields[k] = { integerValue: String(v) };
-    else if (typeof v === 'boolean') fields[k] = { booleanValue: v };
-    else if (v === null)             fields[k] = { nullValue: null };
-    else fields[k] = { stringValue: String(v) };
-  }
-
-  const headers = { 'Content-Type': 'application/json' };
-  const adminToken = await getFirebaseAdminToken(env);
-  if (adminToken) headers['Authorization'] = `Bearer ${adminToken}`;
-
-  const updateMask = Object.keys(data).map(k => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join('&');
-  const res = await fetch(
-    `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/${docPath}?${updateMask}`,
-    { method: 'PATCH', headers, body: JSON.stringify({ fields }) }
-  );
-  return res.json();
-}
-
 // ─── Helper Firestore REST ───
 async function fbGet(path) {
   const res = await fetch(
@@ -92,82 +64,24 @@ async function fbGet(path) {
   return res.json();
 }
 
-// ─── Obtener Google OAuth token con Service Account (para Firestore Admin) ───
-async function getFirebaseAdminToken(env) {
-  // env.FIREBASE_SA_EMAIL y env.FIREBASE_SA_KEY vienen de los Secrets del Worker
-  if (!env?.FIREBASE_SA_EMAIL || !env?.FIREBASE_SA_KEY) return null;
-  try {
-    const now = Math.floor(Date.now() / 1000);
-    const header  = { alg: 'RS256', typ: 'JWT' };
-    const payload = {
-      iss: env.FIREBASE_SA_EMAIL,
-      sub: env.FIREBASE_SA_EMAIL,
-      aud: 'https://oauth2.googleapis.com/token',
-      iat: now,
-      exp: now + 3600,
-      scope: 'https://www.googleapis.com/auth/datastore',
-    };
-
-    const b64url = s => btoa(JSON.stringify(s)).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
-    const signingInput = `${b64url(header)}.${b64url(payload)}`;
-
-    // Importar la clave privada RSA
-    const pemKey = env.FIREBASE_SA_KEY.replace(/\\n/g, '\n');
-    const pemBody = pemKey.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n/g, '');
-    const keyData = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
-
-    const cryptoKey = await crypto.subtle.importKey(
-      'pkcs8', keyData.buffer,
-      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-      false, ['sign']
-    );
-
-    const encoder = new TextEncoder();
-    const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, encoder.encode(signingInput));
-    const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
-    const jwt = `${signingInput}.${sigB64}`;
-
-    // Intercambiar JWT por access token
-    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
-    });
-    const tokenData = await tokenRes.json();
-    return tokenData.access_token || null;
-  } catch(e) {
-    console.error('Error obteniendo token admin:', e);
-    return null;
-  }
-}
-
-async function fbCreate(collection, data, env) {
+async function fbCreate(collection, data) {
   const fields = {};
   for (const [k, v] of Object.entries(data)) {
-    if (typeof v === 'string')       fields[k] = { stringValue: v };
-    else if (typeof v === 'number')  fields[k] = { integerValue: String(v) };
+    if (typeof v === 'string')  fields[k] = { stringValue: v };
+    else if (typeof v === 'number') fields[k] = { integerValue: String(v) };
     else if (typeof v === 'boolean') fields[k] = { booleanValue: v };
-    else if (v === null)             fields[k] = { nullValue: null };
+    else if (v === null) fields[k] = { nullValue: null };
     else fields[k] = { stringValue: String(v) };
   }
-
-  // Agregar timestamp del servidor
-  fields['createdAt'] = { timestampValue: new Date().toISOString() };
-  fields['updatedAt'] = { timestampValue: new Date().toISOString() };
-
-  const headers = { 'Content-Type': 'application/json' };
-
-  // Si hay Service Account, usar token admin para saltarse las reglas de seguridad
-  const adminToken = await getFirebaseAdminToken(env);
-  if (adminToken) headers['Authorization'] = `Bearer ${adminToken}`;
-
   const res = await fetch(
     `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/${collection}`,
-    { method: 'POST', headers, body: JSON.stringify({ fields }) }
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields })
+    }
   );
-  const result = await res.json();
-  if (!res.ok) throw new Error(result.error?.message || `Firestore error ${res.status}`);
-  return result;
+  return res.json();
 }
 
 // ─── Verificar si usuario está vinculado ───
@@ -301,7 +215,7 @@ async function descargarVideo(link) {
 }
 
 // ─── Handler principal de comandos ───
-async function handleCommand(msg, env) {
+async function handleCommand(msg) {
   const chatId = msg.chat.id;
   const userId = String(msg.from?.id);
   const text   = msg.text || '';
@@ -364,20 +278,22 @@ async function handleCommand(msg, env) {
       return;
     }
 
-    // Generar token firmado con telegramId + timestamp + hash simple
+    // Generar token firmado con telegramId + timestamp + chatId
     const timestamp = Date.now();
     const token     = btoa(`${userId}:${timestamp}:${chatId}`).replace(/=/g, '');
-    const loginUrl  = `${SITE_URL}/link-telegram?token=${token}&tid=${userId}&name=${encodeURIComponent(msg.from?.first_name || 'Usuario')}`;
+
+    // ⚠️ El usuario debe estar logueado en la web primero.
+    // El link va a /link-telegram — esa página detecta el token, llama a /verify-login
+    // y guarda el telegramId en Firestore del usuario autenticado.
+    const loginUrl = `${SITE_URL}/link-telegram?token=${token}&tid=${userId}&name=${encodeURIComponent(msg.from?.first_name || 'Usuario')}`;
 
     await tgSend(chatId,
       `🔐 *Vincular cuenta ASMODEO DEV*\n\n` +
-      `Toca el botón de abajo para vincular tu cuenta:\n\n` +
-      `[🔗 Vincular mi cuenta](${loginUrl})\n\n` +
       `*Pasos:*\n` +
-      `1. Toca el link de arriba\n` +
-      `2. Inicia sesión en la web si no lo has hecho\n` +
-      `3. Confirma la vinculación\n\n` +
-      `⏱️ _Link válido por 10 minutos_`,
+      `1️⃣ Abre la web e inicia sesión\n` +
+      `2️⃣ Toca el link de abajo (válido 10 min)\n` +
+      `3️⃣ ¡Listo! Tu Telegram quedará vinculado\n\n` +
+      `[🔗 Vincular mi cuenta](${loginUrl})`,
       { disable_web_page_preview: false }
     );
     return;
@@ -398,38 +314,66 @@ async function handleCommand(msg, env) {
     if (!args) {
       await tgSend(chatId,
         `📤 *Subir app a ASMODEO DEV*\n\n` +
-        `*Formato:*\n` +
-        `/subir <nombre> | <link> | <categoría>\n\n` +
-        `*Categorías:* apk · games · script · tutorials\n\n` +
-        `*Ejemplo:*\n` +
-        `/subir Minecraft Mod v1.21 | https://mediafire.com/xxx | games\n\n` +
-        `*Plataformas soportadas:*\n` +
-        `✅ MediaFire · Google Drive · Mega · OneDrive · Dropbox · Cualquier link directo`
+        `Completa todos los campos con este formato exacto:\n\n` +
+        `\`\`\`\n` +
+        `/subir\n` +
+        `NOMBRE: Minecraft PE Mod v1.21\n` +
+        `IMAGEN: https://i.imgur.com/ejemplo.jpg\n` +
+        `CATEGORIA: apk\n` +
+        `DESCRIPCION: Descripción de la app...\n` +
+        `LINK: https://mediafire.com/xxx\n` +
+        `YOUTUBE: https://youtube.com/watch?v=xxx\n` +
+        `TAG: minecraft, mod, gratis\n` +
+        `\`\`\`\n\n` +
+        `📂 *Categorías válidas:*\n` +
+        `▸ \`apk\` — APK Mods\n` +
+        `▸ \`games\` — Juegos Mod\n` +
+        `▸ \`script\` — Scripts\n` +
+        `▸ \`tutorials\` — Tutoriales\n\n` +
+        `ℹ️ YOUTUBE y TAG son opcionales.`
       );
       return;
     }
 
-    const partes = args.split('|').map(s => s.trim());
-    if (partes.length < 2) {
-      await tgSend(chatId,
-        `❌ Formato incorrecto.\n\n` +
-        `Uso: /subir <nombre> | <link> | <categoría>\n\n` +
-        `Ejemplo:\n/subir Minecraft Mod | https://mediafire.com/xxx | games`
-      );
-      return;
-    }
+    // Parsear campos del mensaje
+    const lines = args.split('\n').map(l => l.trim());
+    const getField = (key) => {
+      const line = lines.find(l => l.toUpperCase().startsWith(key.toUpperCase() + ':'));
+      return line ? line.slice(key.length + 1).trim() : '';
+    };
 
-    const nombre    = partes[0];
-    const linkUrl   = partes[1];
-    const categoria = (partes[2] || 'apk').toLowerCase().trim();
+    const nombre    = getField('NOMBRE');
+    const imagen    = getField('IMAGEN');
+    const categoria = getField('CATEGORIA').toLowerCase();
+    const desc      = getField('DESCRIPCION');
+    const linkUrl   = getField('LINK');
+    const youtube   = getField('YOUTUBE');
+    const tags      = getField('TAG');
 
-    // Validar categoría
+    // Validaciones
+    const errores = [];
+    if (!nombre)   errores.push('❌ Falta *NOMBRE*');
+    if (!linkUrl)  errores.push('❌ Falta *LINK*');
+    if (!desc)     errores.push('❌ Falta *DESCRIPCION*');
+
     const catsValidas = ['apk', 'games', 'script', 'tutorials'];
     const catFinal = catsValidas.includes(categoria) ? categoria : 'apk';
 
-    // Validar link
+    if (errores.length) {
+      await tgSend(chatId,
+        `⚠️ *Campos incompletos:*\n\n${errores.join('\n')}\n\n` +
+        `Escribe /subir sin texto para ver el formato correcto.`
+      );
+      return;
+    }
+
     if (!linkUrl.startsWith('http')) {
-      await tgSend(chatId, `❌ El link debe empezar con https://`);
+      await tgSend(chatId, `❌ El LINK debe empezar con https://`);
+      return;
+    }
+
+    if (imagen && !imagen.startsWith('http')) {
+      await tgSend(chatId, `❌ La IMAGEN debe ser un link que empiece con https://`);
       return;
     }
 
@@ -439,13 +383,18 @@ async function handleCommand(msg, env) {
     await tgSend(chatId, `⏳ Subiendo *${nombre}*...`);
 
     try {
+      const tagsArray = tags ? tags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean) : [];
+
       const doc = await fbCreate('posts', {
         name:        nombre,
         category:    catFinal,
         downloadUrl: linkUrl,
+        imageUrl:    imagen || '',
+        youtubeUrl:  youtube || '',
+        description: desc,
+        tags:        tagsArray.join(','),
         authorId,
         authorName,
-        description: `Subido por ${authorName} vía Telegram Bot`,
         status:      'active',
         likes:       0,
         downloads:   0,
@@ -454,28 +403,28 @@ async function handleCommand(msg, env) {
         score:       0,
         featured:    false,
         verified:    false,
-        authorVerified: false,
-        authorIsStaff:  false,
         source:      'telegram_bot',
-      }, env);
+      });
 
       const postId = doc.name?.split('/').pop();
+      const cats   = { apk:'📱 APK Mod', games:'🎮 Juegos Mod', script:'⚙️ Scripts', tutorials:'📚 Tutoriales' };
 
       await tgSend(chatId,
         `✅ *¡Publicación creada exitosamente!*\n\n` +
-        `📱 *${nombre}*\n` +
-        `📁 Categoría: ${catFinal}\n` +
-        `👤 Por: ${authorName}\n\n` +
-        `[🔗 Ver publicación](${SITE_URL}/post/${postId})`
+        `${cats[catFinal] || '⚡'} *${nombre}*\n` +
+        `👤 Por: ${authorName}\n` +
+        (tagsArray.length ? `🏷️ Tags: ${tagsArray.join(', ')}\n` : '') +
+        `\n[🔗 Ver publicación](${SITE_URL}/post/${postId})`
       );
 
-      // Anunciar en el canal
+      // Anunciar en el canal con imagen si tiene
       await anunciarTelegram({
         id:          postId,
         name:        nombre,
         category:    catFinal,
         downloadUrl: linkUrl,
-        description: `Subido por ${authorName} vía Telegram Bot`,
+        imageUrl:    imagen || '',
+        description: desc,
       });
 
     } catch(e) {
@@ -765,7 +714,7 @@ async function anunciarTelegram(post) {
 
 // ─── Export principal ───
 export default {
-  async fetch(request, env) {
+  async fetch(request) {
     if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
 
     const url = new URL(request.url);
@@ -775,7 +724,7 @@ export default {
       try {
         const update = await request.json();
         const msg    = update.message || update.channel_post;
-        if (msg?.text?.startsWith('/')) await handleCommand(msg, env);
+        if (msg?.text?.startsWith('/')) await handleCommand(msg);
       } catch(e) {}
       return new Response('ok');
     }
@@ -806,15 +755,7 @@ export default {
           });
         }
 
-        // Token válido — guardar telegramId en el usuario de Firestore
-        try {
-          await fbUpdate(`users/${uid}`, {
-            telegramId:   String(telegramId),
-            telegramName: telegramName || '',
-          }, env);
-        } catch(e) { console.error('Error guardando telegramId:', e); }
-
-        // Notificar al usuario por Telegram
+        // Token válido — notificar al usuario por Telegram
         try {
           await tgSend(telegramId,
             `✅ *¡Cuenta vinculada exitosamente!*\n\n` +
