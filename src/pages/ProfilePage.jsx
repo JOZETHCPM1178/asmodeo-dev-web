@@ -180,75 +180,107 @@ export default function ProfilePage() {
 
 // ─── VINCULAR TELEGRAM ───
 function TelegramLinkSection({ uid, profile }) {
-  const [linking, setLinking] = useState(false)
-  const [linked, setLinked]   = useState(!!profile?.telegramId)
+  const [linked,   setLinked]  = useState(!!profile?.telegramId)
+  const [code,     setCode]    = useState('')
+  const [loading,  setLoading] = useState(false)
+  const [error,    setError]   = useState('')
   const WORKER_URL = import.meta.env.VITE_WORKER_URL
 
-  // Auto-vincular al montar: funciona tanto en /profile/:uid como en /link-telegram
-  useEffect(() => {
-    if (linked) return
-    const params       = new URLSearchParams(window.location.search)
-    const token        = params.get('token')
-    const telegramId   = params.get('tid')
-    const telegramName = params.get('name') || 'Usuario'
-    if (!token || !telegramId || !uid || !WORKER_URL) return
-
-    setLinking(true)
-    fetch(`${WORKER_URL}/verify-login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uid, token, telegramId, telegramName }),
-    })
-      .then(r => r.json())
-      .then(async data => {
-        if (!data.ok) { toast.error(data.error || 'Link inválido o expirado. Usa /login de nuevo.'); return }
-        // Guardar telegramId en Firestore del usuario
-        const { updateUserProfile } = await import('../services/auth')
-        await updateUserProfile(uid, {
-          telegramId:   data.telegramId,
-          telegramName: data.telegramName,
-        })
-        setLinked(true)
-        toast.success('✅ Telegram vinculado correctamente')
-        // Limpiar parámetros del URL sin recargar
-        window.history.replaceState({}, '', window.location.pathname)
+  async function handleVerify() {
+    const c = code.trim()
+    if (c.length !== 6 || !/^\d{6}$/.test(c)) {
+      setError('El código debe ser de 6 dígitos numéricos.')
+      return
+    }
+    setError('')
+    setLoading(true)
+    try {
+      const res  = await fetch(`${WORKER_URL}/verify-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid, code: c }),
       })
-      .catch(e => toast.error(e.message))
-      .finally(() => setLinking(false))
-  }, [uid])
+      const data = await res.json()
+      if (!data.ok) { setError(data.error || 'Código incorrecto.'); return }
+
+      await updateUserProfile(uid, {
+        telegramId:   data.telegramId,
+        telegramName: data.telegramName,
+      })
+      setLinked(true)
+      setCode('')
+      toast.success('✅ Telegram vinculado correctamente')
+    } catch(e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div style={{
-      background: 'rgba(0,136,204,.08)', border: '1px solid rgba(0,136,204,.2)',
-      borderRadius: 'var(--r)', padding: '0.85rem',
+      background: 'rgba(0,136,204,.08)', border: '1px solid rgba(0,136,204,.25)',
+      borderRadius: 'var(--r)', padding: '0.9rem',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-        <span style={{ fontSize: '1.1rem' }}>✈️</span>
-        <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>Vincular Telegram</span>
-        {linked && <span className="badge badge-cyan" style={{ fontSize: '0.65rem' }}>✓ Vinculado</span>}
+      <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', marginBottom:'0.55rem' }}>
+        <span style={{ fontSize:'1.1rem' }}>✈️</span>
+        <span style={{ fontWeight:700, fontSize:'0.88rem' }}>Vincular Telegram</span>
+        {linked && <span className="badge badge-cyan" style={{ fontSize:'0.65rem', marginLeft:'auto' }}>✓ Vinculado</span>}
       </div>
-      {linking ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--t2)', fontSize: '0.85rem' }}>
-          <span className="spinner" style={{ width: 16, height: 16 }} />
-          Vinculando cuenta...
-        </div>
-      ) : linked ? (
-        <p style={{ fontSize: '0.8rem', color: 'var(--t2)' }}>
-          Tu cuenta de Telegram está vinculada. Puedes subir apps con /subir desde el bot.
+
+      {linked ? (
+        <p style={{ fontSize:'0.8rem', color:'var(--t2)', margin:0 }}>
+          Tu Telegram está vinculado. Usa <strong>/subir</strong> en el bot para publicar apps.
         </p>
       ) : (
         <>
-          <p style={{ fontSize: '0.8rem', color: 'var(--t2)', marginBottom: '0.6rem' }}>
-            Escribe <strong>/login</strong> en el bot y toca el link que te envíe.
+          <p style={{ fontSize:'0.8rem', color:'var(--t2)', margin:'0 0 0.7rem' }}>
+            Escribe <strong>/login</strong> en el bot y recibe un código de 6 dígitos.
           </p>
+
+          {/* Botón abrir bot */}
           <a href="https://t.me/asmodeoDEVbot" target="_blank" rel="noopener noreferrer"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.85rem', background: 'rgba(0,136,204,.15)', border: '1px solid rgba(0,136,204,.3)', borderRadius: 'var(--r)', color: 'var(--cyan)', fontSize: '0.82rem', fontWeight: 600, textDecoration: 'none' }}>
+            style={{ display:'inline-flex', alignItems:'center', gap:'0.4rem', padding:'0.4rem 0.8rem', background:'rgba(0,136,204,.15)', border:'1px solid rgba(0,136,204,.3)', borderRadius:'var(--r)', color:'var(--cyan)', fontSize:'0.8rem', fontWeight:600, textDecoration:'none', marginBottom:'0.75rem' }}>
             ✈️ Abrir @asmodeoDEVbot
           </a>
+
+          {/* Input código */}
+          <div style={{ display:'flex', gap:'0.5rem', alignItems:'center' }}>
+            <input
+              className="inp"
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              placeholder="Código de 6 dígitos"
+              value={code}
+              onChange={e => { setCode(e.target.value.replace(/\D/g, '')); setError('') }}
+              onKeyDown={e => e.key === 'Enter' && handleVerify()}
+              disabled={loading}
+              style={{ flex:1, letterSpacing:'0.25em', fontWeight:700, textAlign:'center', fontSize:'1.1rem' }}
+            />
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={handleVerify}
+              disabled={loading || code.length !== 6}
+              style={{ whiteSpace:'nowrap' }}>
+              {loading
+                ? <span className="spinner" style={{ width:14, height:14 }} />
+                : 'Vincular'}
+            </button>
+          </div>
+
+          {error && (
+            <p style={{ fontSize:'0.78rem', color:'var(--red, #ef4444)', marginTop:'0.4rem', margin:'0.4rem 0 0' }}>
+              ⚠️ {error}
+            </p>
+          )}
         </>
       )}
     </div>
   )
+}
+
 }
 function EditProfileModal({ profile, onClose, onSaved }) {
   const { user } = useAuth()
