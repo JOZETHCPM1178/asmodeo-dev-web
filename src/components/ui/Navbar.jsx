@@ -81,6 +81,7 @@ export default function Navbar() {
             <NavLink to="/feed/games"  label="🎮 Juegos" />
             <NavLink to="/feed/script" label="⚙️ Scripts" />
             <NavLink to="/search"      label="🔍 Buscar" />
+            <NavLink to="/watermark"   label="🖼️ Marca de agua" />
           </div>
 
           {/* Redes sociales desktop */}
@@ -152,6 +153,9 @@ export default function Navbar() {
                       <Link to="/upload" className={styles.dropItem} onClick={() => setDropOpen(false)}>
                         📤 Subir publicación
                       </Link>
+                      <Link to="/watermark" className={styles.dropItem} onClick={() => setDropOpen(false)}>
+                        🖼️ Quitar marca de agua
+                      </Link>
                       {(user.isStaff || user.isOwner) && (
                         <Link to="/admin" className={styles.dropItem} onClick={() => setDropOpen(false)}>
                           🛡️ Panel de Admin
@@ -195,6 +199,7 @@ export default function Navbar() {
               <>
                 <div className={styles.mobileDivider} />
                 <Link to="/upload"               className={styles.mobileLink}>📤 Subir</Link>
+                <Link to="/watermark"            className={styles.mobileLink}>🖼️ Quitar marca de agua</Link>
                 <Link to="/messages"             className={styles.mobileLink}>✉️ Mensajes</Link>
                 <Link to={`/profile/${user.uid}`} className={styles.mobileLink}>👤 Mi perfil</Link>
                 {(user.isStaff || user.isOwner) && <Link to="/admin" className={styles.mobileLink}>🛡️ Panel Admin</Link>}
