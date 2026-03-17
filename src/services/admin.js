@@ -225,3 +225,120 @@ export async function logAdminAction(adminId, action, details = {}) {
     adminId, action, ...details, createdAt: serverTimestamp(),
   })
 }
+
+// ═══════════════════════════════════════
+//  ZONA PELIGROSA — Solo owner
+// ═══════════════════════════════════════
+
+/**
+ * Banea usuarios inactivos:
+ * Sin posts, sin seguidores reales, sin actividad en 30+ días
+ */
+export async function banInactiveUsers(adminId) {
+  const snap = await getDocs(collection(db, 'users'))
+  const batch = writeBatch(db)
+  let count = 0
+
+  snap.docs.forEach(d => {
+    const u = d.data()
+    // No tocar: owners, admins, verificados, ya baneados
+    if (['owner', 'admin', 'admin_jr'].includes(u.role)) return
+    if (u.verified || u.banned) return
+
+    const noActivity = (u.posts || 0) === 0
+      && (u.followers || 0) === 0
+      && (u.following || 0) === 0
+
+    if (noActivity) {
+      batch.update(d.ref, {
+        banned: true,
+        banReason: 'Cuenta inactiva — baneada automáticamente por owner',
+        bannedAt: serverTimestamp(),
+      })
+      count++
+    }
+  })
+
+  if (count > 0) {
+    await batch.commit()
+    await addDoc(collection(db, 'adminLogs'), {
+      action: 'ban_inactive_users',
+      adminId,
+      count,
+      createdAt: serverTimestamp(),
+    })
+  }
+
+  return count
+}
+
+/**
+ * Envía una notificación interna a todos los usuarios
+ */
+export async function notifyAllUsers(message, adminId) {
+  const snap = await getDocs(
+    query(collection(db, 'users'), where('banned', '==', false))
+  )
+  const batch = writeBatch(db)
+  let count = 0
+
+  snap.docs.forEach(d => {
+    const notifRef = doc(collection(db, 'notifications'))
+    batch.set(notifRef, {
+      userId: d.id,
+      type: 'admin_broadcast',
+      fromUserId: adminId,
+      fromUsername: 'ASMODEO DEV',
+      message,
+      read: false,
+      createdAt: serverTimestamp(),
+    })
+    count++
+  })
+
+  await batch.commit()
+
+  await addDoc(collection(db, 'adminLogs'), {
+    action: 'notify_all_users',
+    adminId,
+    message,
+    count,
+    createdAt: serverTimestamp(),
+  })
+
+  return count
+}
+
+/**
+ * Resetea el contador de seguidores bot (fakeFollowers) de todos los usuarios
+ */
+export async function resetAllBotFollowers(adminId) {
+  const snap = await getDocs(
+    query(collection(db, 'users'), where('fakeFollowers', '>', 0))
+  )
+  const batch = writeBatch(db)
+  let count = 0
+
+  snap.docs.forEach(d => {
+    const fake = d.data().fakeFollowers || 0
+    if (fake > 0) {
+      batch.update(d.ref, {
+        followers: increment(-fake),
+        fakeFollowers: 0,
+      })
+      count++
+    }
+  })
+
+  if (count > 0) {
+    await batch.commit()
+    await addDoc(collection(db, 'adminLogs'), {
+      action: 'reset_bot_followers',
+      adminId,
+      affectedUsers: count,
+      createdAt: serverTimestamp(),
+    })
+  }
+
+  return count
+}
