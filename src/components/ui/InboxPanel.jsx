@@ -14,6 +14,7 @@ import {
 import { getUserProfile } from '../../services/auth'
 import { optimizeUrl } from '../../services/cloudinary'
 import StickerPicker from './StickerPicker'
+import VerifiedBadge from './VerifiedBadge'
 import styles from './InboxPanel.module.css'
 
 const NOTIF_ICON = {
@@ -242,6 +243,7 @@ export default function InboxPanel({ notifications = [], onClose }) {
         userId:   user.uid,
         username: user.displayName || user.username,
         photoURL: user.photoURL,
+        verified: user.verified || false,
         text,
       })
     } catch (err) { setChatText(text); toast.error(err.message || 'Error') }
@@ -275,12 +277,19 @@ export default function InboxPanel({ notifications = [], onClose }) {
           {activeConv ? (
             <>
               <button className={styles.backBtn} onClick={() => { setActiveConv(null); setMessages([]) }}>←</button>
-              <div className={styles.convHeaderInfo}>
-                {activeConv.otherUser?.photoURL
-                  ? <img src={optimizeUrl(activeConv.otherUser.photoURL, { width: 60 })} alt="" className="avatar avatar-sm" />
-                  : <div className={styles.avatarFb}>{(activeConv.otherUser?.displayName || 'U')[0]}</div>
-                }
-                <div className={styles.convHeaderName}>{activeConv.otherUser?.displayName || 'Usuario'}</div>
+              <div className={styles.convHeaderInfo}
+                style={{ cursor: 'pointer' }}
+                onClick={() => { onClose(); navigate(`/profile/${activeConv.otherUser?.uid}`) }}>
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  {activeConv.otherUser?.photoURL
+                    ? <img src={optimizeUrl(activeConv.otherUser.photoURL, { width: 60 })} alt="" className="avatar avatar-sm" />
+                    : <div className={styles.avatarFb}>{(activeConv.otherUser?.displayName || 'U')[0]}</div>
+                  }
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <span className={styles.convHeaderName}>{activeConv.otherUser?.displayName || 'Usuario'}</span>
+                  {activeConv.otherUser?.verified && <VerifiedBadge title="Usuario verificado" />}
+                </div>
               </div>
               <button className={styles.blockBtn} onClick={handleBlock} title="Bloquear">🚫</button>
             </>
@@ -384,8 +393,8 @@ export default function InboxPanel({ notifications = [], onClose }) {
                     <div key={msg.id} className={`${styles.chatMsg} ${isOwn ? styles.chatMsgOwn : ''}`}>
                       {!isOwn && (
                         <div className={styles.chatAvatar}
-                          onClick={() => { setChatText(t => `${t}@${msg.username} `); chatInputRef.current?.focus() }}
-                          title={`Mencionar a ${msg.username}`}>
+                          onClick={() => { onClose(); navigate(`/profile/${msg.userId}`) }}
+                          title={`Ver perfil de ${msg.username}`}>
                           {msg.photoURL
                             ? <img src={optimizeUrl(msg.photoURL, { width: 40 })} alt="" className="avatar avatar-sm" style={{ cursor: 'pointer' }} />
                             : <div className={styles.avatarFb}>{(msg.username || 'U')[0]}</div>
@@ -394,10 +403,13 @@ export default function InboxPanel({ notifications = [], onClose }) {
                       )}
                       <div className={styles.chatMsgContent}>
                         {!isOwn && (
-                          <button className={styles.chatMsgUser}
-                            onClick={() => { setChatText(t => `${t}@${msg.username} `); chatInputRef.current?.focus() }}>
-                            {msg.username}
-                          </button>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <button className={styles.chatMsgUser}
+                              onClick={() => { onClose(); navigate(`/profile/${msg.userId}`) }}>
+                              {msg.username}
+                            </button>
+                            {msg.verified && <VerifiedBadge title="Usuario verificado" />}
+                          </div>
                         )}
                         <div className={`${styles.chatBubble} ${isOwn ? styles.chatBubbleOwn : styles.chatBubbleOther}`}>
                           {renderMentions(msg.text)}
@@ -477,18 +489,44 @@ export default function InboxPanel({ notifications = [], onClose }) {
               {messages.map(msg => {
                 const isOwn = msg.senderId === user.uid
                 const isSticker = msg.type === 'sticker' || isGiphyUrl(msg.text)
+                const otherUid  = activeConv.otherUser?.uid
+                const otherPhoto = activeConv.otherUser?.photoURL
+                const otherName  = activeConv.otherUser?.displayName || 'U'
+                const otherVerified = activeConv.otherUser?.verified
                 return (
-                  <div key={msg.id} className={`${styles.bubbleRow} ${isOwn ? styles.bubbleRowOwn : styles.bubbleRowOther}`}>
-                    <div className={`${styles.bubble} ${isOwn ? styles.bubbleOwn : styles.bubbleOther} ${isSticker ? styles.bubbleSticker : ''}`}>
-                      {isSticker
-                        ? <img src={msg.text} alt="sticker" className={styles.stickerMsg} />
-                        : <span className={styles.bubbleText}>{msg.text}</span>
-                      }
-                      {msg.createdAt?.toDate && (
-                        <span className={styles.bubbleTime}>
-                          {formatDistanceToNow(msg.createdAt.toDate(), { addSuffix: true, locale: es })}
-                        </span>
+                  <div key={msg.id} className={`${styles.bubbleRow} ${isOwn ? styles.bubbleRowOwn : styles.bubbleRowOther}`}
+                    style={{ alignItems: 'flex-end', gap: '0.4rem' }}>
+                    {/* Avatar del otro usuario — clickeable al perfil */}
+                    {!isOwn && (
+                      <div onClick={() => { onClose(); navigate(`/profile/${otherUid}`) }}
+                        style={{ cursor: 'pointer', flexShrink: 0, marginBottom: '2px' }}
+                        title={`Ver perfil de ${otherName}`}>
+                        {otherPhoto
+                          ? <img src={optimizeUrl(otherPhoto, { width: 40 })} alt="" className="avatar avatar-sm" />
+                          : <div className={styles.avatarFb} style={{ width: 28, height: 28, fontSize: '0.7rem' }}>{otherName[0].toUpperCase()}</div>
+                        }
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: isOwn ? 'flex-end' : 'flex-start', maxWidth: '78%' }}>
+                      {/* Nombre + verificado sobre la burbuja del otro */}
+                      {!isOwn && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '2px', cursor: 'pointer' }}
+                          onClick={() => { onClose(); navigate(`/profile/${otherUid}`) }}>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--p2)', fontWeight: 700 }}>{otherName}</span>
+                          {otherVerified && <VerifiedBadge title="Usuario verificado" />}
+                        </div>
                       )}
+                      <div className={`${styles.bubble} ${isOwn ? styles.bubbleOwn : styles.bubbleOther} ${isSticker ? styles.bubbleSticker : ''}`}>
+                        {isSticker
+                          ? <img src={msg.text} alt="sticker" className={styles.stickerMsg} />
+                          : <span className={styles.bubbleText}>{msg.text}</span>
+                        }
+                        {msg.createdAt?.toDate && (
+                          <span className={styles.bubbleTime}>
+                            {formatDistanceToNow(msg.createdAt.toDate(), { addSuffix: true, locale: es })}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )
