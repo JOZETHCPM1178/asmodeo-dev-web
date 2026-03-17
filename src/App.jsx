@@ -16,6 +16,7 @@ import SearchPage from './pages/SearchPage'
 import AdminPage from './pages/AdminPage'
 import MessagesPage from './pages/MessagesPage'
 import NotFoundPage from './pages/NotFoundPage'
+import WatermarkPage from './pages/WatermarkPage'
 
 function SettingsRedirect() {
   const { user } = useAuth()
@@ -55,6 +56,7 @@ export default function App() {
             <Route path="/admin"         element={<ProtectedRoute requireStaff><AdminPage /></ProtectedRoute>} />
             <Route path="/messages"      element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
             <Route path="/messages/:convId" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+            <Route path="/watermark"        element={<WatermarkPage />} />
             <Route path="*"              element={<NotFoundPage />} />
           </Route>
         </Routes>
