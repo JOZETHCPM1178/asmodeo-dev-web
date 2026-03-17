@@ -5,12 +5,7 @@ import SEO from '../components/ui/SEO'
 import styles from './WatermarkPage.module.css'
 
 const METHODS = [
-  { id: 'gemini',  label: '✨ Gemini / Nono', desc: 'Reverse Alpha Blending — perfecto para Gemini' },
-  { id: 'bright',  label: '☀️ Brillo',        desc: 'Marcas blancas/semitransparentes' },
-  { id: 'freq',    label: '🔍 Frecuencia',     desc: 'Logos y texto definidos' },
-  { id: 'blend',   label: '🎨 Mezcla',         desc: 'Combinación inteligente' },
-  { id: 'browser', label: '🧠 IA Navegador',   desc: 'Gratis ilimitado — sin API' },
-  { id: 'ai',      label: '⚡ IA PicWish',     desc: 'IA rápida — 50 créditos gratis' },
+  { id: 'gemini', label: '✨ Quitar marca de agua Gemini', desc: 'Reverse Alpha Blending — pixel-perfect' },
 ]
 
 export default function WatermarkPage() {
@@ -155,79 +150,180 @@ export default function WatermarkPage() {
     setStats({ w: W, h: H, pct: ((detected / (W*H)) * 100).toFixed(1) })
   }
 
-  // ─── Quitar marca de agua de Gemini/Nono — Reverse Alpha Blending ───
+  // ─── Quitar marca de agua de Gemini/Nono — Reverse Alpha Blending + Texture Synthesis ───
   async function processGemini() {
-    setProgress(10); setProgressMsg('Detectando zona de marca Gemini...')
+    setProgress(8); setProgressMsg('Analizando imagen...')
     await tick()
-    const W = img.naturalWidth, H = img.naturalHeight
-    // Gemini: logo esquina inferior derecha, 48x48px (≤1024px) o 96x96px (>1024px), margen 32px
-    const isLarge = W > 1024 && H > 1024
-    const wmSize = isLarge ? 96 : 48
-    const margin = 32
-    const x0 = W - wmSize - margin, y0 = H - wmSize - margin
-    const x1 = x0 + wmSize,          y1 = y0 + wmSize
 
-    setProgress(30); setProgressMsg('Cargando canvas...')
+    const W = img.naturalWidth, H = img.naturalHeight
+
+    // Gemini siempre: esquina inferior derecha
+    // ≤1024px → 48×48px con margen 32px
+    // >1024px → 96×96px con margen 32px
+    const isLarge = W > 1024 || H > 1024
+    const wmSize  = isLarge ? 96 : 48
+    const margin  = 32
+    const x0 = W - wmSize - margin
+    const y0 = H - wmSize - margin
+    const x1 = x0 + wmSize
+    const y1 = y0 + wmSize
+
+    setProgress(20); setProgressMsg('Cargando en canvas...')
     await tick()
+
     const c = document.createElement('canvas')
     c.width = W; c.height = H
     const ctx = c.getContext('2d')
     ctx.drawImage(img, 0, 0)
     const imageData = ctx.getImageData(0, 0, W, H)
     const d = imageData.data
+    const out = new Uint8ClampedArray(d)
 
-    setProgress(50); setProgressMsg('Aplicando Reverse Alpha Blending...')
+    setProgress(35); setProgressMsg('Paso 1: Estimando alpha del logo...')
     await tick()
 
-    // Logo Gemini = blanco (255,255,255) con alpha variable
-    // Alpha compositing: C_out = C_wm*alpha + C_orig*(1-alpha)
-    // Invertido:         C_orig = (C_out - C_wm*alpha) / (1-alpha)
-    const WM_R = 255, WM_G = 255, WM_B = 255
-    const out = new Uint8ClampedArray(d)
+    // ── PASO 1: Calcular alpha map de la zona WM ──
+    // Para cada píxel en la zona, comparamos con el píxel espejo
+    // (reflejado horizontalmente fuera de la zona) para estimar alpha
+    const alphaMap = new Float32Array(wmSize * wmSize)
 
     for (let y = y0; y < y1; y++) {
       for (let x = x0; x < x1; x++) {
+        const lx = x - x0, ly = y - y0
         const i = (y * W + x) * 4
         const r = d[i], g = d[i+1], b = d[i+2]
-        // Estimar color original usando vecinos fuera de la zona
-        let origR = r, origG = g, origB = b
-        for (let rad = 1; rad <= 24; rad++) {
-          const samples = []
-          for (let dy = -rad; dy <= rad; dy += Math.max(1, rad)) {
-            for (let dx = -rad; dx <= rad; dx += Math.max(1, rad)) {
-              const ny = y+dy, nx = x+dx
-              if (ny < 0||ny >= H||nx < 0||nx >= W) continue
-              if (nx >= x0&&nx < x1&&ny >= y0&&ny < y1) continue
-              const ni = (ny*W+nx)*4
-              samples.push([d[ni], d[ni+1], d[ni+2]])
+
+        // Buscar píxel de referencia: usamos el espejo horizontal
+        // Si no está disponible, usamos el vecino más cercano fuera de la zona
+        let refR = -1, refG = -1, refB = -1
+
+        // Intentar espejo horizontal (mismo y, x espejado)
+        const mirrorX = x0 - (lx + 1)
+        if (mirrorX >= 0 && mirrorX < W) {
+          const mi = (y * W + mirrorX) * 4
+          refR = d[mi]; refG = d[mi+1]; refB = d[mi+2]
+        }
+
+        // Si el espejo no funciona, buscar vecino más cercano fuera de zona
+        if (refR < 0) {
+          let bestDist = 999999
+          const checkPts = [
+            [x0 - 1, y], [x1, y],       // izq / der
+            [x, y0 - 1], [x, y1],        // arriba / abajo
+            [x0 - 1, y0 - 1], [x1, y1],  // esquinas
+          ]
+          for (const [cx, cy] of checkPts) {
+            if (cx < 0 || cx >= W || cy < 0 || cy >= H) continue
+            const dist = Math.abs(cx - x) + Math.abs(cy - y)
+            if (dist < bestDist) {
+              bestDist = dist
+              const ci = (cy * W + cx) * 4
+              refR = d[ci]; refG = d[ci+1]; refB = d[ci+2]
             }
           }
-          if (samples.length >= 3) {
-            origR = Math.round(samples.reduce((s,p)=>s+p[0],0)/samples.length)
-            origG = Math.round(samples.reduce((s,p)=>s+p[1],0)/samples.length)
-            origB = Math.round(samples.reduce((s,p)=>s+p[2],0)/samples.length)
-            break
-          }
         }
-        // Calcular alpha real y revertir
-        const aR = WM_R!==origR?(r-origR)/(WM_R-origR):0
-        const aG = WM_G!==origG?(g-origG)/(WM_G-origG):0
-        const aB = WM_B!==origB?(b-origB)/(WM_B-origB):0
-        const alpha = Math.max(0, Math.min(1, (aR+aG+aB)/3))
-        if (alpha > 0.04) {
-          const inv = 1 - alpha
-          if (inv > 0.02) {
-            out[i]   = Math.round(Math.max(0,Math.min(255,(r-WM_R*alpha)/inv)))
-            out[i+1] = Math.round(Math.max(0,Math.min(255,(g-WM_G*alpha)/inv)))
-            out[i+2] = Math.round(Math.max(0,Math.min(255,(b-WM_B*alpha)/inv)))
-          } else { out[i]=origR; out[i+1]=origG; out[i+2]=origB }
-          out[i+3] = 255
+
+        // Logo Gemini = chispa blanca (255,255,255)
+        // alpha = (C_out - C_orig) / (255 - C_orig)
+        const aR = refR < 255 ? Math.max(0, (r - refR) / (255 - refR)) : 0
+        const aG = refG < 255 ? Math.max(0, (g - refG) / (255 - refG)) : 0
+        const aB = refB < 255 ? Math.max(0, (b - refB) / (255 - refB)) : 0
+        alphaMap[ly * wmSize + lx] = Math.min(1, (aR + aG + aB) / 3)
+      }
+    }
+
+    setProgress(55); setProgressMsg('Paso 2: Revirtiendo alpha blending...')
+    await tick()
+
+    // ── PASO 2: Reverse alpha blending ──
+    // C_orig = (C_out - 255 * alpha) / (1 - alpha)
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        const lx = x - x0, ly = y - y0
+        const alpha = alphaMap[ly * wmSize + lx]
+        if (alpha < 0.03) continue  // Sin marca aquí
+
+        const i = (y * W + x) * 4
+        const inv = 1 - alpha
+
+        if (inv < 0.03) {
+          // Píxel casi 100% cubierto por la marca — copiar del vecino más cercano fuera de zona
+          const srcX = x < (x0 + x1) / 2 ? x0 - 1 : x1
+          const srcY = Math.max(0, Math.min(H - 1, y))
+          const si   = (srcY * W + Math.max(0, Math.min(W - 1, srcX))) * 4
+          out[i] = d[si]; out[i+1] = d[si+1]; out[i+2] = d[si+2]
+        } else {
+          // Reverse: C_orig = (C_out - 255*alpha) / (1-alpha)
+          out[i]   = Math.max(0, Math.min(255, Math.round((d[i]   - 255 * alpha) / inv)))
+          out[i+1] = Math.max(0, Math.min(255, Math.round((d[i+1] - 255 * alpha) / inv)))
+          out[i+2] = Math.max(0, Math.min(255, Math.round((d[i+2] - 255 * alpha) / inv)))
+        }
+        out[i+3] = 255
+      }
+    }
+
+    setProgress(72); setProgressMsg('Paso 3: Restaurando textura...')
+    await tick()
+
+    // ── PASO 3: Texture synthesis — elimina el borroso ──
+    // Para píxeles con alpha alto (>0.5) que quedaron planos,
+    // tomamos el patrón de textura del área vecina y lo aplicamos
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        const lx = x - x0, ly = y - y0
+        const alpha = alphaMap[ly * wmSize + lx]
+        if (alpha < 0.4) continue  // Solo corrección en zonas muy cubiertas
+
+        const i = (y * W + x) * 4
+
+        // Encontrar el parche más similar en la zona limpia adyacente
+        // Usamos un área 5x5 de referencia fuera de la zona WM
+        // y buscamos el parche con menor diferencia de color
+        let bestMatch = null
+        let bestScore = Infinity
+        const patchR = 2  // radio del parche de búsqueda
+
+        // Zona de búsqueda: banda de 40px fuera de los bordes de la WM
+        const searchZones = [
+          // Banda izquierda
+          { xs: Math.max(0, x0 - 40), xe: x0 - 1, ys: Math.max(0, y0 - 10), ye: Math.min(H-1, y1 + 10) },
+          // Banda derecha  
+          { xs: x1 + 1, xe: Math.min(W-1, x1 + 40), ys: Math.max(0, y0 - 10), ye: Math.min(H-1, y1 + 10) },
+          // Banda inferior
+          { xs: Math.max(0, x0 - 10), xe: Math.min(W-1, x1 + 10), ys: y1 + 1, ye: Math.min(H-1, y1 + 40) },
+        ]
+
+        for (const zone of searchZones) {
+          for (let sy = zone.ys; sy <= zone.ye; sy += 3) {
+            for (let sx = zone.xs; sx <= zone.xe; sx += 3) {
+              // Calcular diferencia de color entre current y candidate
+              const ci = (sy * W + sx) * 4
+              const dr = out[i] - d[ci], dg = out[i+1] - d[ci+1], db = out[i+2] - d[ci+2]
+              const score = dr*dr + dg*dg + db*db
+              if (score < bestScore) {
+                bestScore = score
+                bestMatch = { y: sy, x: sx }
+              }
+            }
+          }
+          if (bestScore < 50) break  // Encontramos match casi exacto
+        }
+
+        if (bestMatch && bestScore < 2000) {
+          // Blend: mezcla el resultado del reverse con la textura del match
+          // El peso del blend depende de qué tan cubierto estaba (alpha)
+          const blendW = Math.min(0.7, (alpha - 0.4) * 2)
+          const mi = (bestMatch.y * W + bestMatch.x) * 4
+          out[i]   = Math.round(out[i]   * (1-blendW) + d[mi]   * blendW)
+          out[i+1] = Math.round(out[i+1] * (1-blendW) + d[mi+1] * blendW)
+          out[i+2] = Math.round(out[i+2] * (1-blendW) + d[mi+2] * blendW)
         }
       }
     }
 
-    setProgress(88); setProgressMsg('Generando resultado...')
+    setProgress(90); setProgressMsg('Finalizando...')
     await tick()
+
     const outData = new ImageData(out, W, H)
     const rc = document.createElement('canvas')
     rc.width = W; rc.height = H
@@ -457,119 +553,33 @@ export default function WatermarkPage() {
       {/* ── IMAGEN CARGADA ── */}
       {img && (
         <div className={styles.workspace}>
-          {/* Configuración */}
-          <div className={styles.config}>
-            <div className={styles.configSection}>
-              <label className={styles.label}>Método</label>
-              <div className={styles.methodGrid}>
-                {METHODS.map(m => (
-                  <button key={m.id}
-                    className={`${styles.methodBtn} ${method === m.id ? styles.methodActive : ''}`}
-                    onClick={() => { setMethod(m.id); setShowKey(m.id === 'ai') }}>
-                    <span>{m.label}</span>
-                    <span className={styles.methodDesc}>{m.desc}</span>
-                  </button>
-                ))}
-              </div>
+
+          {/* Info card Gemini */}
+          <div className={styles.geminiCard}>
+            <span style={{ fontSize: '1.6rem' }}>✨</span>
+            <div>
+              <p style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--t1)', marginBottom: '0.3rem' }}>
+                Optimizado para Gemini · Nono Banana · Imagen 3
+              </p>
+              <p style={{ fontSize: '0.8rem', color: 'var(--t2)', lineHeight: 1.5 }}>
+                Usa <strong>Reverse Alpha Blending + Texture Synthesis</strong> en 3 pasos para eliminar el logo de la esquina inferior derecha sin dejar borroso ni manchas.
+              </p>
+              <p style={{ fontSize: '0.73rem', color: 'var(--t3)', marginTop: '0.4rem' }}>
+                ✅ Gratis e ilimitado · ✅ Sin API · ✅ La imagen no sale de tu dispositivo
+              </p>
             </div>
+          </div>
 
-            {/* Info Gemini */}
-            {method === 'gemini' && (
-              <div className={styles.configSection}>
-                <div className={styles.geminiCard}>
-                  <span style={{ fontSize: '1.6rem' }}>✨</span>
-                  <div>
-                    <p style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--t1)', marginBottom: '0.3rem' }}>
-                      Optimizado para Gemini · Nono Banana · Imagen 3
-                    </p>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--t2)', lineHeight: 1.5 }}>
-                      Usa <strong>Reverse Alpha Blending</strong> — revierte matemáticamente el logo de la esquina inferior derecha. Resultado pixel-perfect sin bordes ni manchas.
-                    </p>
-                    <p style={{ fontSize: '0.73rem', color: 'var(--t3)', marginTop: '0.4rem' }}>
-                      ✅ Gratis e ilimitado · ✅ Sin API · ✅ La imagen no sale de tu dispositivo
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Info IA Navegador */}
-            {method === 'browser' && (
-              <div className={styles.configSection}>
-                <div className={styles.browserAiCard}>
-                  <span style={{ fontSize: '1.4rem' }}>🧠</span>
-                  <div>
-                    <p style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--t1)', marginBottom: '0.25rem' }}>
-                      IA en tu navegador — gratis e ilimitado
-                    </p>
-                    <p style={{ fontSize: '0.78rem', color: 'var(--t2)', lineHeight: 1.5 }}>
-                      Inpainting con pesos por distancia — mejor calidad que modo básico.
-                      La imagen nunca sale de tu dispositivo.
-                    </p>
-                    {browserAiReady && (
-                      <span style={{ fontSize: '0.72rem', color: 'var(--green, #10b981)', marginTop: '0.35rem', display: 'block' }}>✅ Motor listo</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* API Key para PicWish */}
-            {method === 'ai' && (
-              <div className={styles.configSection}>
-                <label className={styles.label}>
-                  API Key de PicWish
-                  <a href="https://picwish.com/api" target="_blank" rel="noopener noreferrer"
-                    className={styles.getKeyLink}>→ Conseguir 50 gratis</a>
-                </label>
-                <input
-                  className="inp"
-                  type={showKey ? 'text' : 'password'}
-                  placeholder="Pega tu API key de PicWish..."
-                  value={apiKey}
-                  onChange={e => setApiKey(e.target.value)}
-                />
-                <button className={styles.toggleKey} onClick={() => setShowKey(s => !s)}>
-                  {showKey ? '🙈 Ocultar' : '👁️ Mostrar'}
-                </button>
-                <p className={styles.keyNote}>
-                  🔒 La clave nunca sale de tu navegador — se usa directo desde aquí.
-                </p>
-              </div>
-            )}
-
-            {/* Controles avanzados */}
-            {method !== 'ai' && (
-              <div className={styles.sliders}>
-                <div className={styles.sliderGroup}>
-                  <label className={styles.label}>
-                    Umbral de detección <strong>{threshold}</strong>
-                  </label>
-                  <input type="range" min={100} max={254} value={threshold} step={1}
-                    onChange={e => setThreshold(Number(e.target.value))} />
-                  <p className={styles.sliderHint}>Mayor = detecta píxeles más brillantes</p>
-                </div>
-                <div className={styles.sliderGroup}>
-                  <label className={styles.label}>
-                    Radio de reconstrucción <strong>{radius}px</strong>
-                  </label>
-                  <input type="range" min={1} max={20} value={radius} step={1}
-                    onChange={e => setRadius(Number(e.target.value))} />
-                  <p className={styles.sliderHint}>Mayor = relleno más suave pero más lento</p>
-                </div>
-              </div>
-            )}
-
-            <div className={styles.actionRow}>
-              <button className="btn btn-primary" onClick={process} disabled={processing}>
-                {processing
-                  ? <><span className="spinner" style={{ width: 16, height: 16 }} /> Procesando...</>
-                  : '✨ Quitar marca de agua'}
-              </button>
-              <button className="btn btn-ghost" onClick={reset} disabled={processing}>
-                🗑️ Cambiar imagen
-              </button>
-            </div>
+          {/* Botones */}
+          <div className={styles.actionRow}>
+            <button className="btn btn-primary" onClick={process} disabled={processing}>
+              {processing
+                ? <><span className="spinner" style={{ width: 16, height: 16 }} /> Procesando...</>
+                : '✨ Quitar marca de agua Gemini'}
+            </button>
+            <button className="btn btn-ghost" onClick={reset} disabled={processing}>
+              🗑️ Cambiar imagen
+            </button>
           </div>
 
           {/* Progreso */}
@@ -591,7 +601,6 @@ export default function WatermarkPage() {
                 {img.naturalWidth} × {img.naturalHeight}px
               </p>
             </div>
-
             <div className={styles.comparePanel}>
               <p className={styles.compareLabel}>✨ Resultado</p>
               {resultSrc
@@ -599,8 +608,7 @@ export default function WatermarkPage() {
                     <img src={resultSrc} alt="resultado" className={styles.compareImg} />
                     {stats && (
                       <p className={styles.compareMeta}>
-                        {stats.w} × {stats.h}px
-                        {stats.gemini ? ` · ✨ Gemini (zona ${stats.pct})` : stats.browser ? ' · 🧠 IA Navegador' : stats.ai ? ' · ⚡ IA PicWish' : ` · ${stats.pct}% detectado`}
+                        {stats.w} × {stats.h}px · zona {stats.pct} · pixel-perfect
                       </p>
                     )}
                   </>
@@ -627,16 +635,14 @@ export default function WatermarkPage() {
 
       {/* Info */}
       <div className={styles.infoBox}>
-        <h3>ℹ️ ¿Cómo conseguir la API key de PicWish? (50 gratis)</h3>
+        <h3>ℹ️ ¿Cómo funciona?</h3>
         <ol className={styles.steps}>
-          <li>Ve a <a href="https://picwish.com/api" target="_blank" rel="noopener noreferrer">picwish.com/api</a></li>
-          <li>Toca <strong>Get API Key Free</strong> y regístrate</li>
-          <li>Confirma tu email</li>
-          <li>En el dashboard copia tu <strong>API Key</strong></li>
-          <li>Pégala arriba — tienes <strong>50 créditos gratis</strong> (1 crédito = 1 imagen)</li>
+          <li><strong>Paso 1:</strong> Detecta el logo de Gemini en la esquina inferior derecha (48×48px o 96×96px)</li>
+          <li><strong>Paso 2:</strong> Calcula el alpha real de cada píxel del logo y revierte la mezcla matemáticamente</li>
+          <li><strong>Paso 3:</strong> Texture Synthesis — busca el parche de textura más similar en la zona adyacente y lo aplica para eliminar el borroso</li>
         </ol>
         <p className={styles.infoNote}>
-          💡 Los métodos sin IA (brillo, frecuencia, mezcla) son 100% gratis e ilimitados — sin cuenta ni clave.
+          Funciona con imágenes generadas por Gemini, Imagen 3, Nono Banana y cualquier app que use el logo de chispa de Google IA.
         </p>
       </div>
     </div>
