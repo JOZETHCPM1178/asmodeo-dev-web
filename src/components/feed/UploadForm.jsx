@@ -239,7 +239,7 @@ export default function UploadForm() {
                   <div className={styles.apkPlaceholder}>
                     <span style={{ fontSize: '2.2rem' }}>📦</span>
                     <span className={styles.apkPlaceholderText}>Toca para seleccionar APK</span>
-                    <span className={styles.apkHint}>APK, ZIP, RAR · máx 500 MB · Descarga directa gratis</span>
+                    <span className={styles.apkHint}>APK, ZIP, RAR · máx 100 GB · Descarga directa gratis</span>
                   </div>
                 )}
                 <input ref={apkRef} type="file"
