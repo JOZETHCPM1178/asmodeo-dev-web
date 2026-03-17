@@ -32,22 +32,52 @@ const BOT_COMMANDS = [
   { command: 'recompensas',   description: '🎁 Recoger puntos diarios' },
 ];
 
-// ─── KV helpers — persisten entre requests en Cloudflare KV ───
-// Requiere binding KV en wrangler.toml (namespace: KV)
-let _env = null; // se setea en cada request
+// ─── Firebase helpers para códigos de login y recompensas ───
+// Guarda los códigos en Firestore colección "loginCodes"
+// Guarda las recompensas en Firestore colección "rewards"
 
-async function kvSet(key, value, ttlSeconds) {
-  await _env.KV.put(key, JSON.stringify(value), { expirationTtl: ttlSeconds });
-}
-async function kvGet(key) {
-  const raw = await _env.KV.get(key);
-  return raw ? JSON.parse(raw) : null;
-}
-async function kvDel(key) {
-  await _env.KV.delete(key);
+async function fbSet(collection, docId, fields) {
+  const body = {};
+  for (const [k, v] of Object.entries(fields)) {
+    if (typeof v === 'string')       body[k] = { stringValue: v };
+    else if (typeof v === 'number')  body[k] = { integerValue: String(v) };
+    else if (typeof v === 'boolean') body[k] = { booleanValue: v };
+    else                             body[k] = { stringValue: String(v) };
+  }
+  await fetch(
+    `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/${collection}/${docId}?` +
+    Object.keys(fields).map(k => `updateMask.fieldPaths=${k}`).join('&'),
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: body })
+    }
+  );
 }
 
-function getTodayKey(uid) { return `reward_${uid}_${new Date().toISOString().slice(0,10)}`; }
+async function fbGetDoc(collection, docId) {
+  const res = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/${collection}/${docId}`
+  );
+  if (!res.ok) return null;
+  const data = await res.json();
+  if (!data.fields) return null;
+  // Desserializar campos Firestore
+  const out = {};
+  for (const [k, v] of Object.entries(data.fields)) {
+    out[k] = v.stringValue ?? v.integerValue ?? v.booleanValue ?? null;
+  }
+  return out;
+}
+
+async function fbDelete(collection, docId) {
+  await fetch(
+    `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/${collection}/${docId}`,
+    { method: 'DELETE' }
+  );
+}
+
+function getTodayKey(uid) { return `${uid}_${new Date().toISOString().slice(0,10)}`; }
 
 // ─── Helpers Telegram ───
 async function tgSend(chatId, text, extra = {}) {
@@ -292,12 +322,13 @@ async function handleCommand(msg) {
     // Generar código de 6 dígitos único (colisión improbable en KV)
     const code = String(Math.floor(100000 + Math.random() * 900000));
 
-    // Guardar en KV con expiración de 10 minutos (600 segundos)
-    await kvSet(`login_${code}`, {
+    // Guardar código en Firestore (colección loginCodes)
+    await fbSet('loginCodes', code, {
       chatId:    String(chatId),
       userId:    String(userId),
       firstName: msg.from?.first_name || 'Usuario',
-    }, 600);
+      expires:   String(Date.now() + 10 * 60 * 1000),
+    });
 
     await tgSend(chatId,
       `🔐 *Tu código de verificación:*\n\n` +
@@ -637,11 +668,11 @@ async function handleCommand(msg) {
   // ══ /recompensas ══
   if (cmd === '/recompensas') {
     const key = getTodayKey(userId);
-    const already = await kvGet(key);
+    const already = await fbGetDoc('rewards', key);
     if (already) {
       await tgSend(chatId, `🎁 Ya recogiste tus puntos hoy ✅\nVuelve mañana.`);
     } else {
-      await kvSet(key, true, 86400); // expira en 24 horas
+      await fbSet('rewards', key, { uid: String(userId), date: key, claimed: true });
       await tgSend(chatId, `🎁 *¡+1 punto ganado!*\n\nAcumula 10 y canjéalos por acceso VIP.\n_Vuelve mañana._`);
     }
     return;
@@ -728,8 +759,7 @@ async function anunciarTelegram(post) {
 
 // ─── Export principal ───
 export default {
-  async fetch(request, env) {
-    _env = env; // exponer KV al resto del worker
+  async fetch(request) {
     if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
 
     const url = new URL(request.url);
@@ -754,7 +784,7 @@ export default {
           });
         }
 
-        const entry = await kvGet(`login_${code}`);
+        const entry = await fbGetDoc('loginCodes', code);
 
         if (!entry) {
           return new Response(JSON.stringify({ ok: false, error: 'Código incorrecto o ya usado.' }), {
@@ -762,8 +792,16 @@ export default {
           });
         }
 
+        // Verificar expiración (10 minutos)
+        if (Date.now() > parseInt(entry.expires || '0')) {
+          await fbDelete('loginCodes', code);
+          return new Response(JSON.stringify({ ok: false, error: 'El código expiró. Usa /login en el bot para obtener uno nuevo.' }), {
+            headers: { 'Content-Type': 'application/json', ...CORS }
+          });
+        }
+
         // Código válido — borrar para que sea de un solo uso
-        await kvDel(`login_${code}`);
+        await fbDelete('loginCodes', code);
 
         // Notificar al usuario por Telegram
         try {
