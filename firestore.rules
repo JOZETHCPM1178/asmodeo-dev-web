@@ -169,5 +169,21 @@ service cloud.firestore {
         allow update, delete: if false;
       }
     }
+ 
+    // ════════════════════════════════════════
+    //  CÓDIGOS DE LOGIN TELEGRAM
+    //  Solo el worker escribe (sin auth), la web lee para verificar
+    // ════════════════════════════════════════
+    match /loginCodes/{code} {
+      allow read, write: if true; // El Worker de Cloudflare no tiene auth de Firebase
+    }
+
+    // ════════════════════════════════════════
+    //  RECOMPENSAS DIARIAS
+    // ════════════════════════════════════════
+    match /rewards/{rewardId} {
+      allow read, write: if true; // Escrito por el Worker
+    }
+
   }
 }
