@@ -6,6 +6,11 @@ const ONESIGNAL_REST_KEY = 'os_v2_app_k5eiwnq32nhunhm3e4u4abk2enhd4hhrv4eekquijn
 const TELEGRAM_TOKEN     = '8756414415:AAFR-Uwks3cyr_RJHTPdhvFHCHXvXomIs94';
 const TELEGRAM_CHAT_ID   = '-1003857525980';
 const FIREBASE_PROJECT   = 'modzone-asmodeo';
+// ─── Service Account — agrega estas 2 variables en Cloudflare Dashboard
+//     Worker → Settings → Variables → Secrets:
+//     FIREBASE_SA_EMAIL  → service account email del JSON de Firebase
+//     FIREBASE_SA_KEY    → el valor de "private_key" del JSON (con los \n reales)
+// ─────────────────────────────────────────────────────────────────────
 const ALLOWED_ORIGIN     = 'https://asmodeo-dev-web.pages.dev';
 const SITE_URL           = 'https://asmodeo-dev-web.pages.dev';
 const BOT_ADMINS         = ['8015489755'];
@@ -55,6 +60,29 @@ async function tgSendPhoto(chatId, photo, caption, extra = {}) {
   if (!res.ok) await tgSend(chatId, caption);
 }
 
+// ─── Helper Firestore REST — Actualizar documento ───
+async function fbUpdate(docPath, data, env) {
+  const fields = {};
+  for (const [k, v] of Object.entries(data)) {
+    if (typeof v === 'string')       fields[k] = { stringValue: v };
+    else if (typeof v === 'number')  fields[k] = { integerValue: String(v) };
+    else if (typeof v === 'boolean') fields[k] = { booleanValue: v };
+    else if (v === null)             fields[k] = { nullValue: null };
+    else fields[k] = { stringValue: String(v) };
+  }
+
+  const headers = { 'Content-Type': 'application/json' };
+  const adminToken = await getFirebaseAdminToken(env);
+  if (adminToken) headers['Authorization'] = `Bearer ${adminToken}`;
+
+  const updateMask = Object.keys(data).map(k => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join('&');
+  const res = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/${docPath}?${updateMask}`,
+    { method: 'PATCH', headers, body: JSON.stringify({ fields }) }
+  );
+  return res.json();
+}
+
 // ─── Helper Firestore REST ───
 async function fbGet(path) {
   const res = await fetch(
@@ -64,24 +92,82 @@ async function fbGet(path) {
   return res.json();
 }
 
-async function fbCreate(collection, data) {
+// ─── Obtener Google OAuth token con Service Account (para Firestore Admin) ───
+async function getFirebaseAdminToken(env) {
+  // env.FIREBASE_SA_EMAIL y env.FIREBASE_SA_KEY vienen de los Secrets del Worker
+  if (!env?.FIREBASE_SA_EMAIL || !env?.FIREBASE_SA_KEY) return null;
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    const header  = { alg: 'RS256', typ: 'JWT' };
+    const payload = {
+      iss: env.FIREBASE_SA_EMAIL,
+      sub: env.FIREBASE_SA_EMAIL,
+      aud: 'https://oauth2.googleapis.com/token',
+      iat: now,
+      exp: now + 3600,
+      scope: 'https://www.googleapis.com/auth/datastore',
+    };
+
+    const b64url = s => btoa(JSON.stringify(s)).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+    const signingInput = `${b64url(header)}.${b64url(payload)}`;
+
+    // Importar la clave privada RSA
+    const pemKey = env.FIREBASE_SA_KEY.replace(/\\n/g, '\n');
+    const pemBody = pemKey.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\n/g, '');
+    const keyData = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
+
+    const cryptoKey = await crypto.subtle.importKey(
+      'pkcs8', keyData.buffer,
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+      false, ['sign']
+    );
+
+    const encoder = new TextEncoder();
+    const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, encoder.encode(signingInput));
+    const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+    const jwt = `${signingInput}.${sigB64}`;
+
+    // Intercambiar JWT por access token
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
+    });
+    const tokenData = await tokenRes.json();
+    return tokenData.access_token || null;
+  } catch(e) {
+    console.error('Error obteniendo token admin:', e);
+    return null;
+  }
+}
+
+async function fbCreate(collection, data, env) {
   const fields = {};
   for (const [k, v] of Object.entries(data)) {
-    if (typeof v === 'string')  fields[k] = { stringValue: v };
-    else if (typeof v === 'number') fields[k] = { integerValue: String(v) };
+    if (typeof v === 'string')       fields[k] = { stringValue: v };
+    else if (typeof v === 'number')  fields[k] = { integerValue: String(v) };
     else if (typeof v === 'boolean') fields[k] = { booleanValue: v };
-    else if (v === null) fields[k] = { nullValue: null };
+    else if (v === null)             fields[k] = { nullValue: null };
     else fields[k] = { stringValue: String(v) };
   }
+
+  // Agregar timestamp del servidor
+  fields['createdAt'] = { timestampValue: new Date().toISOString() };
+  fields['updatedAt'] = { timestampValue: new Date().toISOString() };
+
+  const headers = { 'Content-Type': 'application/json' };
+
+  // Si hay Service Account, usar token admin para saltarse las reglas de seguridad
+  const adminToken = await getFirebaseAdminToken(env);
+  if (adminToken) headers['Authorization'] = `Bearer ${adminToken}`;
+
   const res = await fetch(
     `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents/${collection}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fields })
-    }
+    { method: 'POST', headers, body: JSON.stringify({ fields }) }
   );
-  return res.json();
+  const result = await res.json();
+  if (!res.ok) throw new Error(result.error?.message || `Firestore error ${res.status}`);
+  return result;
 }
 
 // ─── Verificar si usuario está vinculado ───
@@ -215,7 +301,7 @@ async function descargarVideo(link) {
 }
 
 // ─── Handler principal de comandos ───
-async function handleCommand(msg) {
+async function handleCommand(msg, env) {
   const chatId = msg.chat.id;
   const userId = String(msg.from?.id);
   const text   = msg.text || '';
@@ -368,8 +454,10 @@ async function handleCommand(msg) {
         score:       0,
         featured:    false,
         verified:    false,
+        authorVerified: false,
+        authorIsStaff:  false,
         source:      'telegram_bot',
-      });
+      }, env);
 
       const postId = doc.name?.split('/').pop();
 
@@ -677,7 +765,7 @@ async function anunciarTelegram(post) {
 
 // ─── Export principal ───
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
 
     const url = new URL(request.url);
@@ -687,7 +775,7 @@ export default {
       try {
         const update = await request.json();
         const msg    = update.message || update.channel_post;
-        if (msg?.text?.startsWith('/')) await handleCommand(msg);
+        if (msg?.text?.startsWith('/')) await handleCommand(msg, env);
       } catch(e) {}
       return new Response('ok');
     }
@@ -718,7 +806,15 @@ export default {
           });
         }
 
-        // Token válido — notificar al usuario por Telegram
+        // Token válido — guardar telegramId en el usuario de Firestore
+        try {
+          await fbUpdate(`users/${uid}`, {
+            telegramId:   String(telegramId),
+            telegramName: telegramName || '',
+          }, env);
+        } catch(e) { console.error('Error guardando telegramId:', e); }
+
+        // Notificar al usuario por Telegram
         try {
           await tgSend(telegramId,
             `✅ *¡Cuenta vinculada exitosamente!*\n\n` +
