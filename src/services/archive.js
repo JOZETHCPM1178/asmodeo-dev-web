@@ -15,7 +15,7 @@ function getContentType(file) {
 
 export function validateApkFile(file) {
   if (!file) throw new Error('No se seleccionó archivo')
-  if (file.size > 15 * 1024 * 1024 * 1024) throw new Error(`El archivo pesa ${(file.size/1024/1024/1024).toFixed(1)}GB — máximo 15GB`)
+  if (file.size > 100 * 1024 * 1024 * 1024) throw new Error(`El archivo pesa ${(file.size/1024/1024/1024).toFixed(1)}GB — máximo 100GB`)
   const allowed = ['apk','zip','rar','7z','apks','xapk','tar','gz']
   const ext = file.name.split('.').pop().toLowerCase()
   if (!allowed.includes(ext)) throw new Error(`Formato .${ext} no soportado`)
