@@ -118,6 +118,20 @@ export default function InboxPanel({ notifications = [], onClose }) {
     return () => { if (unsubMsgsRef.current) unsubMsgsRef.current() }
   }, [activeConv?.id, user?.uid])
 
+  // Scroll al fondo cuando el teclado virtual sube (iOS/Android)
+  useEffect(() => {
+    function onResize() {
+      setTimeout(() => {
+        msgBottomRef.current?.scrollIntoView({ behavior: 'instant' })
+        chatBottomRef.current?.scrollIntoView({ behavior: 'instant' })
+      }, 80)
+    }
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', onResize)
+      return () => window.visualViewport.removeEventListener('resize', onResize)
+    }
+  }, [])
+
   // ─── ENVIAR DM ───
   async function handleSendDM(e) {
     e?.preventDefault()
@@ -432,6 +446,7 @@ export default function InboxPanel({ notifications = [], onClose }) {
                       value={chatText}
                       onChange={handleChatInput}
                       onKeyDown={handleChatKeyDown}
+                      onFocus={() => setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 300)}
                       maxLength={300}
                       disabled={!user || chatSending}
                       style={{ paddingRight: '2rem', fontSize: '0.84rem' }}
@@ -496,6 +511,7 @@ export default function InboxPanel({ notifications = [], onClose }) {
                   value={dmText}
                   onChange={e => setDmText(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendDM(e) } }}
+                  onFocus={() => setTimeout(() => msgBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 300)}
                   maxLength={1000}
                   disabled={dmSending}
                   autoComplete="off"

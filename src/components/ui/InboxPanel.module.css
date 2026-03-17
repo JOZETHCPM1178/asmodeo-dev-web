@@ -13,6 +13,7 @@
 .panel {
   width: 380px;
   height: calc(100vh - var(--nav-h));
+  height: calc(100dvh - var(--nav-h)); /* dvh se adapta al teclado virtual */
   background: var(--card);
   border-left: 1px solid var(--border2);
   display: flex; flex-direction: column;
@@ -22,8 +23,17 @@
 }
 
 @media (max-width: 640px) {
-  .overlay { padding-top: var(--nav-h); align-items: stretch; justify-content: stretch; }
-  .panel { width: 100%; border-left: none; }
+  .overlay {
+    padding-top: var(--nav-h);
+    align-items: stretch;
+    justify-content: stretch;
+  }
+  .panel {
+    width: 100%;
+    border-left: none;
+    height: calc(100dvh - var(--nav-h));
+    /* En iOS/Android el panel se encoge automáticamente cuando sube el teclado */
+  }
 }
 
 /* Header */
@@ -129,24 +139,31 @@
   display: flex; align-items: center; justify-content: center; padding: 0 5px;
 }
 
-/* ── CHAT ACTIVO — layout fijo ── */
+/* ── CHAT ACTIVO — layout fijo estilo TikTok ── */
 .chatWrap {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* Clave para que el input no se vaya abajo */
+  overflow: hidden;
   min-height: 0;
+  position: relative;
 }
 
-/* Mensajes — ocupa todo el espacio disponible */
+/* Mensajes — ocupa todo el espacio disponible y hace scroll */
 .dmMessages {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 0.85rem;
+  padding-bottom: 0.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
   min-height: 0;
+  /* Scroll suave como TikTok */
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 /* Burbujas */
@@ -187,12 +204,15 @@
   border-radius: var(--r);
 }
 
-/* ── INPUT AREA — siempre al fondo ── */
+/* ── INPUT AREA — siempre pegado al fondo, nunca oculto por teclado ── */
 .dmInputArea {
   flex-shrink: 0;
   border-top: 1px solid var(--border);
   background: var(--card);
   position: relative;
+  /* Espacio seguro para notch/home bar en iOS */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 0px);
 }
 
 .dmInputRow {
@@ -240,7 +260,11 @@
 
 /* ─── CHAT GLOBAL TAB ─── */
 .chatGlobalWrap {
-  flex: 1; display: flex; flex-direction: column; overflow: hidden;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 .chatGlobalStatus {
   padding: 0.4rem 1rem;
@@ -259,8 +283,18 @@
   padding: 2px 10px; border-radius: 20px;
 }
 .chatGlobalMessages {
-  flex: 1; overflow-y: auto;
-  padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.75rem;
+  padding-bottom: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 0;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 .chatMsg { display: flex; align-items: flex-start; gap: 0.45rem; }
 .chatMsgOwn { flex-direction: row-reverse; }
@@ -291,7 +325,11 @@
 
 .chatGlobalInput {
   border-top: 1px solid var(--border);
-  flex-shrink: 0; position: relative;
+  flex-shrink: 0;
+  position: relative;
+  background: var(--card);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 0px);
 }
 .chatInputRow {
   display: flex; gap: 0.4rem;
