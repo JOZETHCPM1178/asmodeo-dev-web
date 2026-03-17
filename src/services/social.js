@@ -168,8 +168,9 @@ export async function markAllNotificationsRead(userId) {
 const _spamCache = new Map()
 
 export function subscribeToChatMessages(callback) {
+  // Solo los 10 más recientes — liviano, sin acumular historial
   return onSnapshot(
-    query(collection(db, 'globalChat'), orderBy('createdAt', 'desc'), limit(50)),
+    query(collection(db, 'globalChat'), orderBy('createdAt', 'desc'), limit(10)),
     snap => {
       const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() })).reverse()
       callback(msgs)
@@ -177,7 +178,7 @@ export function subscribeToChatMessages(callback) {
   )
 }
 
-export async function sendChatMessage({ userId, username, photoURL, text }) {
+export async function sendChatMessage({ userId, username, photoURL, text, verified = false }) {
   // Anti-spam: máximo 1 mensaje cada 2 segundos
   const now = Date.now()
   const lastMsg = _spamCache.get(userId) || 0
@@ -196,9 +197,23 @@ export async function sendChatMessage({ userId, username, photoURL, text }) {
     userId,
     username,
     photoURL: photoURL || '',
+    verified: verified || false,
     text: text.slice(0, 300),
     createdAt: serverTimestamp(),
   })
+
+  // Limpiar mensajes viejos — mantener solo los 10 más recientes en Firestore
+  try {
+    const all = await getDocs(
+      query(collection(db, 'globalChat'), orderBy('createdAt', 'desc'))
+    )
+    const toDelete = all.docs.slice(10) // los que van más allá de 10
+    if (toDelete.length > 0) {
+      const batch = writeBatch(db)
+      toDelete.forEach(d => batch.delete(d.ref))
+      await batch.commit()
+    }
+  } catch {} // no bloquear si falla la limpieza
 }
 
 export async function setChatStatus(closed) {
