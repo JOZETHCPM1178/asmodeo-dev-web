@@ -281,7 +281,6 @@ function TelegramLinkSection({ uid, profile }) {
   )
 }
 
-}
 function EditProfileModal({ profile, onClose, onSaved }) {
   const { user } = useAuth()
   const fileRef  = useRef(null)
