@@ -263,7 +263,7 @@ async function handleCommand(msg) {
     return;
   }
 
-  // ══ /login — Genera código para vincular con la web ══
+  // ══ /login — Genera link directo para vincular con la web ══
   if (cmd === '/login') {
     // Verificar si ya está vinculado
     const linked = await getLinkedUser(userId);
@@ -273,27 +273,26 @@ async function handleCommand(msg) {
         `✅ *Ya tienes una cuenta vinculada*\n\n` +
         `👤 ${name}\n\n` +
         `Tu cuenta de Telegram está conectada con ASMODEO DEV.\n\n` +
-        `🌐 [Ver mi perfil](${SITE_URL}/profile/${linked.name.split('/').pop()})`
+        `🌐 [Ver mi perfil](${SITE_URL})`
       );
       return;
     }
 
-    // Generar código de 6 dígitos
-    const code    = Math.floor(100000 + Math.random() * 900000).toString();
-    const expires = Date.now() + 10 * 60 * 1000; // 10 minutos
-
-    loginCodes.set(userId, { code, chatId, expires, telegramId: userId, telegramName: msg.from?.first_name });
+    // Generar token firmado con telegramId + timestamp + hash simple
+    const timestamp = Date.now();
+    const token     = btoa(`${userId}:${timestamp}:${chatId}`).replace(/=/g, '');
+    const loginUrl  = `${SITE_URL}/link-telegram?token=${token}&tid=${userId}&name=${encodeURIComponent(msg.from?.first_name || 'Usuario')}`;
 
     await tgSend(chatId,
       `🔐 *Vincular cuenta ASMODEO DEV*\n\n` +
-      `Tu código de verificación es:\n\n` +
-      `\`${code}\`\n\n` +
+      `Toca el botón de abajo para vincular tu cuenta:\n\n` +
+      `[🔗 Vincular mi cuenta](${loginUrl})\n\n` +
       `*Pasos:*\n` +
-      `1. Ve a ${SITE_URL}\n` +
-      `2. Inicia sesión en tu cuenta\n` +
-      `3. Ve a *Perfil → Vincular Telegram*\n` +
-      `4. Ingresa el código: \`${code}\`\n\n` +
-      `⏱️ _Código válido por 10 minutos_`
+      `1. Toca el link de arriba\n` +
+      `2. Inicia sesión en la web si no lo has hecho\n` +
+      `3. Confirma la vinculación\n\n` +
+      `⏱️ _Link válido por 10 minutos_`,
+      { disable_web_page_preview: false }
     );
     return;
   }
@@ -693,30 +692,36 @@ export default {
       return new Response('ok');
     }
 
-    // Verificar código de login desde la web
+    // Verificar token de login desde la web
     if (url.pathname === '/verify-login' && request.method === 'POST') {
       try {
-        const { uid, code } = await request.json();
-        const entry = loginCodes.get(uid);
-        if (!entry) {
-          return new Response(JSON.stringify({ ok: false, error: 'Código no encontrado o expirado' }), { headers: { 'Content-Type': 'application/json', ...CORS } });
+        const { uid, token, telegramId, telegramName } = await request.json();
+
+        // Validar token — decodificar y verificar que el telegramId coincida y no haya expirado
+        let valid = false;
+        try {
+          const decoded  = atob(token.replace(/-/g, '+').replace(/_/g, '/'));
+          const [tid, timestamp] = decoded.split(':');
+          const age = Date.now() - parseInt(timestamp);
+          valid = tid === telegramId && age < 10 * 60 * 1000; // 10 minutos
+        } catch {}
+
+        if (!valid) {
+          return new Response(JSON.stringify({ ok: false, error: 'Link expirado o inválido. Usa /login de nuevo.' }), {
+            headers: { 'Content-Type': 'application/json', ...CORS }
+          });
         }
-        if (Date.now() > entry.expires) {
-          loginCodes.delete(uid);
-          return new Response(JSON.stringify({ ok: false, error: 'Código expirado' }), { headers: { 'Content-Type': 'application/json', ...CORS } });
-        }
-        if (entry.code !== code) {
-          return new Response(JSON.stringify({ ok: false, error: 'Código incorrecto' }), { headers: { 'Content-Type': 'application/json', ...CORS } });
-        }
-        // Código correcto — devolver telegramId para guardar en Firestore
-        loginCodes.delete(uid);
-        // Notificar al usuario por Telegram
-        await tgSend(entry.chatId,
-          `✅ *¡Cuenta vinculada exitosamente!*\n\n` +
-          `Tu Telegram está ahora conectado con ASMODEO DEV.\n\n` +
-          `[🌐 Ver mi perfil](${SITE_URL})`
-        );
-        return new Response(JSON.stringify({ ok: true, telegramId: entry.telegramId, telegramName: entry.telegramName }), {
+
+        // Token válido — notificar al usuario por Telegram
+        try {
+          await tgSend(telegramId,
+            `✅ *¡Cuenta vinculada exitosamente!*\n\n` +
+            `Tu Telegram está ahora conectado con ASMODEO DEV.\n\n` +
+            `[🌐 Ver mi perfil](${SITE_URL})`
+          );
+        } catch {}
+
+        return new Response(JSON.stringify({ ok: true, telegramId, telegramName }), {
           headers: { 'Content-Type': 'application/json', ...CORS }
         });
       } catch(e) {
