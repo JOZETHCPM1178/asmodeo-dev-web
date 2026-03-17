@@ -23,14 +23,17 @@ service cloud.firestore {
     function myRole() {
       return isAuth() ? myData().get('role', 'user') : 'guest';
     }
+    function isOwner() {
+      return isAuth() && myRole() == 'owner';
+    }
     function isAdmin() {
-      return isAuth() && myRole() == 'admin';
+      return isAuth() && (myRole() == 'admin' || myRole() == 'owner');
     }
     function isAdminJr() {
       return isAuth() && myRole() == 'admin_jr';
     }
     function isStaff() {
-      return isAdmin() || isAdminJr();
+      return isOwner() || isAdmin() || isAdminJr();
     }
     function notBanned() {
       return isAuth() && myData().get('banned', false) == false;
@@ -138,11 +141,12 @@ service cloud.firestore {
     }
 
     // ════════════════════════════════════════
-    //  CONFIG (estado del chat, etc.)
+    //  CONFIG (estado del chat, mantenimiento, etc.)
+    //  Solo owner puede escribir maintenance, staff puede escribir el resto
     // ════════════════════════════════════════
     match /config/{docId} {
       allow read: if true;
-      allow write: if isStaff();
+      allow write: if isOwner() || isAdmin();
     }
 
     // ════════════════════════════════════════
