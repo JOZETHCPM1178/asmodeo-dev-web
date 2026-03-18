@@ -6,6 +6,9 @@ import {
   getStats, getAllUsers, setUserRole, banUser, unbanUser,
   verifyUser, getPendingPosts, getAllPosts, getReports, replyToReport,
   resolveReport, getAdminLogs, addFakeFollowers, removeFakeFollowers,
+  banInactiveUsers, resetAllBotFollowers, notifyAllUsers,
+  addFakePostStats, removeFakePostStats,
+  addBotComments, deleteBotComments,
 } from '../../services/admin'
 import { deletePost, toggleFeatured, verifyPost, setPostStatus } from '../../services/posts'
 import { setChatStatus, setMaintenanceMode, getMaintenanceMode } from '../../services/social'
