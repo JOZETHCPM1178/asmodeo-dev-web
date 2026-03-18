@@ -237,3 +237,4 @@ export default function ImageCropper({ imageSrc, aspectRatio = 16/9, onCrop, onC
     </div>
   )
 }
+
