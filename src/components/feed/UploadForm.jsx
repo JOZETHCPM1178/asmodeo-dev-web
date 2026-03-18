@@ -71,10 +71,19 @@ export default function UploadForm() {
     if (!file) return
     if (file.size > 10 * 1024 * 1024) { toast.error('Imagen máximo 10MB'); return }
     if (!file.type.startsWith('image/')) { toast.error('Solo imágenes'); return }
-    setImageFile(file)
+    // Abrir cropper 16:9
     const reader = new FileReader()
-    reader.onload = ev => setImagePreview(ev.target.result)
+    reader.onload = ev => setCropSrc(ev.target.result)
     reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  function onCropDone(blob, dataUrl) {
+    setCropSrc(null)
+    setCropBlob(blob)
+    setImagePreview(dataUrl)
+    const croppedFile = new File([blob], 'cover.png', { type: 'image/png' })
+    setImageFile(croppedFile)
   }
 
   function handleApkChange(e) {
@@ -170,6 +179,15 @@ export default function UploadForm() {
   }
 
   return (
+    <>
+      {cropSrc && (
+        <ImageCropper
+          imageSrc={cropSrc}
+          aspectRatio={16/9}
+          onCrop={onCropDone}
+          onCancel={() => setCropSrc(null)}
+        />
+      )}
     <form className={styles.form} onSubmit={handleSubmit}>
       <div className={styles.header}>
         <h1 className={styles.title}>📤 Nueva publicación</h1>
@@ -342,5 +360,6 @@ export default function UploadForm() {
           : '🚀 Publicar ahora'}
       </button>
     </form>
+    </>
   )
 }
