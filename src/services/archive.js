@@ -48,6 +48,29 @@ function formatTime(seconds) {
 export async function uploadToArchive(file, onProgress) {
   if (!ACCESS_KEY || !SECRET_KEY) throw new Error('Archive.org keys no configuradas.')
 
+  const MAX_RETRIES = 3
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const result = await attemptUpload(file, onProgress, attempt, MAX_RETRIES)
+      return result
+    } catch (err) {
+      const is503 = err.message.includes('503') || err.message.includes('Service Unavailable')
+      const isNet = err.message.includes('red')
+      if ((is503 || isNet) && attempt < MAX_RETRIES) {
+        const wait = attempt * 8000 // 8s, 16s entre reintentos
+        onProgress?.(5, `⚠️ Archive.org no responde. Reintentando en ${wait/1000}s... (${attempt}/${MAX_RETRIES})`)
+        await new Promise(r => setTimeout(r, wait))
+        continue
+      }
+      throw err
+    }
+  }
+}
+
+async function attemptUpload(file, onProgress, attempt, maxAttempts) {
+  if (attempt > 1) onProgress?.(5, `🔄 Reintento ${attempt}/${maxAttempts} — ${formatBytes(file.size)}...`)
+
   const identifier = generateIdentifier(file.name)
   const filename   = encodeURIComponent(file.name)
   const uploadUrl  = `https://s3.us.archive.org/${identifier}/${filename}`
@@ -94,8 +117,10 @@ export async function uploadToArchive(file, onProgress) {
         resolve({ url: `https://archive.org/download/${identifier}/${filename}`, identifier })
       } else {
         let msg = `Archive.org error ${xhr.status}`
-        if (xhr.status === 401) msg = 'Credenciales inválidas.'
-        if (xhr.status === 403) msg = 'Sin permisos. Verifica tus claves.'
+        if (xhr.status === 401) msg = 'Credenciales inválidas. Verifica VITE_ARCHIVE_ACCESS_KEY y VITE_ARCHIVE_SECRET_KEY.'
+        if (xhr.status === 403) msg = 'Sin permisos en Archive.org. Verifica tus claves.'
+        if (xhr.status === 503) msg = 'Archive.org no disponible (503). Intenta de nuevo en unos minutos.'
+        if (xhr.status === 429) msg = 'Demasiadas subidas seguidas. Espera 1 minuto e intenta de nuevo.'
         reject(new Error(msg))
       }
     })
@@ -114,3 +139,4 @@ export async function uploadToArchive(file, onProgress) {
     xhr.send(file)
   })
 }
+
