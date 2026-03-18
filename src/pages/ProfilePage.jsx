@@ -382,5 +382,6 @@ function EditProfileModal({ profile, onClose, onSaved }) {
         </div>
       </div>
     </div>
+    </>
   )
 }
