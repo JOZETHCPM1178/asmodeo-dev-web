@@ -8,6 +8,7 @@ import { uploadImage } from '../../services/cloudinary'
 import { uploadToArchive, validateApkFile } from '../../services/archive'
 import { notifyTelegramNewPost } from '../../services/notifications'
 import styles from './UploadForm.module.css'
+import ImageCropper from '../ui/ImageCropper'
 
 const CATS = {
   apk:       { label: 'APK Mod',    icon: '📱' },
@@ -35,6 +36,8 @@ export default function UploadForm() {
   const [progress, setProgress]           = useState(0)
   const [progressLabel, setProgressLabel] = useState('')
   const [aiLoading, setAiLoading]         = useState(false)
+  const [cropSrc, setCropSrc]             = useState(null)
+  const [cropBlob, setCropBlob]           = useState(null)
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
