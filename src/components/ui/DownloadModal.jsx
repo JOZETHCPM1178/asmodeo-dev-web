@@ -1,50 +1,68 @@
 // src/components/ui/DownloadModal.jsx
-// Modal de descarga — el usuario NO sale de la web
 import { useState, useEffect } from 'react'
 import styles from './DownloadModal.module.css'
+
+// Detectar si es link externo (Mediafire, Mega, Drive, etc.)
+function isExternalLink(url) {
+  if (!url) return false
+  const external = ['mediafire.com', 'mega.nz', 'mega.co.nz', 'drive.google.com',
+    'dropbox.com', 'onedrive.live.com', '1drv.ms', 'zippyshare.com',
+    'gofile.io', 'pixeldrain.com', 'anonfiles.com', 'uploadhaven.com',
+    'sendspace.com', 'file.io', 'transfer.sh', 'wetransfer.com']
+  return external.some(d => url.includes(d))
+}
 
 export default function DownloadModal({ post, onClose }) {
   const [countdown, setCountdown] = useState(5)
   const [started, setStarted]     = useState(false)
+  const isExternal = isExternalLink(post.downloadUrl)
 
-  // Cuenta regresiva y luego descarga automática en iframe oculto
   useEffect(() => {
+    // Si es externo, abrir directo sin countdown
+    if (isExternal) {
+      window.open(post.downloadUrl, '_blank', 'noopener,noreferrer')
+      onClose()
+      return
+    }
     if (countdown <= 0) {
       triggerDownload()
       return
     }
     const t = setTimeout(() => setCountdown(c => c - 1), 1000)
     return () => clearTimeout(t)
-  }, [countdown])
+  }, [countdown, isExternal])
 
   function triggerDownload() {
     if (started) return
     setStarted(true)
-
-    // Descarga usando iframe oculto — NO abre nueva pestaña ni saca de la web
     const iframe = document.createElement('iframe')
     iframe.style.display = 'none'
     iframe.src = post.downloadUrl
     document.body.appendChild(iframe)
-    // Limpiar iframe después de 30s
-    setTimeout(() => { document.body.removeChild(iframe) }, 30000)
+    setTimeout(() => {
+      try { document.body.removeChild(iframe) } catch {}
+    }, 30000)
   }
 
   function handleManual() {
-    triggerDownload()
+    if (isExternal) {
+      window.open(post.downloadUrl, '_blank', 'noopener,noreferrer')
+    } else {
+      triggerDownload()
+    }
   }
+
+  // Si es externo ya cerró, no renderizar nada
+  if (isExternal) return null
 
   return (
     <div className={styles.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div className={styles.modal}>
-
-        {/* Header */}
         <div className={styles.header}>
           <h2 className={styles.title}>⬇️ Descargando</h2>
           <button className={styles.closeBtn} onClick={onClose}>✕</button>
         </div>
 
-        {/* Info del post */}
         <div className={styles.postInfo}>
           {post.imageUrl && (
             <img src={post.imageUrl} alt={post.name} className={styles.thumb} />
@@ -56,15 +74,12 @@ export default function DownloadModal({ post, onClose }) {
           </div>
         </div>
 
-        {/* Estado descarga */}
         {!started ? (
           <div className={styles.countdownWrap}>
             <div className={styles.countdownCircle}>
               <span className={styles.countdownNum}>{countdown}</span>
             </div>
-            <p className={styles.countdownText}>
-              La descarga comenzará automáticamente...
-            </p>
+            <p className={styles.countdownText}>La descarga comenzará automáticamente...</p>
           </div>
         ) : (
           <div className={styles.downloadingWrap}>
@@ -75,32 +90,19 @@ export default function DownloadModal({ post, onClose }) {
           </div>
         )}
 
-        {/* Barra de progreso animada */}
         <div className={styles.progressBar}>
-          <div
-            className={styles.progressFill}
-            style={{ width: started ? '100%' : `${((5 - countdown) / 5) * 100}%` }}
-          />
+          <div className={styles.progressFill}
+            style={{ width: started ? '100%' : `${((5 - countdown) / 5) * 100}%` }} />
         </div>
 
-        {/* Botones */}
         <div className={styles.actions}>
-          <button
-            className="btn btn-primary btn-lg"
-            onClick={handleManual}
-            style={{ flex: 1 }}
-          >
+          <button className="btn btn-primary btn-lg" onClick={handleManual} style={{ flex: 1 }}>
             ⬇️ {started ? 'Descargar de nuevo' : 'Descargar ahora'}
           </button>
-          <button className="btn btn-ghost" onClick={onClose}>
-            Cerrar
-          </button>
+          <button className="btn btn-ghost" onClick={onClose}>Cerrar</button>
         </div>
 
-        {/* Info */}
-        <p className={styles.note}>
-          🔒 Archivo alojado en Archive.org — seguro y gratuito
-        </p>
+        <p className={styles.note}>🔒 Archivo alojado en Archive.org — seguro y gratuito</p>
       </div>
     </div>
   )

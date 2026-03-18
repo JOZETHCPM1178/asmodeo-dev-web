@@ -1,0 +1,27 @@
+/* src/components/ui/ImageCropper.module.css */
+.overlay {
+  position: fixed; inset: 0; z-index: 999;
+  background: rgba(0,0,0,0.85);
+  display: flex; align-items: center; justify-content: center;
+  padding: 1rem;
+}
+.modal {
+  background: var(--card); border: 1px solid var(--border2);
+  border-radius: var(--r2); width: 100%; max-width: 380px;
+  display: flex; flex-direction: column; gap: 0.75rem;
+  padding: 1.25rem;
+}
+.header { display: flex; align-items: center; justify-content: space-between; }
+.title { font-size: 1rem; font-weight: 700; color: var(--t1); }
+.closeBtn {
+  background: none; border: none; color: var(--t3);
+  font-size: 1.1rem; cursor: pointer; padding: 0.2rem 0.4rem;
+}
+.hint { font-size: 0.75rem; color: var(--t3); text-align: center; }
+.canvasWrap {
+  border-radius: var(--r); overflow: hidden;
+  border: 1px solid var(--border); cursor: crosshair;
+}
+.canvas { display: block; width: 100%; height: auto; }
+.actions { display: flex; gap: 0.65rem; }
+.actions button { flex: 1; }
