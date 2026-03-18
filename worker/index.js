@@ -902,6 +902,7 @@ App: ${name} (${cat})`
             }),
           });
           const data = await res.json();
+          if (!res.ok) throw new Error(`Anthropic error ${res.status}: ${data.error?.message || JSON.stringify(data)}`);
           const text = data.content?.[0]?.text?.trim();
           if (!text) throw new Error('La IA no generó respuesta');
           return new Response(JSON.stringify({ ok: true, text }), {
