@@ -1,27 +1,60 @@
 /* src/components/ui/ImageCropper.module.css */
 .overlay {
-  position: fixed; inset: 0; z-index: 999;
-  background: rgba(0,0,0,0.85);
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,0.92);
   display: flex; align-items: center; justify-content: center;
-  padding: 1rem;
+  padding: 0;
 }
+
 .modal {
-  background: var(--card); border: 1px solid var(--border2);
-  border-radius: var(--r2); width: 100%; max-width: 380px;
-  display: flex; flex-direction: column; gap: 0.75rem;
-  padding: 1.25rem;
+  background: #111; width: 100%; max-width: 640px;
+  height: 100%; max-height: 100vh;
+  display: flex; flex-direction: column;
+  overflow: hidden;
 }
-.header { display: flex; align-items: center; justify-content: space-between; }
-.title { font-size: 1rem; font-weight: 700; color: var(--t1); }
+
+@media (min-width: 640px) {
+  .overlay { padding: 1rem; }
+  .modal {
+    height: auto; border-radius: 16px;
+    border: 1px solid rgba(168,85,247,0.3);
+    max-height: 95vh;
+  }
+}
+
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1rem 1.1rem 0.6rem; flex-shrink: 0;
+}
+.title { font-size: 1rem; font-weight: 700; color: #fff; }
 .closeBtn {
-  background: none; border: none; color: var(--t3);
-  font-size: 1.1rem; cursor: pointer; padding: 0.2rem 0.4rem;
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px; color: #aaa; font-size: 1rem;
+  cursor: pointer; padding: 0.3rem 0.65rem; line-height: 1;
 }
-.hint { font-size: 0.75rem; color: var(--t3); text-align: center; }
+.closeBtn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+
+.hint {
+  font-size: 0.76rem; color: #888; text-align: center;
+  padding: 0 1rem 0.6rem; flex-shrink: 0;
+}
+
 .canvasWrap {
-  border-radius: var(--r); overflow: hidden;
-  border: 1px solid var(--border); cursor: crosshair;
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  overflow: hidden; background: #0a0a0a;
+  min-height: 0;
 }
-.canvas { display: block; width: 100%; height: auto; }
-.actions { display: flex; gap: 0.65rem; }
+
+.canvas {
+  display: block;
+  width: 100% !important;
+  height: auto !important;
+  max-height: calc(100vh - 160px);
+  object-fit: contain;
+}
+
+.actions {
+  display: flex; gap: 0.75rem; padding: 0.85rem 1rem;
+  flex-shrink: 0; border-top: 1px solid rgba(255,255,255,0.08);
+}
 .actions button { flex: 1; }
