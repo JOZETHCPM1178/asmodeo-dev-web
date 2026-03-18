@@ -58,6 +58,46 @@ export async function getFeed({ pageSize = 12, lastDoc = null, category = null }
   }
 }
 
+// ─── POSTS MÁS POPULARES (por score → likes → descargas) ───
+export async function getPopular({ pageSize = 6, category = null } = {}) {
+  const constraints = [
+    where('status', '==', 'active'),
+    // Solo posts con al menos 1 like o descarga para no mostrar vacíos
+    where('score', '>', 0),
+    orderBy('score', 'desc'),
+    orderBy('createdAt', 'desc'),
+    limit(pageSize),
+  ]
+  if (category) {
+    constraints.splice(1, 0, where('category', '==', category))
+  }
+
+  try {
+    const snap = await getDocs(query(collection(db, 'posts'), ...constraints))
+    if (snap.docs.length > 0) {
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    }
+  } catch {}
+
+  // Fallback: si no hay posts con score > 0, ordenar por likes
+  try {
+    const fallbackConstraints = [
+      where('status', '==', 'active'),
+      orderBy('likes', 'desc'),
+      orderBy('createdAt', 'desc'),
+      limit(pageSize),
+    ]
+    if (category) fallbackConstraints.splice(1, 0, where('category', '==', category))
+    const snap2 = await getDocs(query(collection(db, 'posts'), ...fallbackConstraints))
+    const posts = snap2.docs.map(d => ({ id: d.id, ...d.data() }))
+    // Filtrar los que tengan al menos 1 like o descarga
+    const withActivity = posts.filter(p => (p.likes || 0) > 0 || (p.downloads || 0) > 0)
+    return withActivity.length > 0 ? withActivity : []
+  } catch {
+    return []
+  }
+}
+
 // ─── POSTS DE UN USUARIO ESPECÍFICO (para perfil) ───
 export async function getUserPosts(authorId) {
   const snap = await getDocs(
