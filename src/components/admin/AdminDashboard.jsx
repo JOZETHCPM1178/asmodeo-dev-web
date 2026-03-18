@@ -6,7 +6,6 @@ import {
   getStats, getAllUsers, setUserRole, banUser, unbanUser,
   verifyUser, getPendingPosts, getAllPosts, getReports, replyToReport,
   resolveReport, getAdminLogs, addFakeFollowers, removeFakeFollowers,
-  banInactiveUsers, resetAllBotFollowers, notifyAllUsers,
 } from '../../services/admin'
 import { deletePost, toggleFeatured, verifyPost, setPostStatus } from '../../services/posts'
 import { setChatStatus, setMaintenanceMode, getMaintenanceMode } from '../../services/social'
@@ -19,7 +18,9 @@ const TABS_CONFIG = [
   { id: 'allposts',   label: '📋 Publicaciones', minRole: 'staff' },
   { id: 'posts',      label: '⏳ Pendientes',  minRole: 'staff' },
   { id: 'reports',    label: '⚠️ Reportes',    minRole: 'staff' },
-  { id: 'followers',  label: '🤖 Bot',         minRole: 'admin' },
+  { id: 'followers',  label: '🤖 Bot seguidores', minRole: 'admin' },
+  { id: 'poststats',   label: '📊 Bot publicaciones', minRole: 'owner' },
+  { id: 'botcomments', label: '💬 Bot comentarios',    minRole: 'owner' },
   { id: 'logs',       label: '📋 Logs',        minRole: 'admin' },
   { id: 'config',     label: '⚙️ Config',      minRole: 'admin' },
 ]
@@ -58,6 +59,7 @@ export default function AdminDashboard() {
       else if (tabId === 'users' || tabId === 'owner' || tabId === 'followers')
                                   result = await getAllUsers()
       else if (tabId === 'allposts') result = await getAllPosts()
+      else if (tabId === 'poststats' || tabId === 'botcomments') result = await getAllPosts()
       else if (tabId === 'posts') result = await getPendingPosts()
       else if (tabId === 'reports') result = await getReports()
       else if (tabId === 'logs')  result = await getAdminLogs()
@@ -129,6 +131,8 @@ export default function AdminDashboard() {
             {activeTab === 'posts'     && <PostsPanel    posts={Array.isArray(data) ? data : []} onRefresh={() => loadTab('posts')} />}
             {activeTab === 'reports'   && <ReportsPanel  reports={Array.isArray(data) ? data : []} user={user} onRefresh={() => loadTab('reports')} />}
             {activeTab === 'followers' && <BotsPanel     users={Array.isArray(data) ? data : []} admin={user} />}
+            {activeTab === 'poststats' && <PostStatsPanel posts={Array.isArray(data) ? data : []} admin={user} />}
+            {activeTab === 'botcomments' && <BotCommentsPanel posts={Array.isArray(data) ? data : []} admin={user} />}
             {activeTab === 'logs'      && <LogsPanel     logs={Array.isArray(data) ? data : []} />}
             {activeTab === 'config'    && <ConfigPanel />}
           </>
@@ -366,7 +370,26 @@ function OwnerPanel({ user, users, onRefresh }) {
               </div>
             </div>
           </div>
-          <DangerZoneActions user={user} users={users} onRefresh={onRefresh} />
+          <div className={styles.dangerActions}>
+            <DangerAction
+              icon="🧹"
+              title="Banear todos los inactivos"
+              desc="Banea usuarios que no han publicado ni interactuado"
+              onConfirm={() => toast.error('Función no implementada aún')}
+            />
+            <DangerAction
+              icon="📢"
+              title="Notificar a todos"
+              desc="Envía una notificación a todos los usuarios de la plataforma"
+              onConfirm={() => toast.error('Función no implementada aún')}
+            />
+            <DangerAction
+              icon="🔄"
+              title="Resetear contador de bots"
+              desc="Elimina todos los seguidores bot de todos los usuarios"
+              onConfirm={() => toast.error('Función no implementada aún')}
+            />
+          </div>
         </div>
       )}
     </div>
@@ -407,7 +430,7 @@ function InfoCard({ icon, label, value, color }) {
   )
 }
 
-function DangerAction({ icon, title, desc, onConfirm, loading }) {
+function DangerAction({ icon, title, desc, onConfirm }) {
   return (
     <div className={styles.dangerAction}>
       <span style={{ fontSize: '1.4rem', flexShrink: 0 }}>{icon}</span>
@@ -415,101 +438,10 @@ function DangerAction({ icon, title, desc, onConfirm, loading }) {
         <div style={{ fontWeight: 700, fontSize: '0.88rem' }}>{title}</div>
         <div style={{ fontSize: '0.76rem', color: 'var(--t3)', marginTop: 2 }}>{desc}</div>
       </div>
-      <button className="btn btn-sm btn-danger" disabled={loading}
+      <button className="btn btn-sm btn-danger"
         onClick={() => { if (window.confirm('¿Estás seguro? Esta acción puede ser irreversible.')) onConfirm() }}>
-        {loading ? <span className="spinner" style={{ width: 14, height: 14 }} /> : 'Ejecutar'}
+        Ejecutar
       </button>
-    </div>
-  )
-}
-
-function DangerZoneActions({ user, users, onRefresh }) {
-  const [loadingBan,    setLoadingBan]    = useState(false)
-  const [loadingNotify, setLoadingNotify] = useState(false)
-  const [loadingReset,  setLoadingReset]  = useState(false)
-  const [notifyMsg,     setNotifyMsg]     = useState('')
-  const [showNotifyInput, setShowNotifyInput] = useState(false)
-
-  async function handleBanInactive() {
-    setLoadingBan(true)
-    try {
-      const count = await banInactiveUsers(user.uid)
-      toast.success(`✅ ${count} usuarios inactivos baneados`)
-      onRefresh()
-    } catch(e) { toast.error(e.message) }
-    finally { setLoadingBan(false) }
-  }
-
-  async function handleNotifyAll() {
-    if (!notifyMsg.trim()) { toast.error('Escribe un mensaje primero'); return }
-    setLoadingNotify(true)
-    try {
-      const count = await notifyAllUsers(notifyMsg.trim(), user.uid)
-      toast.success(`✅ Notificación enviada a ${count} usuarios`)
-      setNotifyMsg('')
-      setShowNotifyInput(false)
-    } catch(e) { toast.error(e.message) }
-    finally { setLoadingNotify(false) }
-  }
-
-  async function handleResetBots() {
-    setLoadingReset(true)
-    try {
-      const count = await resetAllBotFollowers(user.uid)
-      toast.success(`✅ Seguidores bot eliminados de ${count} usuarios`)
-      onRefresh()
-    } catch(e) { toast.error(e.message) }
-    finally { setLoadingReset(false) }
-  }
-
-  return (
-    <div className={styles.dangerActions}>
-      <DangerAction
-        icon="🧹"
-        title="Banear usuarios inactivos"
-        desc="Banea usuarios sin posts, sin seguidores y sin actividad reciente (cuentas fantasma)"
-        loading={loadingBan}
-        onConfirm={handleBanInactive}
-      />
-
-      {/* Notificar a todos — requiere input */}
-      <div className={styles.dangerAction}>
-        <span style={{ fontSize: '1.4rem', flexShrink: 0 }}>📢</span>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, fontSize: '0.88rem' }}>Notificar a todos</div>
-          <div style={{ fontSize: '0.76rem', color: 'var(--t3)', marginTop: 2 }}>
-            Envía una notificación push a todos los usuarios de la plataforma
-          </div>
-          {showNotifyInput && (
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-              <input className="inp" style={{ flex: 1, fontSize: '0.82rem' }}
-                placeholder="Mensaje para todos los usuarios..."
-                value={notifyMsg}
-                onChange={e => setNotifyMsg(e.target.value)}
-                maxLength={100}
-              />
-              <button className="btn btn-sm btn-primary" disabled={loadingNotify}
-                onClick={() => { if (window.confirm('¿Enviar notificación a TODOS los usuarios?')) handleNotifyAll() }}>
-                {loadingNotify ? <span className="spinner" style={{ width: 14, height: 14 }} /> : 'Enviar'}
-              </button>
-              <button className="btn btn-sm btn-ghost" onClick={() => setShowNotifyInput(false)}>✕</button>
-            </div>
-          )}
-        </div>
-        {!showNotifyInput && (
-          <button className="btn btn-sm btn-danger" onClick={() => setShowNotifyInput(true)}>
-            Ejecutar
-          </button>
-        )}
-      </div>
-
-      <DangerAction
-        icon="🔄"
-        title="Resetear seguidores bot"
-        desc="Pone a 0 los seguidores falsos (fakeFollowers) de todos los usuarios"
-        loading={loadingReset}
-        onConfirm={handleResetBots}
-      />
     </div>
   )
 }
@@ -712,6 +644,187 @@ function ReportsPanel({ reports, user, onRefresh }) {
           )}
         </div>
       ))}
+    </div>
+  )
+}
+
+// ══════════════════════
+//  BOT COMENTARIOS IA (solo owner)
+// ══════════════════════
+function BotCommentsPanel({ posts, admin }) {
+  const [selected, setSelected]   = useState('')
+  const [count, setCount]         = useState(3)
+  const [loading, setLoading]     = useState(false)
+  const [deleting, setDeleting]   = useState(false)
+  const [generated, setGenerated] = useState([])
+
+  const selectedPost = posts.find(p => p.id === selected)
+
+  async function handleGenerate() {
+    if (!selected) { toast.error('Selecciona una publicación'); return }
+    setLoading(true); setGenerated([])
+    try {
+      const results = await addBotComments(selected, {
+        postName:        selectedPost?.name || '',
+        postDescription: selectedPost?.description || '',
+        postCategory:    selectedPost?.category || 'apk',
+        count:           Number(count),
+      }, admin.uid)
+      setGenerated(results)
+      toast.success(`✅ ${results.length} comentarios generados con IA`)
+    } catch(e) { toast.error(e.message) }
+    finally { setLoading(false) }
+  }
+
+  async function handleDelete() {
+    if (!selected) { toast.error('Selecciona una publicación'); return }
+    if (!window.confirm('¿Eliminar todos los comentarios bot de este post?')) return
+    setDeleting(true)
+    try {
+      const n = await deleteBotComments(selected, admin.uid)
+      toast.success(`🗑️ ${n} comentarios bot eliminados`)
+      setGenerated([])
+    } catch(e) { toast.error(e.message) }
+    finally { setDeleting(false) }
+  }
+
+  return (
+    <div style={{ maxWidth: 560 }}>
+      <div className="card" style={{ padding:'1.25rem', display:'flex', flexDirection:'column', gap:'0.85rem' }}>
+        <div className={styles.sectionTitle}>💬 Bot de comentarios con IA</div>
+        <p style={{ fontSize:'0.8rem', color:'var(--t2)', lineHeight:1.5 }}>
+          La IA genera comentarios que suenan como usuarios reales basándose en el nombre,
+          descripción y categoría del post. Cada comentario usa un perfil bot diferente.
+        </p>
+
+        <div className="inp-group">
+          <label className="inp-label">Publicación</label>
+          <select className="inp" value={selected} onChange={e => { setSelected(e.target.value); setGenerated([]) }}>
+            <option value="">— Elige una publicación —</option>
+            {posts.filter(p => p.status === 'active').map(p => (
+              <option key={p.id} value={p.id}>
+                {(p.name||'Sin nombre').slice(0,50)} — 💬{p.commentCount||0}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="inp-group">
+          <label className="inp-label">Cantidad de comentarios (1–5)</label>
+          <input className="inp" type="number" min={1} max={5} value={count}
+            onChange={e => setCount(Math.min(5, Math.max(1, Number(e.target.value))))} />
+        </div>
+
+        <div style={{ display:'flex', gap:'0.6rem' }}>
+          <button className="btn btn-primary" onClick={handleGenerate}
+            disabled={loading || !selected} style={{ flex:1 }}>
+            {loading
+              ? <><span className="spinner" style={{ width:16,height:16 }} /> Generando con IA...</>
+              : `🤖 Generar ${count} comentario${count>1?'s':''}`}
+          </button>
+          <button className="btn btn-danger" onClick={handleDelete}
+            disabled={deleting || !selected}>
+            {deleting ? <span className="spinner" style={{ width:16,height:16 }} /> : '🗑️ Borrar bots'}
+          </button>
+        </div>
+
+        {generated.length > 0 && (
+          <div style={{ display:'flex', flexDirection:'column', gap:'0.6rem', marginTop:'0.25rem' }}>
+            <div style={{ fontSize:'0.75rem', color:'var(--t3)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.05em' }}>
+              Comentarios generados
+            </div>
+            {generated.map((c,i) => (
+              <div key={i} style={{ background:'var(--bg2)', borderRadius:'var(--r)', padding:'0.65rem 0.85rem', display:'flex', gap:'0.6rem', alignItems:'flex-start' }}>
+                <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${c.username}`}
+                  alt="" style={{ width:32, height:32, borderRadius:'50%', flexShrink:0, background:'var(--border)' }} />
+                <div>
+                  <div style={{ fontSize:'0.78rem', fontWeight:700, color:'var(--p2)', marginBottom:'0.2rem' }}>{c.username}</div>
+                  <div style={{ fontSize:'0.84rem', color:'var(--t1)', lineHeight:1.4 }}>{c.text}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ══════════════════════
+//  BOT STATS PUBLICACIONES (solo owner)
+// ══════════════════════
+function PostStatsPanel({ posts, admin }) {
+  const [selected, setSelected]   = useState('')
+  const [mode, setMode]           = useState('add')
+  const [likes, setLikes]         = useState(0)
+  const [downloads, setDownloads] = useState(0)
+  const [views, setViews]         = useState(0)
+  const [loading, setLoading]     = useState(false)
+
+  async function handle() {
+    if (!selected) { toast.error('Selecciona una publicación'); return }
+    if (!Number(likes) && !Number(downloads) && !Number(views)) { toast.error('Ingresa al menos un valor mayor a 0'); return }
+    setLoading(true)
+    try {
+      const vals = { likes: Number(likes), downloads: Number(downloads), views: Number(views) }
+      if (mode === 'add') {
+        await addFakePostStats(selected, vals, admin.uid)
+        toast.success(`✅ Stats añadidos — ❤️${likes} ⬇️${downloads} 👁️${views}`)
+      } else {
+        await removeFakePostStats(selected, vals, admin.uid)
+        toast.success(`✅ Stats reducidos — ❤️${likes} ⬇️${downloads} 👁️${views}`)
+      }
+    } catch(e) { toast.error(e.message) }
+    finally { setLoading(false) }
+  }
+
+  return (
+    <div style={{ maxWidth: 480 }}>
+      <div className="card" style={{ padding:'1.25rem', display:'flex', flexDirection:'column', gap:'0.85rem' }}>
+        <div className={styles.sectionTitle}>📊 Bot de stats en publicaciones</div>
+
+        <div style={{ display:'flex', gap:'0.5rem' }}>
+          <button className={`btn btn-sm ${mode==='add'?'btn-primary':'btn-ghost'}`} onClick={() => setMode('add')}>➕ Agregar</button>
+          <button className={`btn btn-sm ${mode==='remove'?'btn-danger':'btn-ghost'}`} onClick={() => setMode('remove')}>➖ Quitar</button>
+        </div>
+
+        <div className="inp-group">
+          <label className="inp-label">Publicación</label>
+          <select className="inp" value={selected} onChange={e => setSelected(e.target.value)}>
+            <option value="">— Elige una publicación —</option>
+            {posts.filter(p => p.status === 'active').map(p => (
+              <option key={p.id} value={p.id}>
+                {(p.name||'Sin nombre').slice(0,45)} — ❤️{p.likes||0} ⬇️{p.downloads||0} 👁️{p.views||0}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'0.6rem' }}>
+          <div className="inp-group">
+            <label className="inp-label">❤️ Likes</label>
+            <input className="inp" type="number" min={0} max={999999}
+              value={likes} onChange={e => setLikes(e.target.value)} placeholder="0" />
+          </div>
+          <div className="inp-group">
+            <label className="inp-label">⬇️ Descargas</label>
+            <input className="inp" type="number" min={0} max={999999}
+              value={downloads} onChange={e => setDownloads(e.target.value)} placeholder="0" />
+          </div>
+          <div className="inp-group">
+            <label className="inp-label">👁️ Vistas</label>
+            <input className="inp" type="number" min={0} max={999999}
+              value={views} onChange={e => setViews(e.target.value)} placeholder="0" />
+          </div>
+        </div>
+
+        <button className={`btn btn-lg ${mode==='add'?'btn-primary':'btn-danger'}`}
+          onClick={handle} disabled={loading || !selected} style={{ width:'100%' }}>
+          {loading
+            ? <span className="spinner" style={{ width:18, height:18 }} />
+            : mode==='add' ? '➕ Agregar stats' : '➖ Quitar stats'}
+        </button>
+      </div>
     </div>
   )
 }
