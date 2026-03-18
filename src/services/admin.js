@@ -465,34 +465,24 @@ export async function deleteBotComments(postId, adminId) {
   return snap.docs.length
 }
 
-// Llama a la API de Claude para generar un comentario realista
+// Llama al Worker de Cloudflare que a su vez llama a Claude
+// La API key de Anthropic se guarda de forma segura en las variables del Worker
 async function generateBotComment({ postName, postDescription, postCategory, username }) {
   try {
-    const categoryLabels = { apk: 'APK Mod', games: 'Juego Mod', script: 'Script', tutorials: 'Tutorial' }
-    const catLabel = categoryLabels[postCategory] || postCategory
+    const WORKER_URL = import.meta.env.VITE_WORKER_URL
+    if (!WORKER_URL) throw new Error('VITE_WORKER_URL no configurado')
 
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch(`${WORKER_URL}/generate-comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 120,
-        messages: [{
-          role: 'user',
-          content: `Eres ${username}, un usuario latinoamericano en una comunidad de APKs y mods para Android.
-Escribe UN comentario corto (máx 2 oraciones, 20-40 palabras) sobre este post. 
-Debe sonar 100% natural, como un usuario real. Usa español informal latinoamericano, puedes usar algún emoji ocasionalmente.
-NO uses frases como "excelente", "gracias por compartir", "muy buen aporte" — sé más específico y creativo.
-NO pongas comillas, NO expliques nada, solo el comentario directo.
-
-Post: "${postName}" (${catLabel})
-${postDescription ? `Descripción: ${postDescription.slice(0, 120)}` : ''}`
-        }],
-      }),
+      body: JSON.stringify({ postName, postDescription, postCategory, username }),
     })
+
     const data = await res.json()
-    return data.content?.[0]?.text?.trim() || null
-  } catch {
+    if (!data.ok) throw new Error(data.error || 'Error del servidor')
+    return data.text || null
+  } catch(e) {
+    console.warn('generateBotComment error:', e.message)
     return null
   }
 }
