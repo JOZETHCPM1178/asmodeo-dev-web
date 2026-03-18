@@ -7,18 +7,10 @@ main = "index.js"
 compatibility_date = "2024-01-01"
 account_id = "TU_ACCOUNT_ID"   # Reemplaza con tu Account ID de Cloudflare
 
-# Variables de entorno NO sensibles (las sensibles van en Dashboard → Secrets)
+# Variables de entorno NO sensibles
 [vars]
 ENVIRONMENT = "production"
 
-# ─── KV Namespace ───
-# Paso 1: Crea el namespace con:
-#   wrangler kv:namespace create "KV"
-# Paso 2: Copia el id que te da y pégalo abajo en "id"
-# Paso 3: Para preview local usa:
-#   wrangler kv:namespace create "KV" --preview
-# y copia ese id en "preview_id"
-[[kv_namespaces]]
-binding     = "KV"
-id          = "PEGA_AQUI_EL_ID_DEL_NAMESPACE"
-preview_id  = "PEGA_AQUI_EL_PREVIEW_ID"
+# Workers AI — 100% gratis, 10,000 neuronas/día
+[ai]
+binding = "AI"
