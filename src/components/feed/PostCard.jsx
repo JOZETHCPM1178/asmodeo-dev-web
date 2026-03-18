@@ -298,6 +298,7 @@ export default function PostCard({ post, compact = false, onDeleted }) {
         </button>
 
         <span className={styles.statPill}>⬇️ {formatNumber(post.downloads || 0)}</span>
+        <span className={styles.statPill}>👁️ {formatNumber(post.views || 0)}</span>
 
         <button className="btn btn-primary btn-sm" onClick={handleDownload} style={{ marginLeft: 'auto' }}>
           Descargar
