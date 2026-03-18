@@ -342,3 +342,157 @@ export async function resetAllBotFollowers(adminId) {
 
   return count
 }
+
+// ═══════════════════════════════════════
+//  STATS FALSOS EN PUBLICACIONES — Solo owner
+// ═══════════════════════════════════════
+
+export async function addFakePostStats(postId, { likes = 0, downloads = 0, views = 0 }, adminId) {
+  const updates = {}
+  if (likes)     updates.likes     = increment(likes)
+  if (downloads) updates.downloads = increment(downloads)
+  if (views)     updates.views     = increment(views)
+  if (likes)     updates.score     = increment(likes * 3)  // likes pesan más en el score
+  if (downloads) updates.score     = increment(downloads * 2)
+  if (views)     updates.score     = increment(views)
+
+  await updateDoc(doc(db, 'posts', postId), updates)
+
+  await addDoc(collection(db, 'adminLogs'), {
+    action: 'add_fake_post_stats',
+    targetId: postId,
+    adminId,
+    likes, downloads, views,
+    createdAt: serverTimestamp(),
+  })
+}
+
+export async function removeFakePostStats(postId, { likes = 0, downloads = 0, views = 0 }, adminId) {
+  const updates = {}
+  if (likes)     updates.likes     = increment(-likes)
+  if (downloads) updates.downloads = increment(-downloads)
+  if (views)     updates.views     = increment(-views)
+  if (likes)     updates.score     = increment(-likes * 3)
+  if (downloads) updates.score     = increment(-downloads * 2)
+  if (views)     updates.score     = increment(-views)
+
+  await updateDoc(doc(db, 'posts', postId), updates)
+
+  await addDoc(collection(db, 'adminLogs'), {
+    action: 'remove_fake_post_stats',
+    targetId: postId,
+    adminId,
+    likes, downloads, views,
+    createdAt: serverTimestamp(),
+  })
+}
+
+// ═══════════════════════════════════════
+//  COMENTARIOS BOT CON IA — Solo owner
+// ═══════════════════════════════════════
+
+// Nombres y avatares bot predefinidos (variados y realistas)
+const BOT_PROFILES = [
+  { username: 'carlos_mx',     displayName: 'Carlos MX',      photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=carlos' },
+  { username: 'gamer_pro99',   displayName: 'GamerPro99',     photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=gamer' },
+  { username: 'luisa_tech',    displayName: 'Luisa Tech',     photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=luisa' },
+  { username: 'el_androider',  displayName: 'El Androider',   photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=android' },
+  { username: 'sofia_games',   displayName: 'Sofía Games',    photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sofia' },
+  { username: 'modmaster_hn',  displayName: 'ModMaster HN',   photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=mod' },
+  { username: 'tecno_david',   displayName: 'Tecno David',    photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=david' },
+  { username: 'apk_hunter',    displayName: 'APK Hunter',     photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=hunter' },
+  { username: 'jenny_droid',   displayName: 'Jenny Droid',    photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=jenny' },
+  { username: 'kingofmods',    displayName: 'King of Mods',   photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=king' },
+]
+
+export async function addBotComments(postId, { postName, postDescription, postCategory, count = 3 }, adminId) {
+  // Elegir perfiles bot aleatorios sin repetir
+  const shuffled = [...BOT_PROFILES].sort(() => Math.random() - 0.5).slice(0, count)
+
+  const results = []
+  for (const profile of shuffled) {
+    // Generar comentario con IA (Anthropic API)
+    const text = await generateBotComment({ postName, postDescription, postCategory, username: profile.displayName })
+    if (!text) continue
+
+    // Insertar comentario en Firestore
+    const ref = await addDoc(collection(db, 'posts', postId, 'comments'), {
+      userId:    `bot_${profile.username}`,
+      username:  profile.displayName,
+      photoURL:  profile.photoURL,
+      text,
+      type:      'text',
+      replyToId: null,
+      likes:     0,
+      isBot:     true,
+      createdAt: serverTimestamp(),
+    })
+
+    // Actualizar contador
+    await updateDoc(doc(db, 'posts', postId), { commentCount: increment(1) })
+
+    results.push({ id: ref.id, username: profile.displayName, text })
+  }
+
+  // Log
+  await addDoc(collection(db, 'adminLogs'), {
+    action:   'add_bot_comments',
+    targetId: postId,
+    adminId,
+    count:    results.length,
+    createdAt: serverTimestamp(),
+  })
+
+  return results
+}
+
+export async function deleteBotComments(postId, adminId) {
+  const snap = await getDocs(
+    query(collection(db, 'posts', postId, 'comments'), where('isBot', '==', true))
+  )
+  if (snap.empty) return 0
+
+  const batch = writeBatch(db)
+  snap.docs.forEach(d => batch.delete(d.ref))
+  batch.update(doc(db, 'posts', postId), { commentCount: increment(-snap.docs.length) })
+  await batch.commit()
+
+  await addDoc(collection(db, 'adminLogs'), {
+    action: 'delete_bot_comments', targetId: postId, adminId,
+    count: snap.docs.length, createdAt: serverTimestamp(),
+  })
+
+  return snap.docs.length
+}
+
+// Llama a la API de Claude para generar un comentario realista
+async function generateBotComment({ postName, postDescription, postCategory, username }) {
+  try {
+    const categoryLabels = { apk: 'APK Mod', games: 'Juego Mod', script: 'Script', tutorials: 'Tutorial' }
+    const catLabel = categoryLabels[postCategory] || postCategory
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 120,
+        messages: [{
+          role: 'user',
+          content: `Eres ${username}, un usuario latinoamericano en una comunidad de APKs y mods para Android.
+Escribe UN comentario corto (máx 2 oraciones, 20-40 palabras) sobre este post. 
+Debe sonar 100% natural, como un usuario real. Usa español informal latinoamericano, puedes usar algún emoji ocasionalmente.
+NO uses frases como "excelente", "gracias por compartir", "muy buen aporte" — sé más específico y creativo.
+NO pongas comillas, NO expliques nada, solo el comentario directo.
+
+Post: "${postName}" (${catLabel})
+${postDescription ? `Descripción: ${postDescription.slice(0, 120)}` : ''}`
+        }],
+      }),
+    })
+    const data = await res.json()
+    return data.content?.[0]?.text?.trim() || null
+  } catch {
+    return null
+  }
+}
