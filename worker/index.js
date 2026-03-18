@@ -868,6 +868,52 @@ export default {
           return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: CORS });
         }
       }
+      // Generar descripción de app con IA
+      if (url.pathname === '/generate-description') {
+        try {
+          const { name, category } = await request.json();
+          const ANTHROPIC_KEY = env.ANTHROPIC_KEY;
+          if (!ANTHROPIC_KEY) {
+            return new Response(JSON.stringify({ ok: false, error: 'ANTHROPIC_KEY no configurada' }), {
+              status: 500, headers: { 'Content-Type': 'application/json', ...CORS }
+            });
+          }
+          const catLabels = { apk:'APK Mod', games:'Juego Mod', script:'Script', tutorials:'Tutorial' };
+          const cat = catLabels[category] || category;
+          const res = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': ANTHROPIC_KEY,
+              'anthropic-version': '2023-06-01',
+            },
+            body: JSON.stringify({
+              model: 'claude-haiku-4-5-20251001',
+              max_tokens: 200,
+              messages: [{
+                role: 'user',
+                content: `Escribe una descripción atractiva y corta (3-4 oraciones máx) para esta app en una comunidad de mods Android.
+Usa español informal latinoamericano. Incluye 3-5 emojis relevantes distribuidos naturalmente en el texto.
+Menciona las características principales que tendría una versión mod/desbloqueada de esta app.
+Termina con algo que invite a descargar. Solo escribe la descripción, sin comillas ni explicaciones.
+
+App: ${name} (${cat})`
+              }],
+            }),
+          });
+          const data = await res.json();
+          const text = data.content?.[0]?.text?.trim();
+          if (!text) throw new Error('La IA no generó respuesta');
+          return new Response(JSON.stringify({ ok: true, text }), {
+            headers: { 'Content-Type': 'application/json', ...CORS }
+          });
+        } catch(e) {
+          return new Response(JSON.stringify({ ok: false, error: e.message }), {
+            status: 500, headers: { 'Content-Type': 'application/json', ...CORS }
+          });
+        }
+      }
+
       // Generar comentarios bot con IA (Claude)
       if (url.pathname === '/generate-comments') {
         try {
