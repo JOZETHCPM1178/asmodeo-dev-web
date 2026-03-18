@@ -1,7 +1,7 @@
 /* src/components/ui/ImageCropper.module.css */
 .overlay {
-  position: fixed; inset: 0; z-index: 1000;
-  background: rgba(0,0,0,0.92);
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0.95);
   display: flex; align-items: center; justify-content: center;
   padding: 0;
 }

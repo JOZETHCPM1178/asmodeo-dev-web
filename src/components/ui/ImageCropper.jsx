@@ -16,8 +16,10 @@ export default function ImageCropper({ imageSrc, aspectRatio = 16/9, onCrop, onC
   // ── Calcular dimensiones del canvas según ancho real disponible ──
   useEffect(() => {
     function measure() {
-      const w = Math.min(window.innerWidth - 48, 600)
-      const h = circleMode ? w : Math.round(w * 0.65)
+      const w = Math.min(window.innerWidth - 48, 500)
+      // En modo círculo limitamos el tamaño para que quepan header+botones
+      const maxH = window.innerHeight - 200
+      const h = circleMode ? Math.min(w, maxH) : Math.round(w * 0.6)
       setCw(w); setCh(h)
     }
     measure()
@@ -60,6 +62,7 @@ export default function ImageCropper({ imageSrc, aspectRatio = 16/9, onCrop, onC
   // ── Dibujar ──
   useEffect(() => {
     if (!imgLoaded || !box || !canvasRef.current) return
+    try {
     const canvas = canvasRef.current
     const ctx    = canvas.getContext('2d')
     const { dw, dh, ox, oy } = getImgRect()
@@ -131,6 +134,7 @@ export default function ImageCropper({ imageSrc, aspectRatio = 16/9, onCrop, onC
         ctx.strokeStyle = '#a855f7'; ctx.lineWidth = 2; ctx.stroke()
       })
     }
+  } catch(err) { console.error('ImageCropper draw error:', err) }
   }, [box, imgLoaded, cw, ch, circleMode])
 
   // ── Obtener posición relativa al canvas con scaling CSS ──
