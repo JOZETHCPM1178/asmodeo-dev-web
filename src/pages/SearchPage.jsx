@@ -10,13 +10,28 @@ import styles from './SearchPage.module.css'
 
 const FUSE_OPTIONS = {
   keys: [
-    { name: 'name', weight: 0.5 },
-    { name: 'description', weight: 0.2 },
-    { name: 'tags', weight: 0.2 },
-    { name: 'category', weight: 0.1 },
+    { name: 'name',        weight: 0.6 },
+    { name: 'tags',        weight: 0.25 },
+    { name: 'description', weight: 0.1 },
+    { name: 'category',    weight: 0.05 },
   ],
-  threshold: 0.45,
+  threshold: 0.4,       // más flexible — encuentra similares y abreviaciones
+  distance: 200,        // busca en más del texto
   minMatchCharLength: 2,
+  includeScore: true,
+  useExtendedSearch: true, // permite búsquedas con operadores
+  ignoreLocation: true,    // busca en todo el campo, no solo al inicio
+}
+
+// Búsqueda de respaldo para cuando Fuse no encuentra — coincidencia parcial manual
+function fallbackSearch(posts, q) {
+  const terms = q.toLowerCase().trim().split(/\s+/).filter(Boolean)
+  return posts.filter(p => {
+    const hay = [p.name, ...(p.tags || []), p.description, p.category]
+      .join(' ').toLowerCase()
+    // Cada término debe aparecer en algún lugar del texto
+    return terms.every(t => hay.includes(t))
+  })
 }
 
 export default function SearchPage() {
@@ -35,8 +50,16 @@ export default function SearchPage() {
 
   useEffect(() => {
     if (!q || allPosts.length === 0) { setResults(allPosts); return }
-    const fuse = new Fuse(allPosts, FUSE_OPTIONS)
-    setResults(fuse.search(q).map(r => r.item))
+    try {
+      const fuse = new Fuse(allPosts, FUSE_OPTIONS)
+      let found = fuse.search(q).map(r => r.item)
+      // Si Fuse no encontró nada, intentar búsqueda parcial manual
+      if (found.length === 0) found = fallbackSearch(allPosts, q)
+      setResults(found)
+    } catch {
+      // Fallback total si Fuse falla
+      setResults(fallbackSearch(allPosts, q))
+    }
   }, [q, allPosts])
 
   const CATS = { apk: '📱', games: '🎮', script: '⚙️', tutorials: '📚' }
