@@ -276,32 +276,36 @@ export default function PostCard({ post, compact = false, onDeleted }) {
 
       {/* ── ACCIONES ── */}
       <div className={styles.actions}>
-        {/* Like — siempre corazón rojo */}
-        <button
-          className={`${styles.actionBtn} ${styles.likeBtn} ${liked ? styles.liked : ''}`}
-          onClick={handleLike} disabled={likeLoading}
-        >
-          <span className={likeAnim ? styles.heartPop : ''}>❤️</span>
-          <span>{formatNumber(likeCount)}</span>
-        </button>
+        {/* Fila 1: stats + acciones sociales */}
+        <div className={styles.actionsTop}>
+          <button
+            className={`${styles.actionBtn} ${styles.likeBtn} ${liked ? styles.liked : ''}`}
+            onClick={handleLike} disabled={likeLoading}
+          >
+            <span className={likeAnim ? styles.heartPop : ''}>❤️</span>
+            <span>{formatNumber(likeCount)}</span>
+          </button>
 
-        <button
-          className={`${styles.actionBtn} ${showComments ? styles.activeAction : ''}`}
-          onClick={() => setShowComments(o => !o)}
-        >
-          💬 <span>{formatNumber(post.commentCount || 0)}</span>
-        </button>
+          <button
+            className={`${styles.actionBtn} ${showComments ? styles.activeAction : ''}`}
+            onClick={() => setShowComments(o => !o)}
+          >
+            💬 <span>{formatNumber(post.commentCount || 0)}</span>
+          </button>
 
-        {/* Compartir — botón directo en barra */}
-        <button className={styles.actionBtn} onClick={handleShare} title="Compartir">
-          🔗 <span className={styles.shareLabel}>Compartir</span>
-        </button>
+          <button className={styles.actionBtn} onClick={handleShare} title="Compartir">
+            🔗 <span>Compartir</span>
+          </button>
 
-        <span className={styles.statPill}>⬇️ {formatNumber(post.downloads || 0)}</span>
-        <span className={styles.statPill}>👁️ {formatNumber(post.views || 0)}</span>
+          <div className={styles.statsRight}>
+            <span className={styles.statPill}>⬇️ {formatNumber(post.downloads || 0)}</span>
+            <span className={styles.statPill}>👁️ {formatNumber(post.views || 0)}</span>
+          </div>
+        </div>
 
-        <button className="btn btn-primary btn-sm" onClick={handleDownload} style={{ marginLeft: 'auto' }}>
-          Descargar
+        {/* Fila 2: botón de descarga full width */}
+        <button className={`btn btn-primary ${styles.downloadBtn}`} onClick={handleDownload}>
+          ⬇️ Descargar
         </button>
       </div>
 

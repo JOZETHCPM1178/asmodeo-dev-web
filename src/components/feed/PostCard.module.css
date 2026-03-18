@@ -109,14 +109,31 @@
 
 /* Actions */
 .actions {
-  display: flex; align-items: center; gap: 0.4rem;
-  padding: 0.65rem 0.85rem; border-top: 1px solid var(--border);
-  flex-wrap: nowrap; overflow: hidden;
+  display: flex; flex-direction: column; gap: 0.5rem;
+  padding: 0.7rem 0.85rem 0.85rem;
+  border-top: 1px solid var(--border);
 }
+
+/* Fila 1: like, comentar, compartir + stats */
+.actionsTop {
+  display: flex; align-items: center; gap: 0.4rem;
+  width: 100%;
+}
+.statsRight {
+  display: flex; align-items: center; gap: 0.4rem;
+  margin-left: auto; flex-shrink: 0;
+}
+
+/* Fila 2: botón descarga ancho completo */
+.downloadBtn {
+  width: 100%; justify-content: center;
+  font-size: 0.9rem; padding: 0.55rem 1rem !important;
+}
+
 .actionBtn {
   display: flex; align-items: center; gap: 0.3rem;
   background: rgba(255,255,255,.04); border: 1px solid var(--border);
-  border-radius: 8px; padding: 0.32rem 0.6rem;
+  border-radius: 8px; padding: 0.32rem 0.55rem;
   color: var(--t2); font-size: 0.8rem; font-family: var(--font2);
   cursor: pointer; transition: var(--tr); white-space: nowrap; flex-shrink: 0;
 }
@@ -126,9 +143,13 @@
 .liked { background: rgba(239,68,68,.15) !important; }
 .actionBtn.activeAction { color: var(--p2); border-color: var(--border2); background: rgba(124,58,237,.08); }
 .heartPop { display: inline-block; animation: heartPop .5s ease; }
+.statPill { font-size: 0.75rem; color: var(--t3); display: flex; align-items: center; gap: 0.2rem; flex-shrink: 0; }
 
-.shareLabel { display: inline; }
-.statPill { font-size: 0.75rem; color: var(--t3); display: flex; align-items: center; gap: 0.25rem; flex-shrink: 0; }
+/* En pantallas muy pequeñas ocultar texto "Compartir" */
+@media (max-width: 360px) {
+  .actionBtn span:not([class]) { display: none; }
+  .actionBtn { padding: 0.32rem 0.45rem; }
+}
 
 /* VirusTotal badge */
 .vtBadge {
@@ -143,7 +164,4 @@
 .compact .media { aspect-ratio: 4/3; }
 .compact .desc  { display: none; }
 
-@media (max-width: 400px) {
-  .shareLabel { display: none; }
-  .actionBtn { padding: 0.3rem 0.45rem; }
-}
+
