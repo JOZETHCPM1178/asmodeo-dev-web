@@ -833,6 +833,17 @@ export default {
       });
     }
 
+    // Listar modelos Gemini disponibles (temporal para debug)
+    if (url.pathname === '/list-models') {
+      const GEMINI_KEY = env.GEMINI_KEY;
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_KEY}`);
+      const data = await res.json();
+      const names = (data.models || []).map(m => m.name);
+      return new Response(JSON.stringify({ models: names }), {
+        headers: { 'Content-Type': 'application/json', ...CORS }
+      });
+    }
+
     // Health check
     if (url.pathname === '/health') {
       return new Response(JSON.stringify({ status: 'ok', time: new Date().toISOString() }), {
@@ -884,7 +895,7 @@ export default {
 
 App: ${name} (${cat})`;
           const res = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+            `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${GEMINI_KEY}`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -925,7 +936,7 @@ App: ${name} (${cat})`;
 Post: "${postName}" (${catLabel})
 ${postDescription ? `Descripción: ${postDescription.slice(0, 150)}` : ''}`;
           const res = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+            `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${GEMINI_KEY}`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
