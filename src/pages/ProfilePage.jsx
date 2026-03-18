@@ -3,7 +3,6 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
 import { getUserProfile, updateUserProfile } from '../services/auth'
-import { formatNumber } from '../utils'
 import { getUserPosts, updateAuthorNameInPosts } from '../services/posts'
 import { useAuth } from '../context/AuthContext'
 import FollowButton from '../components/social/FollowButton'
@@ -13,6 +12,7 @@ import { getOrCreateConversation } from '../services/dm'
 import VerifiedBadge from '../components/ui/VerifiedBadge'
 import SEO from '../components/ui/SEO'
 import styles from './ProfilePage.module.css'
+import ImageCropper from '../components/ui/ImageCropper'
 
 export default function ProfilePage() {
   const { uid } = useParams()
@@ -111,17 +111,17 @@ export default function ProfilePage() {
 
             <div className={styles.statsRow}>
               <div className={styles.stat}>
-                <span className={styles.statN}>{formatNumber(posts.length)}</span>
+                <span className={styles.statN}>{posts.length}</span>
                 <span className={styles.statL}>Publicaciones</span>
               </div>
               <div className={styles.statDivider} />
               <div className={styles.stat}>
-                <span className={styles.statN}>{formatNumber(followers)}</span>
+                <span className={styles.statN}>{followers}</span>
                 <span className={styles.statL}>Seguidores</span>
               </div>
               <div className={styles.statDivider} />
               <div className={styles.stat}>
-                <span className={styles.statN}>{formatNumber(profile.following || 0)}</span>
+                <span className={styles.statN}>{profile.following || 0}</span>
                 <span className={styles.statL}>Siguiendo</span>
               </div>
             </div>
@@ -257,6 +257,7 @@ function EditProfileModal({ profile, onClose, onSaved }) {
   const [avatarFile, setAvatarFile]       = useState(null)
   const [avatarPreview, setAvatarPreview] = useState(profile.photoURL || null)
   const [saving, setSaving]               = useState(false)
+  const [cropSrc, setCropSrc]             = useState(null)
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -264,10 +265,19 @@ function EditProfileModal({ profile, onClose, onSaved }) {
     const file = e.target.files?.[0]
     if (!file) return
     if (file.size > 5 * 1024 * 1024) { toast.error('Imagen máx 5MB'); return }
-    setAvatarFile(file)
+    // Abrir cropper circular en vez de usar la imagen directo
     const reader = new FileReader()
-    reader.onload = ev => setAvatarPreview(ev.target.result)
+    reader.onload = ev => setCropSrc(ev.target.result)
     reader.readAsDataURL(file)
+    // Reset file input para que pueda volver a seleccionar la misma imagen
+    e.target.value = ''
+  }
+
+  function onCropDone(blob, dataUrl) {
+    setCropSrc(null)
+    setAvatarPreview(dataUrl)
+    const croppedFile = new File([blob], 'avatar.png', { type: 'image/png' })
+    setAvatarFile(croppedFile)
   }
 
   async function handleSave() {
@@ -305,6 +315,16 @@ function EditProfileModal({ profile, onClose, onSaved }) {
   }
 
   return (
+    <>
+    {cropSrc && (
+      <ImageCropper
+        imageSrc={cropSrc}
+        aspectRatio={1}
+        circleMode={true}
+        onCrop={onCropDone}
+        onCancel={() => setCropSrc(null)}
+      />
+    )}
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className={`modal-box ${styles.editModal}`}>
         <div className={styles.editHeader}>
