@@ -3,8 +3,15 @@ const ACCESS_KEY = import.meta.env.VITE_ARCHIVE_ACCESS_KEY
 const SECRET_KEY = import.meta.env.VITE_ARCHIVE_SECRET_KEY
 
 function generateIdentifier(filename) {
-  const clean = filename.toLowerCase().replace(/\.[^.]+$/, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50)
-  return `asmodeodev-${clean}-${Date.now()}`
+  // Normalizar: quitar acentos, ñ, espacios y caracteres especiales
+  const normalized = filename.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  const clean = normalized.toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40)
+  // Si quedó vacío o muy corto, usar fallback
+  const safe = clean.length >= 3 ? clean : 'app'
+  return `asmodeodev-${safe}-${Date.now()}`
 }
 
 function getContentType(file) {
