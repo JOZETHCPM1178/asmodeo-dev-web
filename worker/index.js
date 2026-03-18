@@ -759,7 +759,7 @@ async function anunciarTelegram(post) {
 
 // ─── Export principal ───
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
 
     const url = new URL(request.url);
@@ -866,6 +866,64 @@ export default {
           return new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json', ...CORS } });
         } catch(e) {
           return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: CORS });
+        }
+      }
+      // Generar comentarios bot con IA (Claude)
+      if (url.pathname === '/generate-comments') {
+        try {
+          const { postName, postDescription, postCategory, username } = await request.json();
+
+          const ANTHROPIC_KEY = env.ANTHROPIC_KEY;
+          if (!ANTHROPIC_KEY) {
+            return new Response(JSON.stringify({ ok: false, error: 'ANTHROPIC_KEY no configurada en el Worker' }), {
+              status: 500, headers: { 'Content-Type': 'application/json', ...CORS }
+            });
+          }
+
+          const categoryLabels = { apk: 'APK Mod', games: 'Juego Mod', script: 'Script', tutorials: 'Tutorial' };
+          const catLabel = categoryLabels[postCategory] || postCategory;
+
+          const res = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': ANTHROPIC_KEY,
+              'anthropic-version': '2023-06-01',
+            },
+            body: JSON.stringify({
+              model: 'claude-haiku-4-5-20251001',
+              max_tokens: 120,
+              messages: [{
+                role: 'user',
+                content: `Eres ${username}, un usuario latinoamericano en una comunidad de APKs y mods para Android.
+Escribe UN comentario corto (máx 2 oraciones, 20-40 palabras) sobre este post.
+Debe sonar 100% natural, como un usuario real. Usa español informal latinoamericano, puedes usar algún emoji ocasionalmente.
+NO uses frases genéricas como "excelente aporte", "gracias por compartir", "muy buen post" — sé específico y creativo.
+NO pongas comillas, NO expliques nada, solo escribe el comentario directamente.
+
+Post: "${postName}" (${catLabel})
+${postDescription ? `Descripción: ${postDescription.slice(0, 150)}` : ''}`
+              }],
+            }),
+          });
+
+          const data = await res.json();
+          const text = data.content?.[0]?.text?.trim();
+
+          if (!text) {
+            return new Response(JSON.stringify({ ok: false, error: 'La IA no generó respuesta' }), {
+              status: 500, headers: { 'Content-Type': 'application/json', ...CORS }
+            });
+          }
+
+          return new Response(JSON.stringify({ ok: true, text }), {
+            headers: { 'Content-Type': 'application/json', ...CORS }
+          });
+
+        } catch(e) {
+          return new Response(JSON.stringify({ ok: false, error: e.message }), {
+            status: 500, headers: { 'Content-Type': 'application/json', ...CORS }
+          });
         }
       }
     }
