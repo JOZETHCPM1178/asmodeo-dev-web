@@ -32,37 +32,48 @@ export default function DownloadModal({ post, onClose }) {
     return () => clearTimeout(t)
   }, [countdown, isExternal])
 
-  function triggerDownload() {
+  async function triggerDownload() {
     if (started) return
     setStarted(true)
 
     const url = post.downloadUrl || ''
+    const filename = post.name ? post.name.replace(/[^a-z0-9._-]/gi, '_') + '.apk' : 'download.apk'
 
-    // Archive.org — usar el link directo de descarga que fuerza el download
     if (url.includes('archive.org')) {
-      // Reemplazar /download/ con formato que fuerza descarga
-      const directUrl = url.includes('?') ? url : url
-      // Crear un <a> con download attribute y click programático
-      const a = document.createElement('a')
-      a.href = directUrl
-      a.target = '_blank'
-      a.rel = 'noopener noreferrer'
-      a.click()
+      // Archive.org — descargar como blob para que no salga de la web
+      try {
+        const res = await fetch(url)
+        if (!res.ok) throw new Error('fetch failed')
+        const blob = await res.blob()
+        const blobUrl = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = blobUrl
+        a.download = filename
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000)
+      } catch {
+        // Si fetch falla por CORS, fallback a nueva pestaña
+        const a = document.createElement('a')
+        a.href = url
+        a.download = filename
+        a.target = '_blank'
+        a.rel = 'noopener noreferrer'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+      }
       return
     }
 
-    // Otros links — abrir en nueva pestaña
+    // Links externos — nueva pestaña
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 
   function handleManual() {
-    if (started) {
-      // Permitir descargar de nuevo
-      setStarted(false)
-      setTimeout(() => triggerDownload(), 100)
-    } else {
-      triggerDownload()
-    }
+    setStarted(false)
+    setTimeout(() => triggerDownload(), 100)
   }
 
   // Si es externo ya cerró, no renderizar nada
