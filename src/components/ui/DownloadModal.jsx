@@ -35,18 +35,31 @@ export default function DownloadModal({ post, onClose }) {
   function triggerDownload() {
     if (started) return
     setStarted(true)
-    const iframe = document.createElement('iframe')
-    iframe.style.display = 'none'
-    iframe.src = post.downloadUrl
-    document.body.appendChild(iframe)
-    setTimeout(() => {
-      try { document.body.removeChild(iframe) } catch {}
-    }, 30000)
+
+    const url = post.downloadUrl || ''
+
+    // Archive.org — usar el link directo de descarga que fuerza el download
+    if (url.includes('archive.org')) {
+      // Reemplazar /download/ con formato que fuerza descarga
+      const directUrl = url.includes('?') ? url : url
+      // Crear un <a> con download attribute y click programático
+      const a = document.createElement('a')
+      a.href = directUrl
+      a.target = '_blank'
+      a.rel = 'noopener noreferrer'
+      a.click()
+      return
+    }
+
+    // Otros links — abrir en nueva pestaña
+    window.open(url, '_blank', 'noopener,noreferrer')
   }
 
   function handleManual() {
-    if (isExternal) {
-      window.open(post.downloadUrl, '_blank', 'noopener,noreferrer')
+    if (started) {
+      // Permitir descargar de nuevo
+      setStarted(false)
+      setTimeout(() => triggerDownload(), 100)
     } else {
       triggerDownload()
     }
