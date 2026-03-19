@@ -2,13 +2,11 @@
 import { useState, useEffect } from 'react'
 import styles from './DownloadModal.module.css'
 
-// Detectar si es link externo (Mediafire, Mega, Drive, etc.)
 function isExternalLink(url) {
   if (!url) return false
-  const external = ['mediafire.com', 'mega.nz', 'mega.co.nz', 'drive.google.com',
-    'dropbox.com', 'onedrive.live.com', '1drv.ms', 'zippyshare.com',
-    'gofile.io', 'pixeldrain.com', 'anonfiles.com', 'uploadhaven.com',
-    'sendspace.com', 'file.io', 'transfer.sh', 'wetransfer.com']
+  const external = ['mediafire.com','mega.nz','mega.co.nz','drive.google.com',
+    'dropbox.com','onedrive.live.com','1drv.ms','gofile.io','pixeldrain.com',
+    'sendspace.com','wetransfer.com','zippyshare.com']
   return external.some(d => url.includes(d))
 }
 
@@ -17,80 +15,48 @@ export default function DownloadModal({ post, onClose }) {
   const [started, setStarted]     = useState(false)
   const isExternal = isExternalLink(post.downloadUrl)
 
+  // Links externos — abrir directo y cerrar
   useEffect(() => {
-    // Si es externo, abrir directo sin countdown
-    if (isExternal) {
-      window.open(post.downloadUrl, '_blank', 'noopener,noreferrer')
-      onClose()
-      return
-    }
-    if (countdown <= 0) {
-      triggerDownload()
-      return
-    }
+    if (!isExternal) return
+    window.open(post.downloadUrl, '_blank', 'noopener,noreferrer')
+    onClose()
+  }, [])
+
+  // Countdown para Archive.org
+  useEffect(() => {
+    if (isExternal || started) return
+    if (countdown <= 0) { triggerDownload(); return }
     const t = setTimeout(() => setCountdown(c => c - 1), 1000)
     return () => clearTimeout(t)
-  }, [countdown, isExternal])
+  }, [countdown, isExternal, started])
 
-  async function triggerDownload() {
+  function triggerDownload() {
     if (started) return
     setStarted(true)
-
-    const url = post.downloadUrl || ''
-    const filename = post.name ? post.name.replace(/[^a-z0-9._-]/gi, '_') + '.apk' : 'download.apk'
-
-    if (url.includes('archive.org')) {
-      // Archive.org — descargar como blob para que no salga de la web
-      try {
-        const res = await fetch(url)
-        if (!res.ok) throw new Error('fetch failed')
-        const blob = await res.blob()
-        const blobUrl = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = blobUrl
-        a.download = filename
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000)
-      } catch {
-        // Si fetch falla por CORS, fallback a nueva pestaña
-        const a = document.createElement('a')
-        a.href = url
-        a.download = filename
-        a.target = '_blank'
-        a.rel = 'noopener noreferrer'
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-      }
-      return
-    }
-
-    // Links externos — nueva pestaña
-    window.open(url, '_blank', 'noopener,noreferrer')
+    // Iframe oculto — la descarga empieza sin salir de la web
+    // Archive.org envía Content-Disposition: attachment que el navegador
+    // intercepta como descarga directa
+    const iframe = document.createElement('iframe')
+    iframe.style.cssText = 'display:none;width:0;height:0;border:none;position:absolute;'
+    iframe.src = post.downloadUrl
+    document.body.appendChild(iframe)
+    // Limpiar después de 2 minutos
+    setTimeout(() => { try { document.body.removeChild(iframe) } catch {} }, 120000)
   }
 
-  function handleManual() {
-    setStarted(false)
-    setTimeout(() => triggerDownload(), 100)
-  }
-
-  // Si es externo ya cerró, no renderizar nada
   if (isExternal) return null
 
   return (
     <div className={styles.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div className={styles.modal}>
+
         <div className={styles.header}>
           <h2 className={styles.title}>⬇️ Descargando</h2>
           <button className={styles.closeBtn} onClick={onClose}>✕</button>
         </div>
 
         <div className={styles.postInfo}>
-          {post.imageUrl && (
-            <img src={post.imageUrl} alt={post.name} className={styles.thumb} />
-          )}
+          {post.imageUrl && <img src={post.imageUrl} alt={post.name} className={styles.thumb} />}
           <div className={styles.postDetails}>
             <div className={styles.postName}>{post.name}</div>
             {post.version && <div className={styles.postMeta}>📦 Versión {post.version}</div>}
@@ -109,7 +75,7 @@ export default function DownloadModal({ post, onClose }) {
           <div className={styles.downloadingWrap}>
             <div className={styles.downloadIcon}>✅</div>
             <p className={styles.downloadingText}>
-              ¡Descarga iniciada! Si no comienza, toca el botón de abajo.
+              ¡Descarga iniciada! Revisa las notificaciones de tu navegador.
             </p>
           </div>
         )}
@@ -120,7 +86,8 @@ export default function DownloadModal({ post, onClose }) {
         </div>
 
         <div className={styles.actions}>
-          <button className="btn btn-primary btn-lg" onClick={handleManual} style={{ flex: 1 }}>
+          <button className="btn btn-primary btn-lg" style={{ flex: 1 }}
+            onClick={() => { setStarted(false); setTimeout(triggerDownload, 100) }}>
             ⬇️ {started ? 'Descargar de nuevo' : 'Descargar ahora'}
           </button>
           <button className="btn btn-ghost" onClick={onClose}>Cerrar</button>
