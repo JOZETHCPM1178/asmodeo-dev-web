@@ -1032,26 +1032,17 @@ Solo responde con el JSON, sin texto adicional ni comillas extra.`;
     if (url.pathname === '/sitemap.xml') {
       try {
         const SITE = 'https://asmodeo-dev-web.pages.dev'
-        const token = await getAccessToken(env)
-        const fsUrl = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents:runQuery`
-        const res = await fetch(fsUrl, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            structuredQuery: {
-              from: [{ collectionId: 'posts' }],
-              where: { fieldFilter: { field: { fieldPath: 'status' }, op: 'EQUAL', value: { stringValue: 'active' } } },
-              orderBy: [{ field: { fieldPath: 'createdAt' }, direction: 'DESCENDING' }],
-              limit: 500
-            }
-          })
-        })
-        const docs = await res.json()
-        const posts = docs.filter(d => d.document).map(d => ({
-          id:   d.document.name.split('/').pop(),
-          name: d.document.fields?.name?.stringValue || '',
-          date: d.document.fields?.createdAt?.timestampValue?.split('T')[0] || ''
-        }))
+        // Usar fbGet que ya existe en el worker — no necesita token especial
+        const data  = await fbGet('posts?pageSize=500')
+        const docs  = data.documents || []
+        const posts = docs
+          .filter(d => d.fields?.status?.stringValue === 'active')
+          .map(d => ({
+            id:   d.name.split('/').pop(),
+            slug: d.fields?.slug?.stringValue || '',
+            name: d.fields?.name?.stringValue || '',
+            date: d.updateTime ? d.updateTime.split('T')[0] : '',
+          }))
 
         const staticUrls = [
           { loc:`${SITE}/`,               changefreq:'daily',  priority:'1.0' },
@@ -1063,7 +1054,10 @@ Solo responde con el JSON, sin texto adicional ni comillas extra.`;
           { loc:`${SITE}/search`,         changefreq:'daily',  priority:'0.6' },
         ]
         const postUrls = posts.map(p => ({
-          loc:`${SITE}/post/${p.id}`, lastmod:p.date, changefreq:'weekly', priority:'0.8'
+          loc: `${SITE}/post/${p.slug || p.id}`,
+          lastmod: p.date,
+          changefreq: 'weekly',
+          priority: '0.8'
         }))
 
         const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${
@@ -1073,10 +1067,12 @@ Solo responde con el JSON, sin texto adicional ni comillas extra.`;
         }\n</urlset>`
 
         return new Response(xml, {
-          headers: { 'Content-Type':'application/xml; charset=utf-8', 'Cache-Control':'public, max-age=3600', ...CORS }
+          headers: { 'Content-Type':'application/xml; charset=utf-8', 'Cache-Control':'public, max-age=3600', 'Access-Control-Allow-Origin':'*' }
         })
       } catch(e) {
-        return Response.redirect('https://asmodeo-dev-web.pages.dev/sitemap.xml', 302)
+        return new Response(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>`, {
+          headers: { 'Content-Type':'application/xml' }
+        })
       }
     }
 
