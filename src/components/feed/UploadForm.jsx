@@ -58,7 +58,13 @@ export default function UploadForm() {
       const data = await res.json()
       if (!data.ok) throw new Error(data.error || 'Error del servidor')
       set('description', data.text)
-      toast.success('✅ Descripción generada con IA')
+      // Aplicar tags automáticamente si la IA los generó
+      if (data.tags && data.tags.length > 0) {
+        set('tags', data.tags.join(', '))
+        toast.success('✅ Descripción y tags generados con IA')
+      } else {
+        toast.success('✅ Descripción generada con IA')
+      }
     } catch(e) {
       toast.error(e.message || 'Error al generar descripción')
     } finally {
