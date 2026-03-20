@@ -15,6 +15,15 @@ export default function Layout() {
 
   return (
     <div className={styles.layout}>
+      {/* Partículas flotantes */}
+      <div className="particles" aria-hidden="true">
+        {Array.from({ length: 12 }).map((_, i) => (
+          <div key={i} className="particle" />
+        ))}
+      </div>
+      {/* Orbs carmesí */}
+      <div className="orb orb3" aria-hidden="true" />
+      <div className="orb orb4" aria-hidden="true" />
       <Navbar />
       <main className={styles.main}>
         <Outlet />
