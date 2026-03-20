@@ -8,7 +8,10 @@ import { useEffect } from 'react'
 const SITE_NAME   = 'AsmodeoDev'
 const SITE_URL    = 'https://asmodeo-dev-web.pages.dev'
 const DEFAULT_IMG = `${SITE_URL}/icon-512x512.png`
-const DEFAULT_DESC = 'La plataforma #1 de mods, APKs y scripts. Descarga apps modificadas, juegos con recursos ilimitados y scripts potentes. Todo gratis.'
+const DEFAULT_DESC = 'La plataforma #1 de mods, APKs y scripts. Descarga apps modificadas, juegos con recursos ilimitados y scripts potentes. Todo gratis y verificado.'
+
+// Keywords base que se agregan a todos los posts
+const BASE_KEYWORDS = 'apk mod gratis, descargar gratis android, asmodeo dev, mod apk 2025, sin anuncios, desbloqueado'
 
 function setMeta(name, content, isProperty = false) {
   if (!content) return
@@ -42,8 +45,8 @@ export default function SEO({
   keywords,
   noIndex = false,
 }) {
-  const fullTitle  = title ? `${title} — ${SITE_NAME}` : `${SITE_NAME} – APK Mods · Juegos · Scripts`
-  const fullDesc   = description || DEFAULT_DESC
+  const fullTitle  = title ? `Descargar ${title} Mod APK Gratis — ${SITE_NAME}` : `${SITE_NAME} – APK Mods · Juegos · Scripts`
+  const fullDesc   = description ? `${description} | Descargar gratis en ${SITE_NAME}` : DEFAULT_DESC
   const fullImage  = image || DEFAULT_IMG
   const fullUrl    = url ? `${SITE_URL}${url}` : SITE_URL
 
@@ -53,7 +56,8 @@ export default function SEO({
 
     // Meta básicos
     setMeta('description', fullDesc)
-    if (keywords) setMeta('keywords', keywords)
+    const allKeywords = keywords ? `${keywords}, ${BASE_KEYWORDS}` : BASE_KEYWORDS
+    setMeta('keywords', allKeywords)
     setMeta('robots', noIndex ? 'noindex,nofollow' : 'index,follow')
     setMeta('author', SITE_NAME)
 
