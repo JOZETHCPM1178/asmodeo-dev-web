@@ -1,4 +1,7 @@
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /profile
+Disallow: /inbox
 
-Sitemap: https://asmodeo-dev-web.pages.dev/sitemap.xml
+Sitemap: https://asmodeo-notif.jozeth-c.workers.dev/sitemap.xml
