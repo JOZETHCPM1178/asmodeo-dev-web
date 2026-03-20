@@ -7,9 +7,8 @@ import { es } from 'date-fns/locale'
 import {
   getPost, toggleLike, hasLiked, registerDownload,
   reportPost, deletePost, toggleFeatured, verifyPost,
-  setPostStatus, updatePost,
+  setPostStatus, updatePost, getPostUrl,
 } from '../services/posts'
-import { formatNumber } from '../utils'
 import { useAuth } from '../context/AuthContext'
 import { optimizeUrl, uploadImage } from '../services/cloudinary'
 import CommentsPanel from '../components/social/CommentsPanel'
@@ -87,7 +86,7 @@ export default function PostDetailPage() {
   }
 
   async function handleShare() {
-    const url  = `${window.location.origin}/post/${id}`
+    const url  = `${window.location.origin}${getPostUrl(post)}`
     const text = `${post.name} — Descárgalo en AsmodeoDev`
     if (navigator.share) {
       try { await navigator.share({ title: post.name, text, url }) } catch {}
@@ -157,7 +156,7 @@ export default function PostDetailPage() {
         title={post.name}
         description={post.description || `Descarga ${post.name} gratis en AsmodeoDev. ${cat.label} verificado por la comunidad.`}
         image={post.imageUrl || undefined}
-        url={`/post/${post.id}`}
+        url={getPostUrl(post)}
         type="article"
         keywords={[post.category, post.name, ...(post.tags || []), 'mod', 'gratis', 'apk', 'descargar'].join(', ')}
       />
@@ -224,11 +223,7 @@ export default function PostDetailPage() {
                   : <div className={styles.avatarFb}>{(post.authorName || 'U')[0].toUpperCase()}</div>
                 }
                 <div className={styles.authorInfo}>
-                  <div className={styles.authorName} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                    {post.authorName || 'Usuario'}
-                    {post.authorVerified && <VerifiedBadge title={`${post.authorName} está verificado`} />}
-                    {post.authorIsStaff && <span className="badge badge-purple" style={{ fontSize: '0.6rem' }}>STAFF</span>}
-                  </div>
+                  <div className={styles.authorName}>{post.authorName || 'Usuario'}</div>
                   {createdAgo && <div className={styles.authorDate}>{createdAgo}</div>}
                 </div>
                 <FollowButton targetId={post.authorId} />
@@ -241,8 +236,8 @@ export default function PostDetailPage() {
                 {post.version && <MetaItem icon="🏷️" label="Versión"   value={post.version} />}
                 {post.size    && <MetaItem icon="📦" label="Tamaño"    value={post.size} />}
                 <MetaItem icon="❤️" label="Likes"     value={likeCount} />
-                <MetaItem icon="⬇️" label="Descargas" value={formatNumber(post.downloads || 0)} />
-                <MetaItem icon="👁️" label="Vistas"    value={formatNumber(post.views || 0)} />
+                <MetaItem icon="⬇️" label="Descargas" value={post.downloads || 0} />
+                <MetaItem icon="👁️" label="Vistas"    value={post.views || 0} />
               </div>
 
               {/* Tags */}
