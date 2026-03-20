@@ -6,19 +6,32 @@ import {
   writeBatch,
 } from './firebase'
 
+// ─── GENERAR SLUG desde el nombre ───
+export function generateSlug(name) {
+  return name
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // quitar acentos
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')   // solo letras, números, espacios y guiones
+    .trim()
+    .replace(/\s+/g, '-')            // espacios → guiones
+    .replace(/-+/g, '-')             // guiones múltiples → uno
+    .slice(0, 80)                    // máximo 80 chars
+}
+
 // ─── CREAR POST ───
 export async function createPost(postData, userId) {
-  // Publicación directa SOLO si:
-  // 1. El autor tiene verified === true (explícito, no truthy)
-  // 2. O el autor tiene rol staff/admin/owner
   const isVerified = postData.authorVerified === true
   const isStaff    = postData.authorIsStaff === true
+  const status     = (isVerified || isStaff) ? 'active' : 'pending'
 
-  const status = (isVerified || isStaff) ? 'active' : 'pending'
+  // Generar slug único desde el nombre
+  const baseSlug = generateSlug(postData.name || 'post')
+  const slug     = `${baseSlug}-${Date.now().toString(36)}`
 
   const post = {
     ...postData,
     authorId: userId,
+    slug,
     likes: 0,
     downloads: 0,
     commentCount: 0,
@@ -32,7 +45,7 @@ export async function createPost(postData, userId) {
     updatedAt: serverTimestamp(),
   }
   const ref = await addDoc(collection(db, 'posts'), post)
-  return { id: ref.id, status }
+  return { id: ref.id, slug, status }
 }
 
 // ─── FEED PAGINADO (home + categorías) ───
@@ -112,12 +125,33 @@ export async function getUserPosts(authorId) {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }))
 }
 
-// ─── UN POST ───
-export async function getPost(postId) {
-  const snap = await getDoc(doc(db, 'posts', postId))
-  if (!snap.exists()) return null
-  updateDoc(snap.ref, { views: increment(1) }).catch(() => {})
-  return { id: snap.id, ...snap.data() }
+// ─── UN POST — busca por slug O por ID (compatibilidad con posts viejos) ───
+export async function getPost(slugOrId) {
+  // Intentar por ID primero (posts viejos sin slug)
+  try {
+    const snap = await getDoc(doc(db, 'posts', slugOrId))
+    if (snap.exists()) {
+      updateDoc(snap.ref, { views: increment(1) }).catch(() => {})
+      return { id: snap.id, ...snap.data() }
+    }
+  } catch {}
+
+  // Buscar por slug (posts nuevos)
+  const slugSnap = await getDocs(
+    query(collection(db, 'posts'), where('slug', '==', slugOrId), limit(1))
+  )
+  if (!slugSnap.empty) {
+    const d = slugSnap.docs[0]
+    updateDoc(d.ref, { views: increment(1) }).catch(() => {})
+    return { id: d.id, ...d.data() }
+  }
+
+  return null
+}
+
+// ─── OBTENER URL amigable de un post ───
+export function getPostUrl(post) {
+  return post?.slug ? `/post/${post.slug}` : `/post/${post?.id}`
 }
 
 // ─── LIKE ───
