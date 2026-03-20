@@ -939,59 +939,40 @@ ${allUrls.map(u => `  <url>
           const { name, category } = await request.json();
           const catLabels = { apk:'APK Mod', games:'Juego Mod', script:'Script', tutorials:'Tutorial' };
           const cat = catLabels[category] || category;
-
-          const prompt = `Eres un asistente para una comunidad de mods Android en español latinoamericano.
-
-Para la app "${name}" (${cat}), genera DOS cosas y devuélvelas en formato JSON exactamente así:
-{
-  "description": "descripción aquí",
-  "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"]
-}
-
-Reglas para la descripción:
-- 3-4 oraciones máx en español informal latinoamericano
-- Incluye 3-5 emojis distribuidos naturalmente
-- Menciona características de la versión mod/desbloqueada
-- Termina invitando a descargar
-
-Reglas para los tags:
-- Exactamente 5 tags en minúsculas sin espacios (usa guión si necesitas)
-- Incluye el nombre de la app, la categoría y términos de búsqueda populares
-- Ejemplo: ["spotify", "musica-gratis", "sin-anuncios", "premium", "mod-apk"]
-
-Solo responde con el JSON, sin texto adicional ni comillas extra.`;
-
           const ai = env.AI;
-          if (!ai) throw new Error('Workers AI no está habilitado en este Worker');
-          const result = await ai.run('@cf/meta/llama-3-8b-instruct', {
+          if (!ai) throw new Error('Workers AI no está habilitado');
+
+          // Llamada 1: descripción
+          const descResult = await ai.run('@cf/meta/llama-3-8b-instruct', {
             messages: [
-              { role: 'system', content: 'Eres un asistente que responde SOLO con JSON válido, sin texto adicional.' },
-              { role: 'user', content: prompt }
+              { role: 'system', content: 'Escribe SOLO la descripción pedida. Sin JSON, sin etiquetas, sin explicaciones. Máximo 3 oraciones. Máximo 5 emojis en total.' },
+              { role: 'user', content: `Descripción para "${name}" (${cat}) en español latinoamericano informal. Menciona que es mod/desbloqueado y tiene todo premium gratis. Termina invitando a descargar.` }
             ],
-            max_tokens: 350,
+            max_tokens: 150,
           });
+          let description = (descResult?.response || '').trim()
+          // Limpiar emojis repetidos — si hay más de 5 emojis consecutivos, truncar
+          description = description.replace(/([\u{1F300}-\u{1FFFF}][\s]*){6,}/gu, '✨ ')
+          description = description.slice(0, 400)
 
-          const raw = result?.response?.trim();
-          if (!raw) throw new Error('La IA no generó respuesta');
+          // Llamada 2: tags
+          const tagsResult = await ai.run('@cf/meta/llama-3-8b-instruct', {
+            messages: [
+              { role: 'system', content: 'Responde SOLO con 5 palabras clave separadas por comas. Sin puntos, sin explicaciones, sin emojis.' },
+              { role: 'user', content: `5 tags en minúsculas para "${name}" (${cat}). Incluye el nombre de la app, tipo de mod y términos de búsqueda. Ejemplo: spotify,musica-gratis,sin-anuncios,premium,mod-apk` }
+            ],
+            max_tokens: 40,
+          });
+          const tagsRaw = (tagsResult?.response || '').trim()
+          const tags = tagsRaw
+            .split(',')
+            .map(t => t.trim().toLowerCase().replace(/[^a-z0-9\-áéíóúñ]/g, '').slice(0, 20))
+            .filter(t => t.length > 1)
+            .slice(0, 5)
 
-          // Parsear el JSON de la respuesta
-          let parsed;
-          try {
-            const jsonMatch = raw.match(/\{[\s\S]*\}/);
-            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
-          } catch {
-            // Si no es JSON válido, devolver solo texto como descripción
-            return new Response(JSON.stringify({ ok: true, text: raw, tags: [] }), {
-              headers: { 'Content-Type': 'application/json', ...CORS }
-            });
-          }
-
-          return new Response(JSON.stringify({
-            ok:   true,
-            text: parsed.description || raw,
-            tags: Array.isArray(parsed.tags) ? parsed.tags.slice(0, 5) : [],
-          }), { headers: { 'Content-Type': 'application/json', ...CORS } });
-
+          return new Response(JSON.stringify({ ok: true, text: description, tags }), {
+            headers: { 'Content-Type': 'application/json', ...CORS }
+          });
         } catch(e) {
           return new Response(JSON.stringify({ ok: false, error: e.message }), {
             status: 500, headers: { 'Content-Type': 'application/json', ...CORS }
