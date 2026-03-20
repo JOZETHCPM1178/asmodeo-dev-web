@@ -844,6 +844,60 @@ export default {
       });
     }
 
+    // Sitemap dinámico — incluye todos los posts para que Google los indexe
+    if (url.pathname === '/sitemap.xml') {
+      try {
+        const res   = await fbGet('posts?pageSize=500')
+        const docs  = res.documents || []
+        const posts = docs
+          .filter(d => d.fields?.status?.stringValue === 'active')
+          .map(d => ({
+            id:        d.name.split('/').pop(),
+            name:      d.fields?.name?.stringValue || '',
+            updatedAt: d.updateTime || d.createTime || '',
+          }))
+
+        const staticUrls = [
+          { loc: SITE_URL,                  priority: '1.0', freq: 'daily'  },
+          { loc: `${SITE_URL}/feed`,        priority: '0.9', freq: 'hourly' },
+          { loc: `${SITE_URL}/feed/apk`,    priority: '0.8', freq: 'hourly' },
+          { loc: `${SITE_URL}/feed/games`,  priority: '0.8', freq: 'hourly' },
+          { loc: `${SITE_URL}/feed/script`, priority: '0.7', freq: 'daily'  },
+          { loc: `${SITE_URL}/search`,      priority: '0.6', freq: 'daily'  },
+        ]
+
+        const postUrls = posts.map(p => ({
+          loc:      `${SITE_URL}/post/${p.id}`,
+          priority: '0.8',
+          freq:     'weekly',
+          lastmod:  p.updatedAt ? p.updatedAt.split('T')[0] : '',
+        }))
+
+        const allUrls = [...staticUrls, ...postUrls]
+
+        const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${allUrls.map(u => `  <url>
+    <loc>${u.loc}</loc>
+    ${u.lastmod ? `<lastmod>${u.lastmod}</lastmod>` : ''}
+    <changefreq>${u.freq}</changefreq>
+    <priority>${u.priority}</priority>
+  </url>`).join('\n')}
+</urlset>`
+
+        return new Response(xml, {
+          headers: {
+            'Content-Type': 'application/xml; charset=utf-8',
+            'Cache-Control': 'public, max-age=3600',
+            'Access-Control-Allow-Origin': '*',
+          }
+        })
+      } catch(e) {
+        return new Response(`<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>`,
+          { headers: { 'Content-Type': 'application/xml' } })
+      }
+    }
+
     // Health check
     if (url.pathname === '/health') {
       return new Response(JSON.stringify({ status: 'ok', time: new Date().toISOString() }), {
@@ -885,21 +939,59 @@ export default {
           const { name, category } = await request.json();
           const catLabels = { apk:'APK Mod', games:'Juego Mod', script:'Script', tutorials:'Tutorial' };
           const cat = catLabels[category] || category;
-          const prompt = `Escribe una descripción atractiva y corta (3-4 oraciones máx) para esta app en una comunidad de mods Android. Usa español informal latinoamericano. Incluye 3-5 emojis relevantes distribuidos naturalmente en el texto. Menciona las características principales que tendría una versión mod/desbloqueada de esta app. Termina con algo que invite a descargar. Solo escribe la descripción, sin comillas ni explicaciones.\n\nApp: ${name} (${cat})`;
+
+          const prompt = `Eres un asistente para una comunidad de mods Android en español latinoamericano.
+
+Para la app "${name}" (${cat}), genera DOS cosas y devuélvelas en formato JSON exactamente así:
+{
+  "description": "descripción aquí",
+  "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"]
+}
+
+Reglas para la descripción:
+- 3-4 oraciones máx en español informal latinoamericano
+- Incluye 3-5 emojis distribuidos naturalmente
+- Menciona características de la versión mod/desbloqueada
+- Termina invitando a descargar
+
+Reglas para los tags:
+- Exactamente 5 tags en minúsculas sin espacios (usa guión si necesitas)
+- Incluye el nombre de la app, la categoría y términos de búsqueda populares
+- Ejemplo: ["spotify", "musica-gratis", "sin-anuncios", "premium", "mod-apk"]
+
+Solo responde con el JSON, sin texto adicional ni comillas extra.`;
+
           const ai = env.AI;
           if (!ai) throw new Error('Workers AI no está habilitado en este Worker');
           const result = await ai.run('@cf/meta/llama-3-8b-instruct', {
             messages: [
-              { role: 'system', content: 'Eres un asistente que escribe descripciones de apps en español latinoamericano informal con emojis.' },
+              { role: 'system', content: 'Eres un asistente que responde SOLO con JSON válido, sin texto adicional.' },
               { role: 'user', content: prompt }
             ],
-            max_tokens: 200,
+            max_tokens: 350,
           });
-          const text = result?.response?.trim();
-          if (!text) throw new Error('La IA no generó respuesta');
-          return new Response(JSON.stringify({ ok: true, text }), {
-            headers: { 'Content-Type': 'application/json', ...CORS }
-          });
+
+          const raw = result?.response?.trim();
+          if (!raw) throw new Error('La IA no generó respuesta');
+
+          // Parsear el JSON de la respuesta
+          let parsed;
+          try {
+            const jsonMatch = raw.match(/\{[\s\S]*\}/);
+            parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+          } catch {
+            // Si no es JSON válido, devolver solo texto como descripción
+            return new Response(JSON.stringify({ ok: true, text: raw, tags: [] }), {
+              headers: { 'Content-Type': 'application/json', ...CORS }
+            });
+          }
+
+          return new Response(JSON.stringify({
+            ok:   true,
+            text: parsed.description || raw,
+            tags: Array.isArray(parsed.tags) ? parsed.tags.slice(0, 5) : [],
+          }), { headers: { 'Content-Type': 'application/json', ...CORS } });
+
         } catch(e) {
           return new Response(JSON.stringify({ ok: false, error: e.message }), {
             status: 500, headers: { 'Content-Type': 'application/json', ...CORS }
@@ -933,6 +1025,58 @@ export default {
             status: 500, headers: { 'Content-Type': 'application/json', ...CORS }
           });
         }
+      }
+    }
+
+    // ── Sitemap dinámico con todas las publicaciones ──
+    if (url.pathname === '/sitemap.xml') {
+      try {
+        const SITE = 'https://asmodeo-dev-web.pages.dev'
+        const token = await getAccessToken(env)
+        const fsUrl = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents:runQuery`
+        const res = await fetch(fsUrl, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            structuredQuery: {
+              from: [{ collectionId: 'posts' }],
+              where: { fieldFilter: { field: { fieldPath: 'status' }, op: 'EQUAL', value: { stringValue: 'active' } } },
+              orderBy: [{ field: { fieldPath: 'createdAt' }, direction: 'DESCENDING' }],
+              limit: 500
+            }
+          })
+        })
+        const docs = await res.json()
+        const posts = docs.filter(d => d.document).map(d => ({
+          id:   d.document.name.split('/').pop(),
+          name: d.document.fields?.name?.stringValue || '',
+          date: d.document.fields?.createdAt?.timestampValue?.split('T')[0] || ''
+        }))
+
+        const staticUrls = [
+          { loc:`${SITE}/`,               changefreq:'daily',  priority:'1.0' },
+          { loc:`${SITE}/feed`,           changefreq:'hourly', priority:'0.9' },
+          { loc:`${SITE}/feed/apk`,       changefreq:'hourly', priority:'0.8' },
+          { loc:`${SITE}/feed/games`,     changefreq:'hourly', priority:'0.8' },
+          { loc:`${SITE}/feed/script`,    changefreq:'weekly', priority:'0.7' },
+          { loc:`${SITE}/feed/tutorials`, changefreq:'weekly', priority:'0.7' },
+          { loc:`${SITE}/search`,         changefreq:'daily',  priority:'0.6' },
+        ]
+        const postUrls = posts.map(p => ({
+          loc:`${SITE}/post/${p.id}`, lastmod:p.date, changefreq:'weekly', priority:'0.8'
+        }))
+
+        const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${
+          [...staticUrls, ...postUrls].map(u =>
+            `  <url>\n    <loc>${u.loc}</loc>\n    ${u.lastmod?`<lastmod>${u.lastmod}</lastmod>\n    `:''}<changefreq>${u.changefreq}</changefreq>\n    <priority>${u.priority}</priority>\n  </url>`
+          ).join('\n')
+        }\n</urlset>`
+
+        return new Response(xml, {
+          headers: { 'Content-Type':'application/xml; charset=utf-8', 'Cache-Control':'public, max-age=3600', ...CORS }
+        })
+      } catch(e) {
+        return Response.redirect('https://asmodeo-dev-web.pages.dev/sitemap.xml', 302)
       }
     }
 
