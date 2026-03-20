@@ -8,7 +8,7 @@ import { useAuth } from '../../context/AuthContext'
 import { formatNumber } from '../../utils'
 import {
   toggleLike, hasLiked, registerDownload,
-  reportPost, deletePost, toggleFeatured, verifyPost, setPostStatus,
+  reportPost, deletePost, toggleFeatured, verifyPost, setPostStatus, getPostUrl,
 } from '../../services/posts'
 import { optimizeUrl } from '../../services/cloudinary'
 import CommentsPanel from '../social/CommentsPanel'
@@ -251,7 +251,7 @@ export default function PostCard({ post, compact = false, onDeleted }) {
           </div>
         </Link>
 
-        <Link to={`/post/${post.id}`} className={styles.title}>{post.name}</Link>
+        <Link to={getPostUrl(post)} className={styles.title}>{post.name}</Link>
 
         {!compact && post.description && (
           <p className={styles.desc}>{post.description}</p>
