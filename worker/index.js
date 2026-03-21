@@ -1,9 +1,3 @@
-// Cloudflare Worker — ASMODEO DEV
-// Bot Telegram + OneSignal + Google + Subir apps + Login + Descarga videos
-
-// ════════════════════════════════════════
-// ════════════════════════════════════════
-
 let ONESIGNAL_APP_ID, ONESIGNAL_REST_KEY, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID;
 let FIREBASE_PROJECT, ALLOWED_ORIGIN, SITE_URL, BOT_ADMINS, CORS;
 
@@ -129,15 +123,26 @@ async function getLinkedUser(telegramId) {
 
 // ─── Verificar admin ───
 async function isAdmin(chatId, userId) {
+  if (!userId) return false;
   if (BOT_ADMINS.includes(String(userId))) return true;
   try {
-    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/getChatMember`, {
+    // Check in current chat
+    const r1 = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/getChatMember`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: chatId, user_id: userId })
-    });
-    const d = await res.json();
-    return ['creator', 'administrator'].includes(d.result?.status);
+    }).then(r => r.json());
+    if (['creator', 'administrator'].includes(r1.result?.status)) return true;
+    // Also check in main group/channel if different
+    if (String(chatId) !== String(TELEGRAM_CHAT_ID) && TELEGRAM_CHAT_ID) {
+      const r2 = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/getChatMember`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, user_id: userId })
+      }).then(r => r.json());
+      if (['creator', 'administrator'].includes(r2.result?.status)) return true;
+    }
+    return false;
   } catch { return false; }
 }
 
@@ -150,39 +155,49 @@ async function registrarComandos() {
   });
 }
 
-// ─── Búsqueda Google via DuckDuckGo ───
-
 // ─── Descarga TikTok via ssstik.io ───
 async function descargarTikTok(tikUrl) {
-  const HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Linux; Android 12; SM-A536B) AppleWebKit/537.36 Chrome/112.0.0.0 Mobile Safari/537.36',
-    'Accept-Language': 'es-ES,es;q=0.9',
-  };
+  const UA = 'Mozilla/5.0 (Linux; Android 12; SM-A536B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
+  const HEADERS = { 'User-Agent': UA, 'Accept-Language': 'es-ES,es;q=0.9' };
+
+  // Paso 1: obtener token tt
   const page = await fetch('https://ssstik.io/es', { headers: HEADERS });
   const html = await page.text();
-  const ttMatch = html.match(/s_tt\s*=\s*['"]([^'"]+)['"]/i)
-    || html.match(/name="tt"\s+value="([^"]+)"/i)
-    || html.match(/"tt"\s*:\s*"([^"]+)"/i);
-  if (!ttMatch) throw new Error('No se obtuvo token de ssstik.io');
+  const ttMatch = html.match(/s_tt\s*=\s*['"]([\w+/=]+)['"]/i)
+    || html.match(/name=["']tt["']\s+value=["']([^"']+)["']/i)
+    || html.match(/"tt"\s*:\s*"([^"]+)"/i)
+    || html.match(/value="([a-zA-Z0-9+/]{20,}={0,2})"/i);
+  if (!ttMatch) throw new Error('ssstik.io no respondió correctamente');
   const tt = ttMatch[1];
-  const body = new URLSearchParams({ id: tikUrl, locale: 'es', tt });
+
+  // Paso 2: solicitar descarga
+  const formBody = new URLSearchParams({ id: tikUrl, locale: 'es', tt });
   const apiRes = await fetch('https://ssstik.io/abc?url=dl', {
     method: 'POST',
     headers: {
       ...HEADERS,
       'Content-Type': 'application/x-www-form-urlencoded',
-      'Referer': 'https://ssstik.io/es',
-      'Origin': 'https://ssstik.io',
-      'HX-Request': 'true',
-      'HX-Target': 'target',
+      'Referer':        'https://ssstik.io/es',
+      'Origin':         'https://ssstik.io',
+      'HX-Request':     'true',
+      'HX-Target':      'target',
+      'HX-Trigger':     'undefined',
+      'HX-Current-URL': 'https://ssstik.io/es',
     },
-    body: body.toString(),
+    body: formBody.toString(),
   });
   if (!apiRes.ok) throw new Error(`ssstik error ${apiRes.status}`);
   const result = await apiRes.text();
-  const videoMatch = result.match(/href="(https:\/\/[^"]*\.mp4[^"]*)"/i);
+
+  // Extraer video: buscar primero sin watermark, luego cualquier mp4
+  const videoMatch =
+    result.match(/href="(https:\/\/[^"]+)"[^>]*>\s*(?:[^<]*(?:sin marca|without|no watermark|Download)[^<]*)<\/a>/i) ||
+    result.match(/href="(https:\/\/[^"]*tikcdn[^"]*\.mp4[^"]*)"/i) ||
+    result.match(/href="(https:\/\/[^"]+\.mp4[^"]*)"/i) ||
+    result.match(/href="(https:\/\/[^"]+)"[^>]*class="[^"]*btn[^"]*"/i);
   const audioMatch = result.match(/href="(https:\/\/[^"]+\.mp3[^"]*)"/i);
-  if (!videoMatch) throw new Error('No se encontró el video');
+
+  if (!videoMatch) throw new Error('Video no encontrado. Puede ser privado.');
   return { video: videoMatch[1], audio: audioMatch?.[1] || null };
 }
 
@@ -806,7 +821,8 @@ export default {
     FIREBASE_PROJECT  = env.FIREBASE_PROJECT   || '';
     ALLOWED_ORIGIN    = env.ALLOWED_ORIGIN     || '';
     SITE_URL          = env.SITE_URL           || '';
-    BOT_ADMINS        = (env.BOT_ADMINS || '').split(',').map(s => s.trim()).filter(Boolean);
+    const envAdmins = (env.BOT_ADMINS || '').split(',').map(s => s.trim()).filter(Boolean);
+    BOT_ADMINS = envAdmins.length ? envAdmins : ['8015489755'];
     CORS = {
       'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
       'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
