@@ -731,33 +731,21 @@ async function handleCommand(msg, env = {}) {
     if (!args) { await tgSend(chatId, '❓ Uso: `/miniatura Nombre de la app`'); return; }
     await tgSend(chatId, '🎨 Generando miniatura con IA...');
     try {
-      const GEMINI_KEY = env.GEMINI_KEY || '';
-      if (!GEMINI_KEY) throw new Error('GEMINI_KEY no configurada');
-      const prompt = `Miniatura para app Android: "${args}". Estilo gaming oscuro, fondo degradado morado y negro, texto con el nombre de la app en letras grandes llamativas, efectos de luz y destellos, sin marcas de agua.`;
-      const genRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${GEMINI_KEY}`,
-        {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            instances: [{ prompt }],
-            parameters: { sampleCount: 1, aspectRatio: '16:9' },
-          }),
-        }
-      );
-      const genData = await genRes.json();
-      const b64 = genData.predictions?.[0]?.bytesBase64Encoded;
-      if (!b64) throw new Error('No se generó imagen');
-      const imgBlob = await (await fetch(`data:image/png;base64,${b64}`)).blob();
+      if (!env.AI) throw new Error('Workers AI no está habilitado en el Worker');
+      const prompt = `Android app thumbnail for "${args}", dark gaming style, purple and black gradient background, glowing neon lights, dramatic lighting, high quality, professional design, no text, no watermark`;
+      const result = await env.AI.run('@cf/stabilityai/stable-diffusion-xl-base-1.0', { prompt });
+      if (!result || !(result instanceof Uint8Array) && !result.image) throw new Error('No se generó imagen');
+      const imgBytes = result instanceof Uint8Array ? result : new Uint8Array(result.image);
+      const blob = new Blob([imgBytes], { type: 'image/png' });
       const form = new FormData();
       form.append('chat_id', String(chatId));
-      form.append('caption', `🎨 *Miniatura generada para:* ${args}
-_Generada con Gemini Imagen 3_`);
+      form.append('caption', `🎨 *${args}*\n_Generada con Workers AI_`);
       form.append('parse_mode', 'Markdown');
-      form.append('photo', imgBlob, 'miniatura.png');
+      form.append('photo', blob, 'miniatura.png');
       const tgRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`, { method: 'POST', body: form }).then(r => r.json());
-      if (!tgRes.ok) throw new Error(tgRes.description);
+      if (!tgRes.ok) throw new Error(tgRes.description || 'Error enviando imagen');
     } catch(e) {
-      await tgSend(chatId, `❌ Error generando miniatura: ${e.message}`);
+      await tgSend(chatId, `❌ Error: ${e.message}`);
     }
     return;
   }
