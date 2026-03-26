@@ -1,13 +1,7 @@
 // src/components/ui/MusicPlayer.jsx
 import { useState, useRef, useEffect } from 'react'
 import styles from './MusicPlayer.module.css'
-
-const TRACKS = [
-  { title: 'Neon Pulse',      artist: 'ASMODEO DEV', src: 'https://cdn.pixabay.com/audio/2024/02/15/audio_6ecd18df9e.mp3' },
-  { title: 'Cyber Drive',     artist: 'ASMODEO DEV', src: 'https://cdn.pixabay.com/audio/2023/10/30/audio_6f44af4e32.mp3' },
-  { title: 'Dark Matter',     artist: 'ASMODEO DEV', src: 'https://cdn.pixabay.com/audio/2023/06/14/audio_5e3929b2f5.mp3' },
-  { title: 'Synthwave Night', artist: 'ASMODEO DEV', src: 'https://cdn.pixabay.com/audio/2022/08/02/audio_884fe92c21.mp3' },
-]
+import TRACKS from '../../config/tracks'
 
 export default function MusicPlayer() {
   const [open,       setOpen]       = useState(false)
