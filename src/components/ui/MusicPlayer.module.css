@@ -1,0 +1,174 @@
+/* src/components/ui/MusicPlayer.module.css */
+
+/* ── FAB ── */
+.fab {
+  position: fixed; bottom: 24px; right: 24px; z-index: 9000;
+  width: 52px; height: 52px; border-radius: 50%;
+  background: linear-gradient(135deg, #7c3aed, #c0002a);
+  border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 24px rgba(124,58,237,.5);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.fab:hover { transform: scale(1.1); box-shadow: 0 6px 32px rgba(124,58,237,.7); }
+.fabPlaying { animation: fabGlow 2s ease-in-out infinite; }
+@keyframes fabGlow {
+  0%,100% { box-shadow: 0 4px 24px rgba(124,58,237,.5); }
+  50%     { box-shadow: 0 4px 32px rgba(192,0,42,.7), 0 0 60px rgba(124,58,237,.3); }
+}
+.fabIcon { font-size: 1.35rem; line-height: 1; }
+
+/* Bars animation when playing */
+.bars { display: flex; align-items: flex-end; gap: 2px; height: 18px; }
+.bars span {
+  width: 3px; background: #fff; border-radius: 2px;
+  animation: barDance 0.8s ease-in-out infinite;
+}
+.bars span:nth-child(1) { height: 8px;  animation-delay: 0s; }
+.bars span:nth-child(2) { height: 16px; animation-delay: 0.15s; }
+.bars span:nth-child(3) { height: 10px; animation-delay: 0.3s; }
+.bars span:nth-child(4) { height: 14px; animation-delay: 0.45s; }
+@keyframes barDance {
+  0%,100% { transform: scaleY(1); }
+  50%     { transform: scaleY(0.3); }
+}
+
+/* ── PANEL ── */
+.panel {
+  position: fixed; bottom: 90px; right: 24px; z-index: 8999;
+  width: 280px;
+  background: #0f0f1e;
+  border: 1px solid rgba(124,58,237,.3);
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.7), 0 0 40px rgba(124,58,237,.15);
+  overflow: hidden;
+  transform: translateY(20px) scale(0.92);
+  opacity: 0; pointer-events: none;
+  transition: all 0.3s cubic-bezier(.34,1.56,.64,1);
+}
+.panelOpen { transform: translateY(0) scale(1); opacity: 1; pointer-events: all; }
+
+.panelHeader {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.85rem 1rem 0.5rem;
+}
+.panelTitle { font-size: 0.85rem; font-weight: 700; color: #c084fc; }
+.closeBtn {
+  background: none; border: none; color: rgba(144,144,184,.6);
+  cursor: pointer; font-size: 0.9rem; padding: 2px 6px;
+  border-radius: 6px; transition: color 0.2s;
+}
+.closeBtn:hover { color: #fff; }
+
+/* Track info */
+.trackInfo {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.5rem 1rem 0.85rem;
+}
+.disc {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: linear-gradient(135deg, #7c3aed, #c0002a);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; flex-shrink: 0;
+  box-shadow: 0 0 20px rgba(124,58,237,.5);
+}
+.discSpin { animation: discRotate 4s linear infinite; }
+@keyframes discRotate { to { transform: rotate(360deg); } }
+
+.trackText { overflow: hidden; }
+.trackName {
+  font-size: 0.9rem; font-weight: 700; color: #f0f0ff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.trackArtist { font-size: 0.72rem; color: rgba(144,144,184,.6); margin-top: 2px; }
+
+/* Progress */
+.progressWrap { padding: 0 1rem 0.5rem; cursor: pointer; }
+.progressTrack {
+  position: relative; height: 4px; border-radius: 99px;
+  background: rgba(124,58,237,.2);
+}
+.progressFill {
+  height: 100%; border-radius: 99px;
+  background: linear-gradient(90deg, #7c3aed, #ff0044);
+  transition: width 0.3s linear;
+}
+.progressThumb {
+  position: absolute; top: 50%; width: 10px; height: 10px;
+  background: #fff; border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 8px rgba(124,58,237,.8);
+  transition: left 0.3s linear;
+}
+.times {
+  display: flex; justify-content: space-between;
+  font-size: 0.68rem; color: rgba(144,144,184,.5);
+  margin-top: 5px;
+}
+
+/* Controls */
+.controls {
+  display: flex; align-items: center; justify-content: center;
+  gap: 1rem; padding: 0.25rem 1rem 0.75rem;
+}
+.ctrl {
+  background: none; border: none; color: rgba(144,144,184,.8);
+  cursor: pointer; font-size: 1.1rem; padding: 6px;
+  border-radius: 50%; transition: all 0.2s;
+}
+.ctrl:hover { color: #fff; transform: scale(1.15); }
+.ctrlMain {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: linear-gradient(135deg, #7c3aed, #c0002a);
+  color: #fff; font-size: 1rem;
+  box-shadow: 0 4px 16px rgba(124,58,237,.5);
+  display: flex; align-items: center; justify-content: center;
+}
+.ctrlMain:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(124,58,237,.7); }
+
+.miniSpinner {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.3);
+  border-top-color: #fff;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Volume */
+.volRow {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0 1rem 0.75rem;
+}
+.volIcon { font-size: 0.9rem; }
+.volSlider {
+  flex: 1; -webkit-appearance: none; height: 4px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #7c3aed calc(var(--v, 40) * 1%), rgba(124,58,237,.2) 0%);
+  outline: none; cursor: pointer;
+}
+.volSlider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: #7c3aed; cursor: pointer;
+  box-shadow: 0 0 6px rgba(124,58,237,.8);
+}
+
+/* Playlist */
+.playlist {
+  border-top: 1px solid rgba(124,58,237,.12);
+  padding: 0.5rem 0.5rem 0.75rem;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.plItem {
+  display: flex; align-items: center; gap: 0.6rem;
+  width: 100%; background: none; border: none;
+  color: rgba(144,144,184,.7); padding: 0.45rem 0.6rem;
+  border-radius: 8px; cursor: pointer; text-align: left;
+  font-size: 0.8rem; transition: all 0.15s;
+}
+.plItem:hover { background: rgba(124,58,237,.1); color: #f0f0ff; }
+.plActive { background: rgba(124,58,237,.15) !important; color: #c084fc !important; }
+.plNum { font-size: 0.72rem; width: 16px; text-align: center; flex-shrink: 0; color: rgba(144,144,184,.5); }
+.plActive .plNum { color: #c084fc; }
+.plName { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
