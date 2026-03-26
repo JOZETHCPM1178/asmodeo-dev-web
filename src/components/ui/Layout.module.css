@@ -1,4 +1,5 @@
 /* src/components/ui/Layout.module.css */
+
 .layout {
   display: flex;
   flex-direction: column;
@@ -7,5 +8,42 @@
 
 .main {
   flex: 1;
-  padding-top: var(--nav-h);
+  padding-top: calc(var(--nav-h) + 32px);
 }
+
+/* ── Benefits ticker bar ── */
+.benefitsBar {
+  position: fixed;
+  top: var(--nav-h);
+  left: 0; right: 0;
+  z-index: 900;
+  height: 32px;
+  background: linear-gradient(90deg, rgba(10,10,18,.98), rgba(15,10,28,.98));
+  border-bottom: 1px solid rgba(124,58,237,.2);
+  overflow: hidden;
+}
+
+.benefitsTrack {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  width: max-content;
+  animation: ticker 30s linear infinite;
+}
+.benefitsTrack:hover { animation-play-state: paused; }
+
+@keyframes ticker {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+.benefit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0 1.25rem;
+  white-space: nowrap;
+}
+.benefitIcon { font-size: 0.85rem; }
+.benefitText { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+.dot { color: rgba(124,58,237,.4); font-size: 0.6rem; }
