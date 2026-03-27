@@ -1,7 +1,7 @@
 // src/pages/HomePage.jsx
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { getFeed, getPopular } from '../services/posts'
+import { getFeed } from '../services/posts'
 import PostCard from '../components/feed/PostCard'
 import SEO from '../components/ui/SEO'
 import SmartSearch from '../components/search/SmartSearch'
@@ -26,8 +26,8 @@ export default function HomePage() {
       setTotalPosts(r.posts.length > 0 ? '100+' : '0')
     }).catch(() => {})
 
-    // Posts más populares — ordenados por score/likes, solo con actividad
-    getPopular({ pageSize: 4 }).then(setPopular).catch(() => {})
+    // Posts destacados/populares
+    getFeed({ pageSize: 4 }).then(r => setPopular(r.posts)).catch(() => {})
   }, [])
 
   return (
@@ -58,7 +58,7 @@ export default function HomePage() {
 
           {/* Search bar */}
           <div className={styles.heroSearch}>
-            <SmartSearch onResultClick={post => navigate(`/post/${post.id}`)} />
+            <SmartSearch onResultClick={post => navigate(getPostUrl(post))} />
           </div>
 
           {/* Stats */}
