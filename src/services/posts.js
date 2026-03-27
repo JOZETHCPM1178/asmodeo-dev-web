@@ -6,19 +6,28 @@ import {
   writeBatch,
 } from './firebase'
 
+// ─── SLUG ───
+export function generateSlug(name) {
+  return name
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim().replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .slice(0, 60)
+    + '-' + Date.now().toString(36)
+}
+
 // ─── CREAR POST ───
 export async function createPost(postData, userId) {
-  // Publicación directa SOLO si:
-  // 1. El autor tiene verified === true (explícito, no truthy)
-  // 2. O el autor tiene rol staff/admin/owner
   const isVerified = postData.authorVerified === true
   const isStaff    = postData.authorIsStaff === true
-
   const status = (isVerified || isStaff) ? 'active' : 'pending'
 
   const post = {
     ...postData,
     authorId: userId,
+    slug: generateSlug(postData.name || 'post'),
     likes: 0,
     downloads: 0,
     commentCount: 0,
@@ -32,7 +41,7 @@ export async function createPost(postData, userId) {
     updatedAt: serverTimestamp(),
   }
   const ref = await addDoc(collection(db, 'posts'), post)
-  return { id: ref.id, status }
+  return { id: ref.id, status, slug: post.slug }
 }
 
 // ─── FEED PAGINADO (home + categorías) ───
@@ -72,12 +81,27 @@ export async function getUserPosts(authorId) {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }))
 }
 
-// ─── UN POST ───
-export async function getPost(postId) {
-  const snap = await getDoc(doc(db, 'posts', postId))
-  if (!snap.exists()) return null
-  updateDoc(snap.ref, { views: increment(1) }).catch(() => {})
-  return { id: snap.id, ...snap.data() }
+// ─── UN POST (por slug o ID) ───
+export async function getPost(slugOrId) {
+  // Intentar primero por ID directo
+  const byId = await getDoc(doc(db, 'posts', slugOrId))
+  if (byId.exists()) {
+    updateDoc(byId.ref, { views: increment(1) }).catch(() => {})
+    return { id: byId.id, ...byId.data() }
+  }
+  // Si no existe por ID, buscar por slug
+  const snap = await getDocs(
+    query(collection(db, 'posts'), where('slug', '==', slugOrId), limit(1))
+  )
+  if (snap.empty) return null
+  const d = snap.docs[0]
+  updateDoc(d.ref, { views: increment(1) }).catch(() => {})
+  return { id: d.id, ...d.data() }
+}
+
+// ─── URL de un post (usa slug si tiene, si no ID) ───
+export function getPostUrl(post) {
+  return `/post/${post.slug || post.id}`
 }
 
 // ─── LIKE ───
