@@ -1,5 +1,5 @@
 // src/components/ui/Layout.jsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import Navbar from './Navbar'
 import SplashScreen from './SplashScreen'
@@ -22,6 +22,13 @@ const BENEFITS = [
 export default function Layout() {
   const { user, maintenance, loading } = useAuth()
   const [showSplash, setShowSplash] = useState(true)
+
+  // Timeout de seguridad: si el splash falla por cualquier error,
+  // la página no queda permanentemente en opacity 0 (pantalla negra)
+  useEffect(() => {
+    const safeTimeout = setTimeout(() => setShowSplash(false), 7000)
+    return () => clearTimeout(safeTimeout)
+  }, [])
 
   if (!loading && maintenance && !user?.isOwner) {
     return <MaintenancePage />
