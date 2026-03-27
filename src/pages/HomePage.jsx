@@ -7,6 +7,9 @@ import SEO from '../components/ui/SEO'
 import SmartSearch from '../components/search/SmartSearch'
 import styles from './HomePage.module.css'
 
+// Función que faltaba — causaba ReferenceError en runtime
+const getPostUrl = (post) => `/post/${post.id}`
+
 const CATS = [
   { id: 'apk',       label: 'APK Mod',    icon: '📱', desc: 'Apps modificadas para Android', color: 'var(--p2)' },
   { id: 'games',     label: 'Juegos Mod', icon: '🎮', desc: 'Juegos con recursos ilimitados', color: 'var(--cyan)' },
