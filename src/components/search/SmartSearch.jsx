@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Fuse from 'fuse.js'
-import { searchPosts } from '../../services/posts'
+import { searchPosts, getPostUrl } from '../../services/posts'
 import { optimizeUrl } from '../../services/cloudinary'
 import styles from './SmartSearch.module.css'
 
