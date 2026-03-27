@@ -8,10 +8,13 @@
 
 .main {
   flex: 1;
+  /* nav (64px) + benefitsBar (32px) = 96px */
   padding-top: calc(var(--nav-h) + 32px);
 }
 
 /* ── Benefits ticker bar ── */
+/* FIXED: Ahora va debajo del nav (top: var(--nav-h)) correctamente
+   porque Navbar se renderiza ANTES que BenefitsBar en el JSX */
 .benefitsBar {
   position: fixed;
   top: var(--nav-h);

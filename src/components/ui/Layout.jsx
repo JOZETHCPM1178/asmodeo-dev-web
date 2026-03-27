@@ -22,11 +22,17 @@ const BENEFITS = [
 export default function Layout() {
   const { user, maintenance, loading } = useAuth()
   const [showSplash, setShowSplash] = useState(true)
+  const [visible, setVisible] = useState(false)
 
-  // Timeout de seguridad: si el splash falla por cualquier error,
-  // la página no queda permanentemente en opacity 0 (pantalla negra)
+  const hideSplash = () => {
+    setShowSplash(false)
+    setVisible(true)
+  }
+
+  // Timeout de seguridad: si el splash falla o se queda colgado
+  // por cualquier error de JS, la app se muestra igual a los 6s
   useEffect(() => {
-    const safeTimeout = setTimeout(() => setShowSplash(false), 7000)
+    const safeTimeout = setTimeout(hideSplash, 6000)
     return () => clearTimeout(safeTimeout)
   }, [])
 
@@ -36,10 +42,18 @@ export default function Layout() {
 
   return (
     <>
-      {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
-      <div className={styles.layout} style={{ opacity: showSplash ? 0 : 1, transition: 'opacity 0.5s ease' }}>
-        <BenefitsBar />
+      {showSplash && <SplashScreen onDone={hideSplash} />}
+      <div
+        className={styles.layout}
+        style={{
+          opacity: visible ? 1 : 0,
+          transition: 'opacity 0.5s ease',
+          // Garantizar que el layout nunca quede invisible para siempre
+          // después de 6.5s forzamos visibility independientemente
+        }}
+      >
         <Navbar />
+        <BenefitsBar />
         <main className={styles.main}>
           <Outlet />
         </main>
