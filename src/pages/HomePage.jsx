@@ -7,7 +7,7 @@ import SEO from '../components/ui/SEO'
 import SmartSearch from '../components/search/SmartSearch'
 import styles from './HomePage.module.css'
 
-// Función que faltaba — causaba ReferenceError en runtime
+// FIXED: Función que faltaba — causaba ReferenceError que tumbaba toda la app
 const getPostUrl = (post) => `/post/${post.id}`
 
 const CATS = [
