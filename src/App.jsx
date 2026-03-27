@@ -17,6 +17,7 @@ import AdminPage from './pages/AdminPage'
 import MessagesPage from './pages/MessagesPage'
 import NotFoundPage from './pages/NotFoundPage'
 import WatermarkPage from './pages/WatermarkPage'
+import ErrorLogger from './components/ui/ErrorLogger'
 
 function SettingsRedirect() {
   const { user } = useAuth()
@@ -28,6 +29,7 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <ErrorLogger />
         <Toaster
           position="top-right"
           toastOptions={{
