@@ -7,7 +7,6 @@ import SEO from '../components/ui/SEO'
 import SmartSearch from '../components/search/SmartSearch'
 import styles from './HomePage.module.css'
 
-// FIXED: Función que faltaba — causaba ReferenceError que tumbaba toda la app
 const getPostUrl = (post) => `/post/${post.id}`
 
 const CATS = [
@@ -29,7 +28,6 @@ export default function HomePage() {
       setTotalPosts(r.posts.length > 0 ? '100+' : '0')
     }).catch(() => {})
 
-    // Posts destacados/populares
     getFeed({ pageSize: 4 }).then(r => setPopular(r.posts)).catch(() => {})
   }, [])
 
@@ -59,12 +57,10 @@ export default function HomePage() {
             Todo gratis, todo verificado por nuestra comunidad.
           </p>
 
-          {/* Search bar */}
           <div className={styles.heroSearch}>
             <SmartSearch onResultClick={post => navigate(getPostUrl(post))} />
           </div>
 
-          {/* Stats */}
           <div className={styles.heroStats}>
             <div className={styles.stat}>
               <span className={styles.statN}>{totalPosts ?? '...'}</span>
