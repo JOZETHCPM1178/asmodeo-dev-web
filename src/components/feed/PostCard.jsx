@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext'
 import {
   toggleLike, hasLiked, registerDownload,
   reportPost, deletePost, toggleFeatured, verifyPost, setPostStatus,
+  getPostUrl,
 } from '../../services/posts'
 import { optimizeUrl } from '../../services/cloudinary'
 import CommentsPanel from '../social/CommentsPanel'
