@@ -199,7 +199,9 @@
 .particle:nth-child(even) { background: rgba(192,0,42,.5); width: 2px; height: 2px; }
 .particle:nth-child(3n) { background: rgba(6,182,212,.4); width: 4px; height: 4px; }
 
+/* FIXED: calc(sin()) no es compatible con Firefox — se usa translateY simple */
 @keyframes particleRise {
-  0%   { transform: translate(0, 0) scale(1); opacity: 0.8; }
-  100% { transform: translate(calc(sin(var(--i)) * 60px), -110vh) scale(0); opacity: 0; }
+  0%   { transform: translateY(0) scale(1); opacity: 0.8; }
+  50%  { opacity: 0.5; }
+  100% { transform: translateY(-110vh) scale(0); opacity: 0; }
 }
