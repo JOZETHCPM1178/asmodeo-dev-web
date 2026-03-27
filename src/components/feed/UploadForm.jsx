@@ -8,7 +8,6 @@ import { uploadImage } from '../../services/cloudinary'
 import { uploadToArchive, validateApkFile } from '../../services/archive'
 import { notifyTelegramNewPost } from '../../services/notifications'
 import styles from './UploadForm.module.css'
-import ImageCropper from '../ui/ImageCropper'
 
 const CATS = {
   apk:       { label: 'APK Mod',    icon: '📱' },
@@ -35,61 +34,18 @@ export default function UploadForm() {
   const [loading, setLoading]             = useState(false)
   const [progress, setProgress]           = useState(0)
   const [progressLabel, setProgressLabel] = useState('')
-  const [aiLoading, setAiLoading]         = useState(false)
-  const [cropSrc, setCropSrc]             = useState(null)
-  const [cropBlob, setCropBlob]           = useState(null)
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
-
-  // ── Generar descripción con IA ──
-  async function generateDescription() {
-    if (!form.name.trim()) { toast.error('Primero escribe el nombre de la app'); return }
-    setAiLoading(true)
-    try {
-      const WORKER_URL = import.meta.env.VITE_WORKER_URL
-      const res = await fetch(`${WORKER_URL}/generate-description`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name:     form.name.trim(),
-          category: form.category,
-        }),
-      })
-      const data = await res.json()
-      if (!data.ok) throw new Error(data.error || 'Error del servidor')
-      set('description', data.text)
-      // Aplicar tags automáticamente si la IA los generó
-      if (data.tags && data.tags.length > 0) {
-        set('tags', data.tags.join(', '))
-        toast.success('✅ Descripción y tags generados con IA')
-      } else {
-        toast.success('✅ Descripción generada con IA')
-      }
-    } catch(e) {
-      toast.error(e.message || 'Error al generar descripción')
-    } finally {
-      setAiLoading(false)
-    }
-  }
 
   function handleImageChange(e) {
     const file = e.target.files?.[0]
     if (!file) return
     if (file.size > 10 * 1024 * 1024) { toast.error('Imagen máximo 10MB'); return }
     if (!file.type.startsWith('image/')) { toast.error('Solo imágenes'); return }
-    // Abrir cropper 16:9
+    setImageFile(file)
     const reader = new FileReader()
-    reader.onload = ev => setCropSrc(ev.target.result)
+    reader.onload = ev => setImagePreview(ev.target.result)
     reader.readAsDataURL(file)
-    e.target.value = ''
-  }
-
-  function onCropDone(blob, dataUrl) {
-    setCropSrc(null)
-    setCropBlob(blob)
-    setImagePreview(dataUrl)
-    const croppedFile = new File([blob], 'cover.png', { type: 'image/png' })
-    setImageFile(croppedFile)
   }
 
   function handleApkChange(e) {
@@ -174,7 +130,7 @@ export default function UploadForm() {
           id: postId,
           ...postData,
         }).catch(() => {}) // no bloquear si falla
-        navigate(`/post/${postId}`)
+        navigate(getPostUrl(post || { id: postId }))
       }
     } catch (err) {
       console.error('Upload error:', err)
@@ -185,15 +141,6 @@ export default function UploadForm() {
   }
 
   return (
-    <>
-      {cropSrc && (
-        <ImageCropper
-          imageSrc={cropSrc}
-          aspectRatio={16/9}
-          onCrop={onCropDone}
-          onCancel={() => setCropSrc(null)}
-        />
-      )}
     <form className={styles.form} onSubmit={handleSubmit}>
       <div className={styles.header}>
         <h1 className={styles.title}>📤 Nueva publicación</h1>
@@ -248,18 +195,9 @@ export default function UploadForm() {
           </div>
 
           <div className="inp-group">
-            <label className="inp-label" style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-              Descripción
-              <button type="button" className="btn btn-ghost btn-sm"
-                onClick={generateDescription} disabled={aiLoading || loading || !form.name.trim()}
-                style={{ fontSize:'0.75rem', gap:'0.3rem', display:'flex', alignItems:'center' }}>
-                {aiLoading
-                  ? <><span className="spinner" style={{ width:12,height:12 }} /> Generando...</>
-                  : '🤖 Generar con IA'}
-              </button>
-            </label>
+            <label className="inp-label">Descripción</label>
             <textarea className="inp"
-              placeholder="Describe qué hace esta app... o usa 🤖 Generar con IA"
+              placeholder="Describe qué hace esta app..."
               value={form.description} onChange={e => set('description', e.target.value)}
               rows={3} maxLength={1000} style={{ resize: 'vertical' }} disabled={loading} />
           </div>
@@ -301,7 +239,7 @@ export default function UploadForm() {
                   <div className={styles.apkPlaceholder}>
                     <span style={{ fontSize: '2.2rem' }}>📦</span>
                     <span className={styles.apkPlaceholderText}>Toca para seleccionar APK</span>
-                    <span className={styles.apkHint}>APK, ZIP, RAR · máx 100 GB · Descarga directa gratis</span>
+                    <span className={styles.apkHint}>APK, ZIP, RAR · máx 500 MB · Descarga directa gratis</span>
                   </div>
                 )}
                 <input ref={apkRef} type="file"
@@ -366,6 +304,5 @@ export default function UploadForm() {
           : '🚀 Publicar ahora'}
       </button>
     </form>
-    </>
   )
 }

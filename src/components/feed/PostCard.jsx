@@ -5,10 +5,9 @@ import { toast } from 'react-hot-toast'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useAuth } from '../../context/AuthContext'
-import { formatNumber } from '../../utils'
 import {
   toggleLike, hasLiked, registerDownload,
-  reportPost, deletePost, toggleFeatured, verifyPost, setPostStatus, getPostUrl,
+  reportPost, deletePost, toggleFeatured, verifyPost, setPostStatus,
 } from '../../services/posts'
 import { optimizeUrl } from '../../services/cloudinary'
 import CommentsPanel from '../social/CommentsPanel'
@@ -180,7 +179,7 @@ export default function PostCard({ post, compact = false, onDeleted }) {
                   <>
                     <div className={styles.menuDivider} />
                     {/* Editar — siempre disponible para dueño del post o admin */}
-                    <button className={styles.menuItem} onClick={() => { setMenuOpen(false); window.location.href = `/post/${post.id}` }}>
+                    <button className={styles.menuItem} onClick={() => { setMenuOpen(false); window.location.href = getPostUrl(post) }}>
                       ✏️ Editar publicación
                     </button>
                     {user?.isStaff && <>
@@ -276,36 +275,31 @@ export default function PostCard({ post, compact = false, onDeleted }) {
 
       {/* ── ACCIONES ── */}
       <div className={styles.actions}>
-        {/* Fila 1: stats + acciones sociales */}
-        <div className={styles.actionsTop}>
-          <button
-            className={`${styles.actionBtn} ${styles.likeBtn} ${liked ? styles.liked : ''}`}
-            onClick={handleLike} disabled={likeLoading}
-          >
-            <span className={likeAnim ? styles.heartPop : ''}>❤️</span>
-            <span>{formatNumber(likeCount)}</span>
-          </button>
+        {/* Like — siempre corazón rojo */}
+        <button
+          className={`${styles.actionBtn} ${styles.likeBtn} ${liked ? styles.liked : ''}`}
+          onClick={handleLike} disabled={likeLoading}
+        >
+          <span className={likeAnim ? styles.heartPop : ''}>❤️</span>
+          <span>{likeCount}</span>
+        </button>
 
-          <button
-            className={`${styles.actionBtn} ${showComments ? styles.activeAction : ''}`}
-            onClick={() => setShowComments(o => !o)}
-          >
-            💬 <span>{formatNumber(post.commentCount || 0)}</span>
-          </button>
+        <button
+          className={`${styles.actionBtn} ${showComments ? styles.activeAction : ''}`}
+          onClick={() => setShowComments(o => !o)}
+        >
+          💬 <span>{post.commentCount || 0}</span>
+        </button>
 
-          <button className={styles.actionBtn} onClick={handleShare} title="Compartir">
-            🔗 <span>Compartir</span>
-          </button>
+        {/* Compartir — botón directo en barra */}
+        <button className={styles.actionBtn} onClick={handleShare} title="Compartir">
+          🔗 <span className={styles.shareLabel}>Compartir</span>
+        </button>
 
-          <div className={styles.statsRight}>
-            <span className={styles.statPill}>⬇️ {formatNumber(post.downloads || 0)}</span>
-            <span className={styles.statPill}>👁️ {formatNumber(post.views || 0)}</span>
-          </div>
-        </div>
+        <span className={styles.statPill}>⬇️ {post.downloads || 0}</span>
 
-        {/* Fila 2: botón de descarga full width */}
-        <button className={`btn btn-primary ${styles.downloadBtn}`} onClick={handleDownload}>
-          ⬇️ Descargar
+        <button className="btn btn-primary btn-sm" onClick={handleDownload} style={{ marginLeft: 'auto' }}>
+          Descargar
         </button>
       </div>
 
