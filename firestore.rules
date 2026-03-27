@@ -1,4 +1,4 @@
-// firestore.rules — v5
+// firestore.rules — v6 (fixed)
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -108,23 +108,26 @@ service cloud.firestore {
     }
 
     // MENSAJES PRIVADOS (DMs)
+    // FIX: verificar participación tanto por convId como por resource.data.participants
     match /conversations/{convId} {
-      // El convId es uid1_uid2 ordenados — verificar que el uid está en el convId
-      function inConv() {
-        return isAuth() && convId.matches('.*' + myUid() + '.*');
-      }
-
-      allow read:   if inConv();
-      allow create: if inConv() && notBanned()
+      allow read: if isAuth() && (
+        convId.matches('.*' + myUid() + '.*') ||
+        myUid() in resource.data.participants
+      );
+      allow create: if isAuth() && notBanned()
         && myUid() in request.resource.data.participants
         && request.resource.data.participants.size() == 2;
-      allow update: if inConv();
+      allow update: if isAuth() && (
+        convId.matches('.*' + myUid() + '.*') ||
+        myUid() in resource.data.participants
+      );
       allow delete: if false;
 
       match /messages/{msgId} {
-        allow read:   if inConv();
-        allow create: if inConv() && notBanned()
-          && request.resource.data.senderId == myUid();
+        allow read: if isAuth() && convId.matches('.*' + myUid() + '.*');
+        allow create: if isAuth() && notBanned()
+          && request.resource.data.senderId == myUid()
+          && convId.matches('.*' + myUid() + '.*');
         allow update, delete: if false;
       }
     }
