@@ -28,7 +28,6 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <ErrorLogger />
         <Toaster
           position="top-right"
           toastOptions={{
