@@ -7,7 +7,7 @@ import { es } from 'date-fns/locale'
 import {
   getPost, toggleLike, hasLiked, registerDownload,
   reportPost, deletePost, toggleFeatured, verifyPost,
-  setPostStatus, updatePost,
+  setPostStatus, updatePost, getPostUrl,
 } from '../services/posts'
 import { useAuth } from '../context/AuthContext'
 import { optimizeUrl, uploadImage } from '../services/cloudinary'
