@@ -65,9 +65,9 @@ export default function UploadForm() {
     }
   }
 
-  // ─── GENERAR DESCRIPCIÓN CON IA ───
+  // ─── GENERAR CON IA ───
   async function handleGenerateAI() {
-    if (!form.name.trim()) { toast.error('Primero escribe el nombre de la app'); return }
+    if (!form.name.trim()) { toast.error('Primero escribe el nombre'); return }
     if (!WORKER_URL || WORKER_URL.includes('your-worker')) {
       toast.error('Worker URL no configurada'); return
     }
@@ -81,15 +81,13 @@ export default function UploadForm() {
       const data = await res.json()
       if (data.ok && data.text) {
         set('description', data.text)
-        if (data.tags?.length) {
-          set('tags', data.tags.join(', '))
-        }
-        toast.success('🤖 Descripción generada con IA')
+        if (data.tags?.length) set('tags', data.tags.join(', '))
+        toast.success('🤖 Descripción generada')
       } else {
         toast.error(data.error || 'La IA no respondió')
       }
-    } catch (e) {
-      toast.error('Error conectando con el Worker de IA')
+    } catch {
+      toast.error('Error conectando con el Worker')
     } finally {
       setAiLoading(false)
     }
@@ -105,13 +103,11 @@ export default function UploadForm() {
     setLoading(true); setProgress(5)
 
     try {
-      // 1. Subir imagen
       setProgressLabel('📸 Subiendo imagen...')
       setProgress(10)
       const imageData = await uploadImage(imageFile, { folder: 'posts' })
       setProgress(35)
 
-      // 2. Subir APK a Archive.org si es modo archivo
       let finalDownloadUrl = form.downloadUrl.trim()
       if (uploadMode === 'file' && apkFile) {
         setProgressLabel('📦 Subiendo APK a Archive.org...')
@@ -158,11 +154,7 @@ export default function UploadForm() {
       } else {
         setProgressLabel('🎉 ¡Publicado!')
         toast.success('¡Publicación creada! 🎉')
-        notifyTelegramNewPost({
-          id: postId,
-          ...postData,
-        }).catch(() => {})
-        // FIX: usar postData en lugar de 'post' que no existe en este scope
+        notifyTelegramNewPost({ id: postId, ...postData }).catch(() => {})
         navigate(getPostUrl({ id: postId, slug: result.slug }))
       }
     } catch (err) {
@@ -183,7 +175,6 @@ export default function UploadForm() {
       <div className={styles.grid}>
         {/* ── IZQUIERDA ── */}
         <div className={styles.col}>
-          {/* Imagen */}
           <div className={styles.imageUpload} onClick={() => !loading && imageRef.current?.click()}>
             {imagePreview
               ? <img src={imagePreview} alt="preview" className={styles.imagePreview} />
@@ -203,7 +194,6 @@ export default function UploadForm() {
             </button>
           )}
 
-          {/* Categoría */}
           <div className="inp-group">
             <label className="inp-label">Categoría</label>
             <div className={styles.catGrid}>
@@ -227,19 +217,20 @@ export default function UploadForm() {
               required maxLength={100} disabled={loading} />
           </div>
 
-          {/* ── DESCRIPCIÓN CON BOTÓN IA ── */}
+          {/* ── DESCRIPCIÓN + BOTÓN IA ── */}
           <div className="inp-group">
-            <div className={styles.labelRow}>
-              <label className="inp-label">Descripción</label>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--t2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Descripción
+              </span>
               <button
                 type="button"
                 className={`btn btn-sm ${styles.aiBtn}`}
                 onClick={handleGenerateAI}
                 disabled={loading || aiLoading || !form.name.trim()}
-                title="Generar descripción con IA"
               >
                 {aiLoading
-                  ? <><span className="spinner" style={{ width: 13, height: 13 }} /> Generando...</>
+                  ? <><span className="spinner" style={{ width: 12, height: 12 }} /> Generando...</>
                   : <>🤖 Generar con IA</>
                 }
               </button>
@@ -287,7 +278,7 @@ export default function UploadForm() {
                   <div className={styles.apkPlaceholder}>
                     <span style={{ fontSize: '2.2rem' }}>📦</span>
                     <span className={styles.apkPlaceholderText}>Toca para seleccionar APK</span>
-                    <span className={styles.apkHint}>APK, ZIP, RAR · máx 500 MB · Descarga directa gratis</span>
+                    <span className={styles.apkHint}>APK, ZIP, RAR · hasta 100GB · Descarga directa gratis</span>
                   </div>
                 )}
                 <input ref={apkRef} type="file"
@@ -332,7 +323,6 @@ export default function UploadForm() {
         </div>
       </div>
 
-      {/* Barra de progreso */}
       {loading && (
         <div className={styles.progressWrap}>
           <div className={styles.progressTrack}>
