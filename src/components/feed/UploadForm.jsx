@@ -16,6 +16,8 @@ const CATS = {
   tutorials: { label: 'Tutoriales', icon: '📚' },
 }
 
+const WORKER_URL = import.meta.env.VITE_WORKER_URL
+
 export default function UploadForm() {
   const { user }   = useAuth()
   const navigate   = useNavigate()
@@ -34,6 +36,7 @@ export default function UploadForm() {
   const [loading, setLoading]             = useState(false)
   const [progress, setProgress]           = useState(0)
   const [progressLabel, setProgressLabel] = useState('')
+  const [aiLoading, setAiLoading]         = useState(false)
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -59,6 +62,36 @@ export default function UploadForm() {
       toast.success(`✅ ${file.name} seleccionado`)
     } catch (err) {
       toast.error(err.message)
+    }
+  }
+
+  // ─── GENERAR DESCRIPCIÓN CON IA ───
+  async function handleGenerateAI() {
+    if (!form.name.trim()) { toast.error('Primero escribe el nombre de la app'); return }
+    if (!WORKER_URL || WORKER_URL.includes('your-worker')) {
+      toast.error('Worker URL no configurada'); return
+    }
+    setAiLoading(true)
+    try {
+      const res = await fetch(`${WORKER_URL}/generate-description`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: form.name.trim(), category: form.category }),
+      })
+      const data = await res.json()
+      if (data.ok && data.text) {
+        set('description', data.text)
+        if (data.tags?.length) {
+          set('tags', data.tags.join(', '))
+        }
+        toast.success('🤖 Descripción generada con IA')
+      } else {
+        toast.error(data.error || 'La IA no respondió')
+      }
+    } catch (e) {
+      toast.error('Error conectando con el Worker de IA')
+    } finally {
+      setAiLoading(false)
     }
   }
 
@@ -125,12 +158,12 @@ export default function UploadForm() {
       } else {
         setProgressLabel('🎉 ¡Publicado!')
         toast.success('¡Publicación creada! 🎉')
-        // Notificar al canal de Telegram automáticamente
         notifyTelegramNewPost({
           id: postId,
           ...postData,
-        }).catch(() => {}) // no bloquear si falla
-        navigate(getPostUrl(post || { id: postId }))
+        }).catch(() => {})
+        // FIX: usar postData en lugar de 'post' que no existe en este scope
+        navigate(getPostUrl({ id: postId, slug: result.slug }))
       }
     } catch (err) {
       console.error('Upload error:', err)
@@ -194,8 +227,23 @@ export default function UploadForm() {
               required maxLength={100} disabled={loading} />
           </div>
 
+          {/* ── DESCRIPCIÓN CON BOTÓN IA ── */}
           <div className="inp-group">
-            <label className="inp-label">Descripción</label>
+            <div className={styles.labelRow}>
+              <label className="inp-label">Descripción</label>
+              <button
+                type="button"
+                className={`btn btn-sm ${styles.aiBtn}`}
+                onClick={handleGenerateAI}
+                disabled={loading || aiLoading || !form.name.trim()}
+                title="Generar descripción con IA"
+              >
+                {aiLoading
+                  ? <><span className="spinner" style={{ width: 13, height: 13 }} /> Generando...</>
+                  : <>🤖 Generar con IA</>
+                }
+              </button>
+            </div>
             <textarea className="inp"
               placeholder="Describe qué hace esta app..."
               value={form.description} onChange={e => set('description', e.target.value)}
