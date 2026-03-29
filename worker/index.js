@@ -967,18 +967,7 @@ ${allUrls.map(u => `  <url>
         }
       }
 
-      if (origin !== ALLOWED_ORIGIN) return new Response('Forbidden', { status: 403 });
-
-      if (url.pathname === '/push-user') {
-        try {
-          const { playerId, title, message, url: pushUrl } = await request.json();
-          if (!playerId) return new Response('Missing playerId', { status: 400, headers: CORS });
-          const data = await enviarOneSignalUsuario(playerId, title, message, pushUrl);
-          return new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json', ...CORS } });
-        } catch(e) {
-          return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: CORS });
-        }
-      }
+      // ── Endpoints públicos de IA — no requieren origin check ──
       if (url.pathname === '/generate-description') {
         try {
           const { name, category } = await request.json();
@@ -994,9 +983,9 @@ ${allUrls.map(u => `  <url>
             ],
             max_tokens: 150,
           });
-          let description = (descResult?.response || '').trim()
-          description = description.replace(/([\u{1F300}-\u{1FFFF}][\s]*){6,}/gu, '✨ ')
-          description = description.slice(0, 400)
+          let description = (descResult?.response || '').trim();
+          description = description.replace(/([\u{1F300}-\u{1FFFF}][\s]*){6,}/gu, '✨ ');
+          description = description.slice(0, 400);
 
           const tagsResult = await ai.run('@cf/meta/llama-3-8b-instruct', {
             messages: [
@@ -1005,12 +994,12 @@ ${allUrls.map(u => `  <url>
             ],
             max_tokens: 40,
           });
-          const tagsRaw = (tagsResult?.response || '').trim()
+          const tagsRaw = (tagsResult?.response || '').trim();
           const tags = tagsRaw
             .split(',')
             .map(t => t.trim().toLowerCase().replace(/[^a-z0-9\-áéíóúñ]/g, '').slice(0, 20))
             .filter(t => t.length > 1)
-            .slice(0, 5)
+            .slice(0, 5);
 
           return new Response(JSON.stringify({ ok: true, text: description, tags }), {
             headers: { 'Content-Type': 'application/json', ...CORS }
@@ -1048,7 +1037,19 @@ ${allUrls.map(u => `  <url>
           });
         }
       }
-    }
+
+      if (origin !== ALLOWED_ORIGIN) return new Response('Forbidden', { status: 403 });
+
+      if (url.pathname === '/push-user') {
+        try {
+          const { playerId, title, message, url: pushUrl } = await request.json();
+          if (!playerId) return new Response('Missing playerId', { status: 400, headers: CORS });
+          const data = await enviarOneSignalUsuario(playerId, title, message, pushUrl);
+          return new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json', ...CORS } });
+        } catch(e) {
+          return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: CORS });
+        }
+      }
 
     return new Response('ASMODEO DEV Bot activo ⚡');
   }
