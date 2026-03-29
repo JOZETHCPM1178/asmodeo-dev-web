@@ -31,7 +31,7 @@ function getYouTubeId(url) {
 }
 
 export default function PostDetailPage() {
-  const { id }   = useParams()
+  const { id }   = useParams()   // puede ser slug o ID — solo para getPost()
   const { user } = useAuth()
   const navigate = useNavigate()
 
@@ -50,29 +50,29 @@ export default function PostDetailPage() {
   }, [id])
 
   useEffect(() => {
-    if (!user?.uid || !id) return
-    hasLiked(id, user.uid).then(setLiked).catch(() => {})
-  }, [user?.uid, id])
+    if (!user?.uid || !post?.id) return
+    // FIX: usar post.id (ID real de Firestore) no id (slug de URL)
+    hasLiked(post.id, user.uid).then(setLiked).catch(() => {})
+  }, [user?.uid, post?.id])
 
-  // Permisos de edición:
-  // - Owner/Admin: puede editar cualquier post
-  // - Admin Jr: solo sus propios posts
-  // - Usuario normal: solo sus propios posts
   const isOwnerOfPost = user?.uid === post?.authorId
   const canEdit = isOwnerOfPost || user?.isAdmin || user?.isOwner
 
   async function handleLike() {
     if (!user) { toast.error('Inicia sesión para dar like'); return }
+    if (!post?.id) return
     const wasLiked = liked
     setLiked(!wasLiked)
     setLikeCount(c => wasLiked ? c - 1 : c + 1)
-    try { await toggleLike(id, user.uid) }
+    // FIX: usar post.id
+    try { await toggleLike(post.id, user.uid) }
     catch { setLiked(wasLiked); setLikeCount(c => wasLiked ? c + 1 : c - 1) }
   }
 
   async function handleDownload() {
     if (!post?.downloadUrl) { toast.error('Link no disponible'); return }
-    await registerDownload(id).catch(() => {})
+    // FIX: usar post.id
+    await registerDownload(post.id).catch(() => {})
     if (post.directDownload) {
       const a = document.createElement('a')
       a.href = post.downloadUrl
@@ -100,29 +100,33 @@ export default function PostDetailPage() {
     if (!user) { toast.error('Inicia sesión para reportar'); return }
     const r = window.prompt('¿Por qué reportas esta publicación?')
     if (!r?.trim()) return
-    await reportPost(id, user.uid, r)
+    // FIX: usar post.id
+    await reportPost(post.id, user.uid, r)
     toast.success('Reporte enviado ✅')
   }
 
   async function adminAction(action) {
+    if (!post?.id) return
+    // FIX: usar post.id en todas las operaciones de admin
+    const pid = post.id
     try {
       switch (action) {
         case 'delete':
           if (!window.confirm(`¿Eliminar "${post.name}"?`)) return
-          await deletePost(id); toast.success('Eliminada'); navigate('/feed')
+          await deletePost(pid); toast.success('Eliminada'); navigate('/feed')
           break
         case 'feature':
-          await toggleFeatured(id, !post.featured)
+          await toggleFeatured(pid, !post.featured)
           setPost(p => ({ ...p, featured: !p.featured }))
           toast.success(post.featured ? 'Destacado quitado' : '⭐ Destacado')
           break
         case 'verify':
-          await verifyPost(id, !post.verified)
+          await verifyPost(pid, !post.verified)
           setPost(p => ({ ...p, verified: !p.verified }))
           toast.success(post.verified ? 'Verificación quitada' : '✓ Verificado')
           break
         case 'hide':
-          await setPostStatus(id, 'hidden')
+          await setPostStatus(pid, 'hidden')
           toast.success('Ocultada'); navigate('/feed')
           break
       }
@@ -162,7 +166,6 @@ export default function PostDetailPage() {
       />
       <div className={styles.inner}>
 
-        {/* Breadcrumb */}
         <div className={styles.breadcrumb}>
           <Link to="/" className={styles.bc}>Inicio</Link>
           <span className={styles.sep}>›</span>
@@ -172,10 +175,8 @@ export default function PostDetailPage() {
         </div>
 
         <div className={styles.grid}>
-          {/* ── COLUMNA PRINCIPAL ── */}
           <div className={styles.main}>
 
-            {/* Media */}
             <div className={styles.media}
               onClick={() => ytId && !showVideo && setShowVideo(true)}
               style={{ cursor: ytId && !showVideo ? 'pointer' : 'default' }}>
@@ -199,10 +200,8 @@ export default function PostDetailPage() {
               )}
             </div>
 
-            {/* Info card */}
             <div className={styles.infoCard}>
 
-              {/* Categoría + badges */}
               <div className={styles.topRow}>
                 <span className={styles.catPill} style={{ color: cat.color }}>
                   {cat.icon} {cat.label}
@@ -216,7 +215,6 @@ export default function PostDetailPage() {
 
               <h1 className={styles.title}>{post.name}</h1>
 
-              {/* Autor */}
               <Link to={`/profile/${post.authorId}`} className={styles.author}>
                 {post.authorPhoto
                   ? <img src={optimizeUrl(post.authorPhoto, { width: 80 })} alt="" className="avatar avatar-md" />
@@ -231,7 +229,6 @@ export default function PostDetailPage() {
 
               {post.description && <p className={styles.desc}>{post.description}</p>}
 
-              {/* Stats */}
               <div className={styles.metaGrid}>
                 {post.version && <MetaItem icon="🏷️" label="Versión"   value={post.version} />}
                 {post.size    && <MetaItem icon="📦" label="Tamaño"    value={post.size} />}
@@ -240,7 +237,6 @@ export default function PostDetailPage() {
                 <MetaItem icon="👁️" label="Vistas"    value={post.views || 0} />
               </div>
 
-              {/* Tags */}
               {post.tags?.length > 0 && (
                 <div className={styles.tags}>
                   {post.tags.map(t => (
@@ -249,7 +245,6 @@ export default function PostDetailPage() {
                 </div>
               )}
 
-              {/* ── ACCIONES ── */}
               <div className={styles.actions}>
                 <button className={`btn btn-lg ${liked ? 'btn-danger' : 'btn-secondary'}`} onClick={handleLike}>
                   ❤️ {likeCount}
@@ -267,20 +262,17 @@ export default function PostDetailPage() {
                 )}
               </div>
 
-              {/* ── PANEL DE GESTIÓN ── */}
               {canManage && (
                 <div className={styles.adminPanel}>
                   <div className={styles.adminTitle}>
                     {user?.isOwner ? '👑 Gestión Owner' : user?.isAdmin ? '🛡️ Moderación' : '⚙️ Mi publicación'}
                   </div>
                   <div className={styles.adminBtns}>
-                    {/* Editar — owner/admin pueden editar cualquier post; admin_jr y user solo los suyos */}
                     {canEdit && (
                       <button className="btn btn-sm btn-secondary" onClick={() => setShowEdit(true)}>
                         ✏️ Editar
                       </button>
                     )}
-                    {/* Herramientas de moderación — solo admin y owner */}
                     {(user?.isAdmin || user?.isOwner) && (
                       <>
                         <button className={`btn btn-sm ${post.featured ? 'btn-ghost' : 'btn-secondary'}`}
@@ -296,7 +288,6 @@ export default function PostDetailPage() {
                         </button>
                       </>
                     )}
-                    {/* Eliminar — cualquiera que pueda gestionar */}
                     <button className="btn btn-sm btn-danger" onClick={() => adminAction('delete')}>
                       🗑️ Eliminar
                     </button>
@@ -306,16 +297,15 @@ export default function PostDetailPage() {
             </div>
           </div>
 
-          {/* ── SIDEBAR COMENTARIOS ── */}
           <div className={styles.sidebar}>
             <div className={styles.sideCard}>
-              <CommentsPanel postId={id} onClose={() => {}} />
+              {/* FIX: usar post.id para comentarios */}
+              <CommentsPanel postId={post.id} onClose={() => {}} />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Modal de edición */}
       {showEdit && (
         <EditPostModal
           post={post}
@@ -332,12 +322,7 @@ export default function PostDetailPage() {
   )
 }
 
-// ══════════════════════════════════════
-//  MODAL DE EDICIÓN DE PUBLICACIÓN
-// ══════════════════════════════════════
 function EditPostModal({ post, user, onClose, onSaved }) {
-  // Solo el link de descarga está restringido para usuarios normales
-  // Admin Jr, Admin y Owner pueden cambiar todo
   const canEditDownloadUrl = user?.isStaff || user?.isOwner
 
   const [form, setForm] = useState({
@@ -371,7 +356,6 @@ function EditPostModal({ post, user, onClose, onSaved }) {
     if (!form.name.trim()) { toast.error('El nombre es obligatorio'); return }
     setSaving(true)
     try {
-      // Todos pueden editar estos campos
       const updates = {
         name:        form.name.trim(),
         description: form.description.trim(),
@@ -381,19 +365,15 @@ function EditPostModal({ post, user, onClose, onSaved }) {
         size:        form.size.trim(),
         tags:        form.tags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean).slice(0, 8),
       }
-
-      // Solo staff (admin_jr, admin, owner) pueden cambiar el link
       if (canEditDownloadUrl) {
         updates.downloadUrl = form.downloadUrl.trim()
       }
-
-      // Imagen — todos pueden cambiarla
       if (imageFile) {
         const imgData = await uploadImage(imageFile, { folder: 'posts' })
         updates.imageUrl   = imgData.url
         updates.imageThumb = imgData.thumbnailUrl
       }
-
+      // FIX: usar post.id (ID real de Firestore)
       await updatePost(post.id, updates)
       onSaved(updates)
     } catch (e) {
@@ -414,7 +394,6 @@ function EditPostModal({ post, user, onClose, onSaved }) {
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className={`modal-box ${styles.editModal}`}>
 
-        {/* Header */}
         <div className={styles.editHeader}>
           <div>
             <h2 className={styles.editTitle}>✏️ Editar publicación</h2>
@@ -429,7 +408,6 @@ function EditPostModal({ post, user, onClose, onSaved }) {
 
         <div className={styles.editBody}>
 
-          {/* Imagen — todos */}
           <div className={styles.editImgWrap} onClick={() => imageRef.current?.click()}>
             {imagePreview
               ? <img src={imagePreview} alt="" className={styles.editImgPreview} />
@@ -440,14 +418,12 @@ function EditPostModal({ post, user, onClose, onSaved }) {
               onChange={handleImageChange} style={{ display: 'none' }} />
           </div>
 
-          {/* Nombre — todos */}
           <div className="inp-group">
             <label className="inp-label">Nombre *</label>
             <input className="inp" value={form.name}
               onChange={e => set('name', e.target.value)} maxLength={100} />
           </div>
 
-          {/* Descripción — todos */}
           <div className="inp-group">
             <label className="inp-label">Descripción</label>
             <textarea className="inp" value={form.description}
@@ -455,7 +431,6 @@ function EditPostModal({ post, user, onClose, onSaved }) {
               rows={3} maxLength={1000} style={{ resize: 'vertical' }} />
           </div>
 
-          {/* Categoría — todos */}
           <div className="inp-group">
             <label className="inp-label">Categoría</label>
             <div className={styles.editCatGrid}>
@@ -469,7 +444,6 @@ function EditPostModal({ post, user, onClose, onSaved }) {
             </div>
           </div>
 
-          {/* Link descarga — SOLO staff (admin jr, admin, owner) */}
           {canEditDownloadUrl ? (
             <div className="inp-group">
               <label className="inp-label">Link de descarga</label>
@@ -483,7 +457,6 @@ function EditPostModal({ post, user, onClose, onSaved }) {
             </div>
           )}
 
-          {/* YouTube — todos */}
           <div className="inp-group">
             <label className="inp-label">Video YouTube (opcional)</label>
             <input className="inp" value={form.youtubeUrl}
@@ -491,7 +464,6 @@ function EditPostModal({ post, user, onClose, onSaved }) {
               placeholder="https://youtube.com/watch?v=..." />
           </div>
 
-          {/* Versión + Tamaño — todos */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
             <div className="inp-group">
               <label className="inp-label">Versión</label>
@@ -505,7 +477,6 @@ function EditPostModal({ post, user, onClose, onSaved }) {
             </div>
           </div>
 
-          {/* Tags — todos */}
           <div className="inp-group">
             <label className="inp-label">Tags (separados por coma)</label>
             <input className="inp" value={form.tags}
@@ -514,7 +485,6 @@ function EditPostModal({ post, user, onClose, onSaved }) {
           </div>
         </div>
 
-        {/* Botones */}
         <div className={styles.editFooter}>
           <button className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancelar</button>
           <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
@@ -527,8 +497,6 @@ function EditPostModal({ post, user, onClose, onSaved }) {
     </div>
   )
 }
-
-// Necesario para el useRef en EditPostModal — ya importado arriba
 
 function MetaItem({ icon, label, value }) {
   return (
