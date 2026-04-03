@@ -230,76 +230,61 @@ function OwnerPanel({ user, users, onRefresh }) {
               style={{ flex: 1, fontSize: '0.85rem' }} />
             <select className="inp" value={filterRole}
               onChange={e => setFilterRole(e.target.value)}
-              style={{ width: 150, fontSize: '0.82rem' }}>
-              <option value="all">Todos los roles</option>
-              <option value="user">👤 User</option>
-              <option value="admin_jr">🛡️ Mod</option>
-              <option value="admin">👑 Admin</option>
+              style={{ width: 140, fontSize: '0.82rem' }}>
+              <option value="all">Todos</option>
+              <option value="user">User</option>
+              <option value="admin_jr">Mod</option>
+              <option value="admin">Admin</option>
             </select>
-            <span className={styles.filterCount}>{filtered.length} usuarios</span>
+            <span className={styles.filterCount}>{filtered.length}</span>
           </div>
-          <div className={styles.tableWrap}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>Usuario</th><th>Email</th><th>Rol</th>
-                  <th>Estado</th><th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0
-                  ? <tr><td colSpan={5} style={{ textAlign:'center', padding:'3rem', color:'var(--t3)' }}>Sin usuarios</td></tr>
-                  : filtered.map(u => (
-                  <tr key={u.id}
-                    className={u.id === user.uid ? styles.selfRow : u.banned ? styles.rowBanned : ''}>
-                    <td>
-                      <div className={styles.userCell}>
-                        {u.photoURL
-                          ? <img src={u.photoURL} alt="" className="avatar avatar-sm" />
-                          : <div className={styles.avatarFb}>{(u.displayName || 'U')[0]}</div>}
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>
-                            {u.displayName || u.username}
-                            {u.verified && <span style={{ color: 'var(--cyan)', marginLeft: 4 }}>✓</span>}
-                          </div>
-                          <div style={{ fontSize: '0.68rem', color: 'var(--t3)' }}>{u.followers || 0} seg.</div>
-                        </div>
-                        {u.id === user.uid && <span className="badge badge-gold" style={{ fontSize: '0.6rem' }}>TÚ</span>}
-                      </div>
-                    </td>
-                    <td className={styles.muted}>{u.email}</td>
-                    <td>
-                      {u.id === user.uid || u.role === 'owner'
-                        ? <span className="badge badge-gold">👑 Owner</span>
-                        : <select className={styles.roleSelect} value={u.role || 'user'}
-                            onChange={e => handleRole(u.id, e.target.value)}>
-                            <option value="user">👤 User</option>
-                            <option value="admin_jr">🛡️ Mod</option>
-                            <option value="admin">👑 Admin</option>
-                          </select>}
-                    </td>
-                    <td>
-                      <span className={`badge ${u.banned ? 'badge-red' : 'badge-green'}`}>
-                        {u.banned ? '🚫 Baneado' : '✅ Activo'}
+          <div className={styles.userCards}>
+            {filtered.length === 0
+              ? <div className={styles.emptyMsg}>Sin usuarios</div>
+              : filtered.map(u => (
+              <div key={u.id} className={`${styles.userCard} ${u.banned ? styles.userCardBanned : ''} ${u.id === user.uid ? styles.userCardSelf : ''}`}>
+                <div className={styles.ucLeft}>
+                  {u.photoURL
+                    ? <img src={u.photoURL} alt="" className="avatar avatar-sm" />
+                    : <div className={styles.avatarFb}>{(u.displayName || 'U')[0]}</div>}
+                  <div className={styles.ucInfo}>
+                    <div className={styles.ucName}>
+                      {u.displayName || u.username}
+                      {u.verified && <span className={styles.verifiedDot}>✓</span>}
+                      {u.id === user.uid && <span className="badge badge-gold" style={{ fontSize: '0.58rem' }}>TÚ</span>}
+                    </div>
+                    <div className={styles.ucEmail}>{u.email}</div>
+                    <div className={styles.ucMeta}>
+                      <span className={`badge ${u.banned ? 'badge-red' : 'badge-green'}`} style={{ fontSize: '0.65rem' }}>
+                        {u.banned ? '🚫 Baneado' : '● Activo'}
                       </span>
-                    </td>
-                    <td>
-                      {u.id !== user.uid && u.role !== 'owner' && (
-                        <div className={styles.actionBtns}>
-                          <button className="btn btn-sm btn-ghost" onClick={() => handleVerify(u.id, u.verified)}>
-                            {u.verified ? '✓ Quitar' : '✓ Verificar'}
-                          </button>
-                          <button className={`btn btn-sm ${u.banned ? 'btn-secondary' : 'btn-danger'}`}
-                            onClick={() => handleBan(u.id, u.banned, u.displayName || u.username)}>
-                            {u.banned ? 'Desbanear' : 'Banear'}
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      <span className={styles.ucFollowers}>{u.followers || 0} seg.</span>
+                    </div>
+                  </div>
+                </div>
+                <div className={styles.ucRight}>
+                  {u.id === user.uid || u.role === 'owner'
+                    ? <span className="badge badge-gold">👑 Owner</span>
+                    : <select className={styles.roleSelect} value={u.role || 'user'}
+                        onChange={e => handleRole(u.id, e.target.value)}>
+                        <option value="user">User</option>
+                        <option value="admin_jr">Mod</option>
+                        <option value="admin">Admin</option>
+                      </select>}
+                  {u.id !== user.uid && u.role !== 'owner' && (
+                    <div className={styles.ucActions}>
+                      <button className="btn btn-sm btn-ghost" onClick={() => handleVerify(u.id, u.verified)}>
+                        {u.verified ? '✓ Quitar' : '✓ Verif.'}
+                      </button>
+                      <button className={`btn btn-sm ${u.banned ? 'btn-secondary' : 'btn-danger'}`}
+                        onClick={() => handleBan(u.id, u.banned, u.displayName || u.username)}>
+                        {u.banned ? 'Desbanear' : 'Banear'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -663,50 +648,46 @@ function UsersPanel({ users, me, onRefresh }) {
           style={{ flex:1, fontSize:'0.85rem' }} />
         <span className={styles.filterCount}>{filtered.length} usuarios</span>
       </div>
-      <div className={styles.tableWrap}>
-        <table className={styles.table}>
-          <thead><tr><th>Usuario</th><th>Email</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead>
-          <tbody>
-            {filtered.length === 0
-              ? <tr><td colSpan={5} style={{ textAlign:'center', padding:'3rem', color:'var(--t3)' }}>Sin usuarios</td></tr>
-              : filtered.map(u => (
-              <tr key={u.id} className={u.banned ? styles.rowBanned : ''}>
-                <td>
-                  <div className={styles.userCell}>
-                    {u.photoURL ? <img src={u.photoURL} alt="" className="avatar avatar-sm" /> : <div className={styles.avatarFb}>{(u.displayName || 'U')[0]}</div>}
-                    <span style={{ fontSize:'0.85rem', fontWeight:600 }}>{u.displayName || u.username}
-                      {u.verified && <span style={{ color:'var(--cyan)', marginLeft:4 }}>✓</span>}
-                    </span>
-                  </div>
-                </td>
-                <td className={styles.muted}>{u.email}</td>
-                <td>
-                  <span className={`badge ${u.role==='owner'?'badge-gold':u.role==='admin'?'badge-purple':u.role==='admin_jr'?'badge-cyan':'badge-green'}`}>
-                    {u.role || 'user'}
-                  </span>
-                </td>
-                <td><span className={`badge ${u.banned?'badge-red':'badge-green'}`}>{u.banned?'Baneado':'Activo'}</span></td>
-                <td>
-                  {u.id !== me.uid && u.role !== 'owner' && (
-                    <div className={styles.actionBtns}>
-                      <button className="btn btn-sm btn-ghost"
-                        onClick={() => act(() => verifyUser(u.id, !u.verified), u.verified ? 'Verificación quitada' : '✓ Verificado')}>
-                        {u.verified ? '✓ Quitar' : '✓ Verificar'}
-                      </button>
-                      <button className={`btn btn-sm ${u.banned?'btn-secondary':'btn-danger'}`}
-                        onClick={() => {
-                          if (u.banned) act(() => unbanUser(u.id), 'Desbaneado')
-                          else { const r = window.prompt('Razón:'); if(r!==null) act(() => banUser(u.id, r||''), 'Baneado') }
-                        }}>
-                        {u.banned ? 'Desbanear' : 'Banear'}
-                      </button>
-                    </div>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className={styles.userCards}>
+        {filtered.length === 0
+          ? <div className={styles.emptyMsg}>Sin usuarios</div>
+          : filtered.map(u => (
+          <div key={u.id} className={`${styles.userCard} ${u.banned ? styles.userCardBanned : ''}`}>
+            <div className={styles.ucLeft}>
+              {u.photoURL
+                ? <img src={u.photoURL} alt="" className="avatar avatar-sm" />
+                : <div className={styles.avatarFb}>{(u.displayName || 'U')[0]}</div>}
+              <div className={styles.ucInfo}>
+                <div className={styles.ucName}>
+                  {u.displayName || u.username}
+                  {u.verified && <span className={styles.verifiedDot}>✓</span>}
+                </div>
+                <div className={styles.ucEmail}>{u.email}</div>
+                <div className={styles.ucMeta}>
+                  <span className={`badge ${u.role==='owner'?'badge-gold':u.role==='admin'?'badge-purple':u.role==='admin_jr'?'badge-cyan':'badge-green'}`}
+                    style={{ fontSize:'0.62rem' }}>{u.role || 'user'}</span>
+                  <span className={`badge ${u.banned?'badge-red':'badge-green'}`}
+                    style={{ fontSize:'0.62rem' }}>{u.banned ? '🚫 Baneado' : '● Activo'}</span>
+                </div>
+              </div>
+            </div>
+            {u.id !== me.uid && u.role !== 'owner' && (
+              <div className={styles.ucActions}>
+                <button className="btn btn-sm btn-ghost"
+                  onClick={() => act(() => verifyUser(u.id, !u.verified), u.verified ? 'Verificación quitada' : '✓ Verificado')}>
+                  {u.verified ? '✓ Quitar' : '✓ Verif.'}
+                </button>
+                <button className={`btn btn-sm ${u.banned?'btn-secondary':'btn-danger'}`}
+                  onClick={() => {
+                    if (u.banned) act(() => unbanUser(u.id), 'Desbaneado')
+                    else { const r = window.prompt('Razón:'); if(r!==null) act(() => banUser(u.id, r||''), 'Baneado') }
+                  }}>
+                  {u.banned ? 'Desbanear' : 'Banear'}
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   )
