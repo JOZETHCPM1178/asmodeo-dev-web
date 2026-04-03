@@ -1,7 +1,6 @@
 /* src/pages/SearchPage.module.css */
-.page { padding: 2rem 0 4rem; }
-.header { margin-bottom: 1.5rem; }
-.title { font-family: var(--font1); font-size: 1.5rem; font-weight: 900; }
-.sub { color: var(--t2); margin-top: 0.3rem; }
-.searchBar { max-width: 600px; margin-bottom: 1.5rem; }
-.catFilters { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 2rem; }
+.page { padding:1.5rem 0 4rem; }
+.inner { max-width:900px;margin:0 auto;padding:0 1.25rem; }
+.title { font-size:1.4rem;font-weight:700;letter-spacing:-.3px;margin-bottom:1rem; }
+.searchWrap { margin-bottom:1.5rem; }
+.results { display:flex;flex-direction:column;gap:.75rem; }
