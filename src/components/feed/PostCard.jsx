@@ -295,7 +295,7 @@ export default function PostCard({ post, compact = false, onDeleted }) {
         <CommentsPanel postId={post.id} onClose={() => setShowComments(false)} />
       )}
       {showDownload && (
-        <DownloadModal post={post} onClose={() => setShowDownload(false)} />
+        <DownloadModal key={post.id + "-dl"} post={post} onClose={() => setShowDownload(false)} />
       )}
     </article>
   )
