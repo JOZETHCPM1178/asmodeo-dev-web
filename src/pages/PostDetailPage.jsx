@@ -15,6 +15,7 @@ import CommentsPanel from '../components/social/CommentsPanel'
 import FollowButton from '../components/social/FollowButton'
 import VerifiedBadge from '../components/ui/VerifiedBadge'
 import SEO from '../components/ui/SEO'
+import DownloadModal from '../components/ui/DownloadModal'
 import styles from './PostDetailPage.module.css'
 
 const CATS = {
@@ -41,6 +42,7 @@ export default function PostDetailPage() {
   const [likeCount, setLikeCount] = useState(0)
   const [showVideo, setShowVideo] = useState(false)
   const [showEdit, setShowEdit]   = useState(false)
+  const [showDownload, setShowDownload] = useState(false)
 
   useEffect(() => {
     getPost(id)
@@ -71,18 +73,8 @@ export default function PostDetailPage() {
 
   async function handleDownload() {
     if (!post?.downloadUrl) { toast.error('Link no disponible'); return }
-    // FIX: usar post.id
     await registerDownload(post.id).catch(() => {})
-    if (post.directDownload) {
-      const a = document.createElement('a')
-      a.href = post.downloadUrl
-      a.download = (post.name || 'archivo') + '.apk'
-      a.target = '_blank'; a.rel = 'noopener noreferrer'
-      document.body.appendChild(a); a.click(); document.body.removeChild(a)
-      toast.success('⬇️ Descargando...')
-    } else {
-      window.open(post.downloadUrl, '_blank', 'noopener,noreferrer')
-    }
+    setShowDownload(true)
   }
 
   async function handleShare() {
@@ -317,6 +309,10 @@ export default function PostDetailPage() {
             toast.success('Publicación actualizada ✅')
           }}
         />
+      )}
+
+      {showDownload && (
+        <DownloadModal key={(post?.id || 'post') + '-dl'} post={post} onClose={() => setShowDownload(false)} />
       )}
     </div>
   )
