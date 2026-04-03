@@ -2,8 +2,8 @@
 import { useState, useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 import Navbar from './Navbar'
-import SplashScreen from './SplashScreen'
-import MusicPlayer from './MusicPlayer'
+import IntroOverlay from './IntroOverlay'
+import YouTubeBackground from './YouTubeBackground'
 import MaintenancePage from '../../pages/MaintenancePage'
 import { useAuth } from '../../context/AuthContext'
 import styles from './Layout.module.css'
@@ -19,22 +19,28 @@ const BENEFITS = [
   { icon: '🎮', text: 'Todo Desbloqueado',   color: '#fb923c' },
 ]
 
+const INTRO_KEY = 'asmodeo_hasSeenIntro_v1'
+
 export default function Layout() {
   const { user, maintenance, loading } = useAuth()
-  const [showSplash, setShowSplash] = useState(true)
-  const [visible, setVisible] = useState(false)
 
-  const hideSplash = () => {
-    setShowSplash(false)
-    setVisible(true)
+  const alreadySeen = typeof window !== 'undefined'
+    ? !!localStorage.getItem(INTRO_KEY)
+    : false
+
+  const [showIntro, setShowIntro] = useState(!alreadySeen)
+  const [appVisible, setAppVisible] = useState(alreadySeen)
+
+  const handleIntroDone = () => {
+    setShowIntro(false)
+    setAppVisible(true)
   }
 
-  // Timeout de seguridad: si el splash falla o se queda colgado
-  // por cualquier error de JS, la app se muestra igual a los 6s
   useEffect(() => {
-    const safeTimeout = setTimeout(hideSplash, 6000)
-    return () => clearTimeout(safeTimeout)
-  }, [])
+    if (alreadySeen) return
+    const safety = setTimeout(handleIntroDone, 7000)
+    return () => clearTimeout(safety)
+  }, [alreadySeen])
 
   if (!loading && maintenance && !user?.isOwner) {
     return <MaintenancePage />
@@ -42,14 +48,13 @@ export default function Layout() {
 
   return (
     <>
-      {showSplash && <SplashScreen onDone={hideSplash} />}
+      {showIntro && <IntroOverlay onDone={handleIntroDone} />}
+      <YouTubeBackground />
       <div
         className={styles.layout}
         style={{
-          opacity: visible ? 1 : 0,
-          transition: 'opacity 0.5s ease',
-          // Garantizar que el layout nunca quede invisible para siempre
-          // después de 6.5s forzamos visibility independientemente
+          opacity: appVisible ? 1 : 0,
+          transition: 'opacity 0.6s ease',
         }}
       >
         <Navbar />
@@ -57,7 +62,6 @@ export default function Layout() {
         <main className={styles.main}>
           <Outlet />
         </main>
-        <MusicPlayer />
       </div>
     </>
   )

@@ -1,0 +1,90 @@
+/* src/components/ui/YouTubeBackground.module.css */
+
+/* ─── SOUND BADGE — aviso discreto y premium ─── */
+.soundBadge {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(0);
+  z-index: 800;
+
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1rem;
+
+  background: rgba(12, 12, 24, 0.85);
+  backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  border-radius: 40px;
+
+  cursor: pointer;
+  animation: badgeSlideIn 0.5s cubic-bezier(.34,1.56,.64,1) both,
+             badgePulse 3s ease-in-out 1s infinite;
+
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  max-width: 90vw;
+}
+
+.soundBadge:hover {
+  border-color: rgba(124, 58, 237, 0.6);
+  box-shadow: 0 0 20px rgba(124, 58, 237, 0.2);
+  transform: translateX(-50%) translateY(-2px);
+}
+
+.soundBadge:focus-visible {
+  outline: 2px solid rgba(124, 58, 237, 0.8);
+  outline-offset: 3px;
+}
+
+@keyframes badgeSlideIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@keyframes badgePulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(124,58,237,0); }
+  50%     { box-shadow: 0 0 16px 2px rgba(124,58,237,0.2); }
+}
+
+.soundIcon {
+  font-size: 0.9rem;
+  animation: iconBounce 1.5s ease-in-out infinite;
+}
+
+@keyframes iconBounce {
+  0%,100% { transform: translateY(0); }
+  50%     { transform: translateY(-2px); }
+}
+
+.soundText {
+  font-family: var(--font2);
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: rgba(200, 190, 255, 0.85);
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.soundClose {
+  font-size: 0.85rem;
+  color: rgba(144, 144, 184, 0.5);
+  margin-left: 0.15rem;
+  transition: color 0.2s;
+  line-height: 1;
+}
+
+.soundBadge:hover .soundClose {
+  color: rgba(200, 190, 255, 0.7);
+}
+
+@media (max-width: 480px) {
+  .soundBadge {
+    bottom: 5rem; /* evitar el nav mobile */
+    font-size: 0.72rem;
+    padding: 0.45rem 0.85rem;
+  }
+  .soundText {
+    font-size: 0.72rem;
+  }
+}
