@@ -120,11 +120,11 @@
 .sectionActive { background:rgba(232,83,58,.1);border-color:rgba(232,83,58,.28);color:var(--p2); }
 
 /* Platform grid */
-.platformGrid { display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.75rem;margin-bottom:1rem; }
-.infoCard { background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:.9rem 1rem;display:flex;flex-direction:column;gap:.35rem; }
+.platformGrid { display:grid;grid-template-columns:repeat(2,1fr);gap:.65rem;margin-bottom:1rem; }
+.infoCard { background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:.75rem .85rem;display:flex;flex-direction:column;gap:.25rem; }
 
 /* Stats panel */
-.statCards { display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.75rem;margin-bottom:1.25rem; }
+.statCards { display:grid;grid-template-columns:repeat(2,1fr);gap:.65rem;margin-bottom:1.25rem; }
 .statValue { font-size:1.5rem;font-weight:700;font-family:var(--fontmono,'JetBrains Mono',monospace); }
 
 /* Role card */
@@ -148,7 +148,7 @@
 .botCardSub    { font-size:.7rem;color:var(--t3); }
 
 /* Maintenance box */
-.maintenanceBox  { background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:1rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem; }
+.maintenanceBox  { background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:1rem;display:flex;align-items:flex-start;flex-direction:column;gap:.75rem; }
 .maintenanceInfo { flex:1; }
 
 /* ── User cards (reemplaza tabla) ── */
@@ -174,3 +174,18 @@
 
 .ucRight   { display:flex;flex-direction:column;align-items:flex-end;gap:.35rem;flex-shrink:0; }
 .ucActions { display:flex;gap:.3rem;flex-wrap:wrap;justify-content:flex-end; }
+
+/* ── Stat card compact ── */
+.statCard {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: .85rem .9rem;
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+}
+.statCard .statValue { font-size:1.3rem; }
+
+/* ── Maintenance box button full width on mobile ── */
+.maintenanceBox button { width:100%; justify-content:center; }
