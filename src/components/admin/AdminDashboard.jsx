@@ -421,7 +421,7 @@ function BotFollowersCard({ users, admin }) {
   )
 }
 
-function BotPostStatsCard({ users }) {
+function BotPostStatsCard({ users, admin }) {
   const [posts, setPosts]   = useState([])
   const [selected, setSelected] = useState('')
   const [mode, setMode]     = useState('add')
@@ -437,8 +437,8 @@ function BotPostStatsCard({ users }) {
     if (!selected) { toast.error('Selecciona un post'); return }
     setLoading(true)
     try {
-      if (mode === 'add') { await addFakePostStats(selected, { likes: Number(likes), downloads: Number(dls) }); toast.success('Stats añadidas ✅') }
-      else { await removeFakePostStats(selected); toast.success('Stats retiradas ✅') }
+      if (mode === 'add') { await addFakePostStats(selected, { likes: Number(likes), downloads: Number(dls) }, admin?.uid); toast.success('Stats añadidas ✅') }
+      else { await removeFakePostStats(selected, { likes: Number(likes), downloads: Number(dls) }, admin?.uid); toast.success('Stats retiradas ✅') }
     } catch (e) { toast.error(e.message) }
     finally { setLoading(false) }
   }
@@ -484,7 +484,7 @@ function BotPostStatsCard({ users }) {
   )
 }
 
-function BotCommentsCard({ users }) {
+function BotCommentsCard({ users, admin }) {
   const [posts, setPosts]   = useState([])
   const [selected, setSelected] = useState('')
   const [mode, setMode]     = useState('add')
@@ -498,8 +498,9 @@ function BotCommentsCard({ users }) {
     if (!selected) { toast.error('Selecciona un post'); return }
     setLoading(true)
     try {
-      if (mode === 'add') { await addBotComments(selected); toast.success('Comentarios añadidos ✅') }
-      else { await deleteBotComments(selected); toast.success('Comentarios eliminados ✅') }
+      const selPost = posts.find(p => p.id === selected)
+      if (mode === 'add') { await addBotComments(selected, { postName: selPost?.name || '', postDescription: selPost?.description || '', postCategory: selPost?.category || 'apk', count: 3 }, admin?.uid); toast.success('Comentarios añadidos ✅') }
+      else { await deleteBotComments(selected, admin?.uid); toast.success('Comentarios eliminados ✅') }
     } catch (e) { toast.error(e.message) }
     finally { setLoading(false) }
   }
@@ -712,11 +713,10 @@ function AllPostsPanel({ posts, onRefresh }) {
 
   async function act(id, action, extra) {
     try {
-      if (action === 'delete')  { if (!window.confirm('¿Eliminar?')) return; await deletePost(id) }
-      if (action === 'feature') await toggleFeatured(id, extra)
-      if (action === 'verify')  await verifyPost(id, extra)
-      if (action === 'status')  await setPostStatus(id, extra)
-      toast.success('✅ Listo'); onRefresh()
+      if (action === 'delete')  { if (!window.confirm('¿Eliminar?')) return; await deletePost(id); toast.success('✅ Eliminado'); onRefresh(); return }
+      if (action === 'feature') { await toggleFeatured(id, extra); toast.success('✅ Listo'); onRefresh(); return }
+      if (action === 'verify')  { await verifyPost(id, extra); toast.success('✅ Listo'); onRefresh(); return }
+      if (action === 'status')  { await setPostStatus(id, extra); toast.success('✅ Listo'); onRefresh(); return }
     } catch (e) { toast.error(e.message) }
   }
 
