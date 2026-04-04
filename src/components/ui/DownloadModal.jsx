@@ -2,90 +2,164 @@
 import { useState, useEffect, useRef } from 'react'
 import styles from './DownloadModal.module.css'
 
-const PROXY_BASE = import.meta.env.VITE_DOWNLOAD_PROXY_URL || ''
+const PROXY_BASE = (import.meta.env.VITE_DOWNLOAD_PROXY_URL || '').replace(/\/$/, '')
 
-function isMediafire(url) { return url?.includes('mediafire.com') }
-function isArchive(url)   { return url?.includes('archive.org') }
-function isExternal(url)  {
+function isArchive(url)   { return typeof url === 'string' && url.includes('archive.org') }
+function isMediafire(url) { return typeof url === 'string' && url.includes('mediafire.com') }
+function isDirectLink(url) {
+  // Links que podemos descargar directo sin proxy
   if (!url) return false
-  const ext = ['mega.nz','mega.co.nz','drive.google.com','dropbox.com','gofile.io','pixeldrain.com','sendspace.com']
-  return ext.some(d => url.includes(d))
+  const direct = ['.apk', '.zip', '.rar', '.7z', '.apks', '.xapk']
+  try {
+    const path = new URL(url).pathname.toLowerCase()
+    return direct.some(ext => path.endsWith(ext))
+  } catch { return false }
 }
-
-// Construye URL de proxy si está configurado, si no usa la original
-function buildDownloadUrl(originalUrl) {
-  if (!PROXY_BASE || !originalUrl) return originalUrl
-  if (isMediafire(originalUrl) || isArchive(originalUrl)) {
-    return `${PROXY_BASE}/dl?url=${encodeURIComponent(originalUrl)}`
-  }
-  return originalUrl
+function needsNewTab(url) {
+  if (!url) return false
+  return ['mega.nz','mega.co.nz','drive.google.com','dropbox.com','gofile.io','pixeldrain.com']
+    .some(d => url.includes(d))
 }
 
 export default function DownloadModal({ post, onClose }) {
-  const [phase, setPhase]       = useState('ready')   // ready | countdown | downloading | done
+  const [phase, setPhase]         = useState('ready')
   const [countdown, setCountdown] = useState(4)
-  const iframeRef               = useRef(null)
+  const closedRef  = useRef(false)
+  const timerRef   = useRef(null)
+  const rawUrl     = post?.downloadUrl || ''
 
-  const rawUrl    = post.downloadUrl
-  const proxyUrl  = buildDownloadUrl(rawUrl)
-  const useProxy  = proxyUrl !== rawUrl
-  const external  = isExternal(rawUrl) && !isMediafire(rawUrl) && !isArchive(rawUrl)
-
-  // Links que no podemos proxear: abrir en nueva pestaña directo
+  // Al montar: reset limpio
   useEffect(() => {
-    if (external) {
-      window.open(rawUrl, '_blank', 'noopener,noreferrer')
-      onClose()
+    closedRef.current = false
+    setPhase('ready')
+    setCountdown(4)
+    return () => {
+      closedRef.current = true
+      clearTimer()
     }
-  }, [])
+  }, []) // eslint-disable-line
 
-  // Countdown automático
+  // Abrir links tipo Mega directo al montar
+  useEffect(() => {
+    if (needsNewTab(rawUrl)) {
+      window.open(rawUrl, '_blank', 'noopener,noreferrer')
+      safeClose()
+    }
+  }, []) // eslint-disable-line
+
+  // Countdown
   useEffect(() => {
     if (phase !== 'countdown') return
-    if (countdown <= 0) { triggerDownload(); return }
-    const t = setTimeout(() => setCountdown(c => c - 1), 1000)
-    return () => clearTimeout(t)
-  }, [phase, countdown])
+    if (countdown <= 0) { doDownload(); return }
+    timerRef.current = setTimeout(() => {
+      if (!closedRef.current) setCountdown(c => c - 1)
+    }, 1000)
+    return clearTimer
+  }, [phase, countdown]) // eslint-disable-line
+
+  function clearTimer() {
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
+  }
+
+  function safeClose() {
+    if (closedRef.current) return
+    closedRef.current = true
+    clearTimer()
+    onClose()
+  }
+
+  function handleClose() { safeClose() }
+
+  function handleOverlay(e) {
+    if (e.target === e.currentTarget) safeClose()
+  }
 
   function startCountdown() {
+    if (closedRef.current) return
     setPhase('countdown')
     setCountdown(4)
   }
 
-  function triggerDownload() {
-    if (phase === 'downloading' || phase === 'done') return
-    setPhase('downloading')
-
-    if (useProxy) {
-      // Descarga directa via <a> con el proxy — el navegador descarga sin salir
-      const a = document.createElement('a')
-      a.href = proxyUrl
-      a.download = (post.name || 'archivo').replace(/[^a-z0-9\-_.]/gi, '_') + '.apk'
-      a.target = '_blank'
-      a.rel = 'noopener noreferrer'
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-    } else {
-      // Sin proxy: iframe oculto (descarga directa archive.org / mediafire)
-      const iframe = document.createElement('iframe')
-      iframe.style.cssText = 'display:none;width:0;height:0;border:none;position:absolute;'
-      iframe.src = rawUrl
-      document.body.appendChild(iframe)
-      setTimeout(() => { try { document.body.removeChild(iframe) } catch {} }, 120000)
-    }
-
-    setTimeout(() => setPhase('done'), 1200)
+  function skipCountdown() {
+    clearTimer()
+    doDownload()
   }
 
-  if (external) return null
+  function doDownload() {
+    if (closedRef.current) return
+    setPhase('triggered')
 
-  const fileName = post.name || 'archivo'
-  const fileSize = post.size || null
-  const progress = phase === 'ready' ? 0 : phase === 'countdown' ? ((4 - countdown) / 4) * 70 : phase === 'downloading' ? 90 : 100
+    const url = rawUrl
+
+    // ── Archive.org: window.open directo ──
+    // El servidor envía Content-Disposition:attachment así que el navegador
+    // descarga el archivo — NO hay riesgo de que descargue HTML.
+    // NO usar iframe ni <a download> porque en móvil falla.
+    if (isArchive(url)) {
+      window.open(url, '_blank', 'noopener,noreferrer')
+
+    // ── MediaFire con proxy configurado ──
+    } else if (isMediafire(url) && PROXY_BASE) {
+      // El proxy resuelve el redirect y sirve el archivo
+      const proxyUrl = `${PROXY_BASE}/dl?url=${encodeURIComponent(url)}`
+      window.open(proxyUrl, '_blank', 'noopener,noreferrer')
+
+    // ── MediaFire sin proxy: abrir directo ──
+    } else if (isMediafire(url)) {
+      window.open(url, '_blank', 'noopener,noreferrer')
+
+    // ── Cualquier otro link ──
+    } else {
+      window.open(url, '_blank', 'noopener,noreferrer')
+    }
+
+    // Marcar como done
+    timerRef.current = setTimeout(() => {
+      if (!closedRef.current) setPhase('done')
+    }, 1200)
+  }
+
+  function retry() {
+    clearTimer()
+    setPhase('ready')
+    setCountdown(4)
+  }
+
+  // No renderizar si es Mega etc.
+  if (needsNewTab(rawUrl)) return null
+
+  if (!rawUrl) return (
+    <div className={styles.overlay} onClick={handleOverlay}>
+      <div className={styles.modal}>
+        <div className={styles.header}>
+          <div className={styles.headerLeft}>
+            <div className={styles.headerIcon}>⬇</div>
+            <div><div className={styles.headerTitle}>Sin enlace</div></div>
+          </div>
+          <button className={styles.closeBtn} onClick={handleClose}>✕</button>
+        </div>
+        <p style={{ color:'var(--t2)', fontSize:'.85rem', padding:'.5rem 0' }}>
+          Esta publicación no tiene archivo disponible.
+        </p>
+        <button className={styles.cancelBtn} style={{ width:'100%' }} onClick={handleClose}>Cerrar</button>
+      </div>
+    </div>
+  )
+
+  const fileSize = post?.size || null
+  const serverLabel = isArchive(rawUrl)
+    ? 'archive.org'
+    : isMediafire(rawUrl) && PROXY_BASE ? 'AsmodeoDev'
+    : isMediafire(rawUrl) ? 'MediaFire'
+    : 'servidor externo'
+
+  const pct = phase === 'ready' ? 0
+    : phase === 'countdown' ? Math.round(((4 - countdown) / 4) * 65)
+    : phase === 'triggered' ? 88
+    : 100
 
   return (
-    <div className={styles.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className={styles.overlay} onClick={handleOverlay}>
       <div className={styles.modal}>
 
         {/* Header */}
@@ -94,98 +168,113 @@ export default function DownloadModal({ post, onClose }) {
             <div className={styles.headerIcon}>⬇</div>
             <div>
               <div className={styles.headerTitle}>Descarga directa</div>
-              <div className={styles.headerSub}>Desde {useProxy ? 'AsmodeoDev' : isArchive(rawUrl) ? 'archive.org' : 'servidor externo'}</div>
+              <div className={styles.headerSub}>Desde {serverLabel}</div>
             </div>
           </div>
-          <button className={styles.closeBtn} onClick={onClose}>✕</button>
+          <button className={styles.closeBtn} onClick={handleClose} aria-label="Cerrar">✕</button>
         </div>
 
-        {/* Info del archivo */}
+        {/* Info archivo */}
         <div className={styles.fileCard}>
-          {post.imageUrl && <img src={post.imageUrl} alt={fileName} className={styles.fileThumb} />}
+          {post?.imageUrl
+            ? <img src={post.imageUrl} alt={post?.name} className={styles.fileThumb} />
+            : <div className={styles.fileThumbFb}>
+                {post?.category === 'games' ? '🎮' : post?.category === 'script' ? '⚙️' : '📱'}
+              </div>
+          }
           <div className={styles.fileInfo}>
-            <div className={styles.fileName}>{fileName}</div>
+            <div className={styles.fileName}>{post?.name || 'Archivo'}</div>
             <div className={styles.fileMeta}>
-              {post.version && <span>📦 v{post.version}</span>}
-              {fileSize    && <span>💾 {fileSize}</span>}
-              {post.category && <span>{post.category === 'apk' ? '📱 APK' : post.category === 'games' ? '🎮 Juego' : '📄 Archivo'}</span>}
+              {post?.version && <span>📦 v{post.version}</span>}
+              {fileSize      && <span>💾 {fileSize}</span>}
+              {post?.category && (
+                <span>{post.category === 'apk' ? '📱 APK' : post.category === 'games' ? '🎮 Juego' : '📄 Archivo'}</span>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Aviso de seguridad (siempre visible) */}
+        {/* Aviso legal */}
         <div className={styles.warning}>
           <span className={styles.warningIcon}>⚠️</span>
           <div className={styles.warningText}>
-            <strong>Este contenido es solo para uso educativo.</strong> No es legal ni ético. Úsalo bajo tu propio riesgo.
-            Verifica en <a href={`https://www.virustotal.com/gui/search/${encodeURIComponent(post.name || '')}`}
-              target="_blank" rel="noopener noreferrer" className={styles.vtLink}>VirusTotal</a> antes
-            de instalar. Si detectas algo raro,{' '}
-            <span className={styles.reportLink} onClick={onClose}>reporta la publicación</span>.
+            <strong>Solo para uso educativo.</strong> No es legal ni ético. Úsalo bajo tu propio riesgo.
+            Verifica en{' '}
+            <a href={`https://www.virustotal.com/gui/search/${encodeURIComponent(post?.name || '')}`}
+              target="_blank" rel="noopener noreferrer" className={styles.vtLink}>
+              VirusTotal
+            </a>{' '}
+            antes de instalar. Si algo es raro,{' '}
+            <button className={styles.reportInline} onClick={handleClose}>reporta la publicación</button>.
           </div>
         </div>
 
-        {/* Estado central */}
-        {phase === 'ready' && (
-          <div className={styles.stateBox}>
-            <div className={styles.stateIcon}>📥</div>
-            <p className={styles.stateText}>Listo para descargar</p>
-          </div>
-        )}
+        {/* Estado */}
+        <div className={styles.stateBox}>
+          {phase === 'ready' && (
+            <><div className={styles.stateIcon}>📥</div><p className={styles.stateText}>Listo para descargar</p></>
+          )}
+          {phase === 'countdown' && (
+            <>
+              <div className={styles.countdownRing}>
+                <svg viewBox="0 0 64 64" className={styles.ringSvg}>
+                  <defs>
+                    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%"   stopColor="#c0002a" />
+                      <stop offset="50%"  stopColor="#7c3aed" />
+                      <stop offset="100%" stopColor="#ff0044" />
+                    </linearGradient>
+                  </defs>
+                  <circle cx="32" cy="32" r="28" className={styles.ringBg} />
+                  <circle cx="32" cy="32" r="28" className={styles.ringFill}
+                    style={{ strokeDashoffset: 176 - (176 * ((4 - countdown) / 4)) }} />
+                </svg>
+                <span className={styles.countdownNum}>{countdown}</span>
+              </div>
+              <p className={styles.stateText}>Iniciando descarga...</p>
+            </>
+          )}
+          {phase === 'triggered' && (
+            <><div className={`${styles.stateIcon} ${styles.bounce}`}>⬇️</div><p className={styles.stateText}>Abriendo descarga...</p></>
+          )}
+          {phase === 'done' && (
+            <><div className={styles.stateIcon}>✅</div><p className={styles.stateText}>¡Descarga iniciada! Revisa tus notificaciones.</p></>
+          )}
+        </div>
 
-        {phase === 'countdown' && (
-          <div className={styles.stateBox}>
-            <div className={styles.countdownRing}>
-              <svg viewBox="0 0 60 60" className={styles.ringsvg}>
-                <circle cx="30" cy="30" r="26" className={styles.ringBg} />
-                <circle cx="30" cy="30" r="26" className={styles.ringFill}
-                  style={{ strokeDashoffset: 163 - (163 * (4 - countdown) / 4) }} />
-              </svg>
-              <span className={styles.countdownNum}>{countdown}</span>
-            </div>
-            <p className={styles.stateText}>Iniciando descarga...</p>
-          </div>
-        )}
-
-        {phase === 'downloading' && (
-          <div className={styles.stateBox}>
-            <div className={styles.stateIcon} style={{ animation: 'float 1s ease-in-out infinite' }}>⬇️</div>
-            <p className={styles.stateText}>Descargando archivo...</p>
-          </div>
-        )}
-
-        {phase === 'done' && (
-          <div className={styles.stateBox}>
-            <div className={styles.stateIcon}>✅</div>
-            <p className={styles.stateText}>¡Descarga iniciada! Revisa tus notificaciones.</p>
-          </div>
-        )}
-
-        {/* Barra de progreso */}
+        {/* Progreso */}
         <div className={styles.progressTrack}>
-          <div className={styles.progressFill} style={{ width: `${progress}%` }} />
+          <div className={styles.progressFill} style={{ width:`${pct}%` }} />
         </div>
 
-        {/* Acciones */}
+        {/* Botones */}
         <div className={styles.actions}>
           {phase === 'ready' && (
             <button className={styles.dlBtn} onClick={startCountdown}>
               ⬇ Descargar{fileSize ? ` — ${fileSize}` : ''}
             </button>
           )}
-          {(phase === 'done' || phase === 'downloading') && (
-            <button className={styles.dlBtn} onClick={() => { setPhase('ready') }}>
+          {phase === 'countdown' && (
+            <button className={`${styles.dlBtn} ${styles.dlBtnSkip}`} onClick={skipCountdown}>
+              ⚡ Descargar ahora
+            </button>
+          )}
+          {(phase === 'triggered' || phase === 'done') && (
+            <button className={styles.dlBtn} onClick={retry}>
               🔄 Descargar de nuevo
             </button>
           )}
-          <button className={styles.cancelBtn} onClick={onClose}>Cerrar</button>
+          <button className={styles.cancelBtn} onClick={handleClose}>Cerrar</button>
         </div>
 
         <div className={styles.footerNote}>
-          {useProxy
-            ? '⚡ Descarga directa desde AsmodeoDev — sin salir de la web'
-            : '🔒 Archivo alojado en archive.org — gratuito y seguro'}
+          {isArchive(rawUrl)
+            ? '🔒 Archivo en archive.org · abre en nueva pestaña'
+            : isMediafire(rawUrl) && PROXY_BASE
+              ? '⚡ Via AsmodeoDev · abre en nueva pestaña'
+              : '📂 Abre en nueva pestaña'}
         </div>
+
       </div>
     </div>
   )
