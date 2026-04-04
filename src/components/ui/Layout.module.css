@@ -1,52 +1,108 @@
-/* src/components/ui/Layout.module.css */
-
-.layout {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
+/* Layout.module.css */
+.layout { display:flex;flex-direction:column;min-height:100vh; }
 
 .main {
   flex: 1;
-  /* nav (64px) + benefitsBar (32px) = 96px */
-  padding-top: calc(var(--nav-h) + 32px);
+  /* nav(54) + benefitsBar(30) = 84px top, bottom bar(60) + safe area */
+  padding-top: calc(var(--nav-h) + 30px);
+  padding-bottom: calc(var(--bottom-h) + env(safe-area-inset-bottom, 0px));
 }
 
-/* ── Benefits ticker bar ── */
-/* FIXED: Ahora va debajo del nav (top: var(--nav-h)) correctamente
-   porque Navbar se renderiza ANTES que BenefitsBar en el JSX */
+/* ── Benefits ticker ── */
 .benefitsBar {
   position: fixed;
   top: var(--nav-h);
   left: 0; right: 0;
-  z-index: 900;
-  height: 32px;
-  background: linear-gradient(90deg, rgba(10,10,18,.98), rgba(15,10,28,.98));
-  border-bottom: 1px solid rgba(124,58,237,.2);
+  z-index: 800;
+  height: 30px;
+  background: rgba(8,6,8,.96);
+  border-bottom: 1px solid rgba(255,0,64,.15);
   overflow: hidden;
 }
-
 .benefitsTrack {
-  display: flex;
-  align-items: center;
-  height: 100%;
-  width: max-content;
-  animation: ticker 30s linear infinite;
+  display: flex; align-items: center;
+  height: 100%; width: max-content;
+  animation: ticker 28s linear infinite;
 }
 .benefitsTrack:hover { animation-play-state: paused; }
+.benefit { display:inline-flex;align-items:center;gap:.35rem;padding:0 1.1rem;white-space:nowrap; }
+.benefitIcon { font-size:.8rem; }
+.benefitText { font-size:.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase; }
+.dot { color:rgba(255,0,64,.35);font-size:.55rem; }
 
-@keyframes ticker {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
-}
-
-.benefit {
-  display: inline-flex;
+/* ── Bottom navigation bar ── */
+.bottomBar {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: calc(var(--bottom-h) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: rgba(8,6,8,.97);
+  border-top: 1px solid rgba(255,0,64,.15);
+  backdrop-filter: blur(16px);
+  z-index: 900;
+  display: flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0 1.25rem;
-  white-space: nowrap;
+  justify-content: space-around;
+  padding-left: .5rem;
+  padding-right: .5rem;
 }
-.benefitIcon { font-size: 0.85rem; }
-.benefitText { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
-.dot { color: rgba(124,58,237,.4); font-size: 0.6rem; }
+
+/* Nav items */
+.navItem {
+  display: flex; flex-direction: column; align-items: center;
+  gap: .2rem; flex: 1;
+  background: none; border: none; cursor: pointer;
+  color: var(--t3); font-family: var(--font2);
+  padding: .4rem .2rem;
+  transition: color .18s;
+  -webkit-tap-highlight-color: transparent;
+}
+.navItem:hover  { color: var(--t2); }
+.navItemActive  { color: var(--p) !important; }
+.navItemActive .navIcon {
+  filter: drop-shadow(0 0 6px rgba(255,0,64,.7));
+}
+
+.navIcon  { display:flex;align-items:center;justify-content:center;width:24px;height:24px; }
+.navLabel { font-size:.6rem;font-weight:600;letter-spacing:.02em;white-space:nowrap; }
+
+/* Avatar en el navItem de perfil */
+.navAvatar {
+  width: 24px; height: 24px;
+  border-radius: 50%; object-fit: cover;
+  border: 2px solid var(--borderg);
+  transition: border-color .18s;
+}
+.navAvatarActive { border-color: var(--p) !important; box-shadow: 0 0 8px rgba(255,0,64,.5); }
+
+/* Botón + central */
+.uploadBtn {
+  display: flex; align-items: center; justify-content: center;
+  width: 46px; height: 34px;
+  background: linear-gradient(135deg, #cc0033, #ff0040, #ff3366);
+  background-size: 200% 200%;
+  animation: gradShift 3s ease infinite;
+  border: none; border-radius: 10px;
+  cursor: pointer; flex-shrink: 0;
+  box-shadow: 0 0 16px rgba(255,0,64,.5), 0 0 30px rgba(255,0,64,.2);
+  transition: transform .15s, box-shadow .15s;
+  -webkit-tap-highlight-color: transparent;
+  margin: 0 .25rem;
+  position: relative;
+}
+.uploadBtn::before {
+  content: '';
+  position: absolute; inset: -2px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ff0040, #cc0033);
+  z-index: -1;
+  filter: blur(6px);
+  opacity: .7;
+}
+.uploadBtn:hover  { transform: scale(1.06); box-shadow: 0 0 24px rgba(255,0,64,.7); }
+.uploadBtn:active { transform: scale(.96); }
+
+.uploadIcon {
+  font-size: 1.4rem; font-weight: 300; color: #fff; line-height: 1;
+  margin-top: -1px;
+}
