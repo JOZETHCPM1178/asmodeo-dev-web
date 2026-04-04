@@ -2,19 +2,8 @@
 import { useState, useEffect, useRef } from 'react'
 import styles from './DownloadModal.module.css'
 
-const PROXY_BASE = (import.meta.env.VITE_DOWNLOAD_PROXY_URL || '').replace(/\/$/, '')
-
 function isArchive(url)   { return typeof url === 'string' && url.includes('archive.org') }
 function isMediafire(url) { return typeof url === 'string' && url.includes('mediafire.com') }
-function isDirectLink(url) {
-  // Links que podemos descargar directo sin proxy
-  if (!url) return false
-  const direct = ['.apk', '.zip', '.rar', '.7z', '.apks', '.xapk']
-  try {
-    const path = new URL(url).pathname.toLowerCase()
-    return direct.some(ext => path.endsWith(ext))
-  } catch { return false }
-}
 function needsNewTab(url) {
   if (!url) return false
   return ['mega.nz','mega.co.nz','drive.google.com','dropbox.com','gofile.io','pixeldrain.com']
@@ -24,22 +13,18 @@ function needsNewTab(url) {
 export default function DownloadModal({ post, onClose }) {
   const [phase, setPhase]         = useState('ready')
   const [countdown, setCountdown] = useState(4)
-  const closedRef  = useRef(false)
-  const timerRef   = useRef(null)
-  const rawUrl     = post?.downloadUrl || ''
+  const closedRef = useRef(false)
+  const timerRef  = useRef(null)
+  const rawUrl    = post?.downloadUrl || ''
 
-  // Al montar: reset limpio
   useEffect(() => {
     closedRef.current = false
     setPhase('ready')
     setCountdown(4)
-    return () => {
-      closedRef.current = true
-      clearTimer()
-    }
+    return () => { closedRef.current = true; clearTimer() }
   }, []) // eslint-disable-line
 
-  // Abrir links tipo Mega directo al montar
+  // Mega etc — abrir y cerrar inmediatamente
   useEffect(() => {
     if (needsNewTab(rawUrl)) {
       window.open(rawUrl, '_blank', 'noopener,noreferrer')
@@ -47,7 +32,7 @@ export default function DownloadModal({ post, onClose }) {
     }
   }, []) // eslint-disable-line
 
-  // Countdown
+  // Countdown tick
   useEffect(() => {
     if (phase !== 'countdown') return
     if (countdown <= 0) { doDownload(); return }
@@ -60,72 +45,49 @@ export default function DownloadModal({ post, onClose }) {
   function clearTimer() {
     if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
   }
-
   function safeClose() {
     if (closedRef.current) return
     closedRef.current = true
     clearTimer()
     onClose()
   }
-
-  function handleClose() { safeClose() }
-
-  function handleOverlay(e) {
-    if (e.target === e.currentTarget) safeClose()
-  }
-
-  function startCountdown() {
-    if (closedRef.current) return
-    setPhase('countdown')
-    setCountdown(4)
-  }
-
-  function skipCountdown() {
-    clearTimer()
-    doDownload()
-  }
+  function handleClose()   { safeClose() }
+  function handleOverlay(e){ if (e.target === e.currentTarget) safeClose() }
+  function startCountdown(){ if (!closedRef.current) { setPhase('countdown'); setCountdown(4) } }
+  function skipCountdown() { clearTimer(); doDownload() }
+  function retry()         { clearTimer(); setPhase('ready'); setCountdown(4) }
 
   function doDownload() {
     if (closedRef.current) return
     setPhase('triggered')
 
-    const url = rawUrl
+    if (isArchive(rawUrl)) {
+      // ── Archive.org: iframe oculto ──
+      // Archive.org envía Content-Disposition:attachment, el navegador
+      // lo intercepta como descarga sin abrir pestaña en negro.
+      const iframe = document.createElement('iframe')
+      iframe.style.cssText = 'display:none!important;position:fixed;left:-9999px;top:-9999px;width:0;height:0;border:0;'
+      iframe.src = rawUrl
+      document.body.appendChild(iframe)
+      setTimeout(() => { try { document.body.removeChild(iframe) } catch {} }, 120_000)
 
-    // ── Archive.org: window.open directo ──
-    // El servidor envía Content-Disposition:attachment así que el navegador
-    // descarga el archivo — NO hay riesgo de que descargue HTML.
-    // NO usar iframe ni <a download> porque en móvil falla.
-    if (isArchive(url)) {
-      window.open(url, '_blank', 'noopener,noreferrer')
+    } else if (isMediafire(rawUrl)) {
+      // ── MediaFire: abrir directo en nueva pestaña ──
+      // NO pasar por el proxy — el proxy devuelve dl.html porque
+      // MediaFire requiere resolver varios redirects que el worker no maneja.
+      // El usuario aterriza en MediaFire y descarga desde ahí.
+      window.open(rawUrl, '_blank', 'noopener,noreferrer')
 
-    // ── MediaFire con proxy configurado ──
-    } else if (isMediafire(url) && PROXY_BASE) {
-      // El proxy resuelve el redirect y sirve el archivo
-      const proxyUrl = `${PROXY_BASE}/dl?url=${encodeURIComponent(url)}`
-      window.open(proxyUrl, '_blank', 'noopener,noreferrer')
-
-    // ── MediaFire sin proxy: abrir directo ──
-    } else if (isMediafire(url)) {
-      window.open(url, '_blank', 'noopener,noreferrer')
-
-    // ── Cualquier otro link ──
     } else {
-      window.open(url, '_blank', 'noopener,noreferrer')
+      // ── Cualquier otro link ──
+      window.open(rawUrl, '_blank', 'noopener,noreferrer')
     }
 
-    // Marcar como done
     timerRef.current = setTimeout(() => {
       if (!closedRef.current) setPhase('done')
-    }, 1200)
+    }, 1400)
   }
 
-  function retry() {
-    clearTimer()
-    setPhase('ready')
-    setCountdown(4)
-  }
-
-  // No renderizar si es Mega etc.
   if (needsNewTab(rawUrl)) return null
 
   if (!rawUrl) return (
@@ -147,9 +109,7 @@ export default function DownloadModal({ post, onClose }) {
   )
 
   const fileSize = post?.size || null
-  const serverLabel = isArchive(rawUrl)
-    ? 'archive.org'
-    : isMediafire(rawUrl) && PROXY_BASE ? 'AsmodeoDev'
+  const serverLabel = isArchive(rawUrl) ? 'archive.org'
     : isMediafire(rawUrl) ? 'MediaFire'
     : 'servidor externo'
 
@@ -235,10 +195,18 @@ export default function DownloadModal({ post, onClose }) {
             </>
           )}
           {phase === 'triggered' && (
-            <><div className={`${styles.stateIcon} ${styles.bounce}`}>⬇️</div><p className={styles.stateText}>Abriendo descarga...</p></>
+            <><div className={`${styles.stateIcon} ${styles.bounce}`}>⬇️</div>
+            <p className={styles.stateText}>
+              {isArchive(rawUrl) ? 'Descargando...' : 'Abriendo MediaFire...'}
+            </p></>
           )}
           {phase === 'done' && (
-            <><div className={styles.stateIcon}>✅</div><p className={styles.stateText}>¡Descarga iniciada! Revisa tus notificaciones.</p></>
+            <><div className={styles.stateIcon}>✅</div>
+            <p className={styles.stateText}>
+              {isArchive(rawUrl)
+                ? '¡Descarga iniciada! Revisa tus notificaciones.'
+                : '¡Se abrió MediaFire! Toca el botón de descarga ahí.'}
+            </p></>
           )}
         </div>
 
@@ -269,10 +237,8 @@ export default function DownloadModal({ post, onClose }) {
 
         <div className={styles.footerNote}>
           {isArchive(rawUrl)
-            ? '🔒 Archivo en archive.org · abre en nueva pestaña'
-            : isMediafire(rawUrl) && PROXY_BASE
-              ? '⚡ Via AsmodeoDev · abre en nueva pestaña'
-              : '📂 Abre en nueva pestaña'}
+            ? '🔒 Descarga directa desde archive.org · sin salir de la web'
+            : '📂 Se abrirá MediaFire en nueva pestaña'}
         </div>
 
       </div>
