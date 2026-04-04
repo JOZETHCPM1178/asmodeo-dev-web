@@ -16,6 +16,7 @@ import AdminPage from './pages/AdminPage'
 import MessagesPage from './pages/MessagesPage'
 import NotFoundPage from './pages/NotFoundPage'
 import WatermarkPage from './pages/WatermarkPage'
+import FollowingPage from './pages/FollowingPage'
 
 function SettingsRedirect() {
   const { user } = useAuth()
@@ -32,11 +33,12 @@ export default function App() {
           toastOptions={{
             duration: 3500,
             style: {
-              background: '#12121f',
-              color: '#f0f0ff',
-              border: '1px solid rgba(124,58,237,0.4)',
+              background: '#111013',
+              color: '#f5f0f8',
+              border: '1px solid rgba(255,0,64,0.3)',
               borderRadius: '10px',
               fontSize: '0.875rem',
+              boxShadow: '0 0 16px rgba(255,0,64,0.15)',
             },
             success: { iconTheme: { primary: '#10b981', secondary: '#12121f' } },
             error:   { iconTheme: { primary: '#ef4444', secondary: '#12121f' } },
@@ -56,6 +58,7 @@ export default function App() {
             <Route path="/messages"      element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
             <Route path="/messages/:convId" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
             <Route path="/watermark"        element={<WatermarkPage />} />
+            <Route path="/seguidos"          element={<FollowingPage />} />
             <Route path="*"              element={<NotFoundPage />} />
           </Route>
         </Routes>
