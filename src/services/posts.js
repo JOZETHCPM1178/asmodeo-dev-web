@@ -81,6 +81,36 @@ export async function getUserPosts(authorId) {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }))
 }
 
+// ─── FEED DE SEGUIDOS ───
+export async function getFollowingFeed(authorIds, pageSize = 20) {
+  if (!authorIds?.length) return []
+  // Firestore where-in soporta hasta 10 valores, dividir en chunks
+  const chunks = []
+  for (let i = 0; i < authorIds.length; i += 10) {
+    chunks.push(authorIds.slice(i, i + 10))
+  }
+  const allPosts = []
+  for (const chunk of chunks) {
+    const snap = await getDocs(
+      query(
+        collection(db, 'posts'),
+        where('authorId', 'in', chunk),
+        where('status', '==', 'active'),
+        orderBy('createdAt', 'desc'),
+        limit(pageSize)
+      )
+    )
+    snap.docs.forEach(d => allPosts.push({ id: d.id, ...d.data() }))
+  }
+  // Ordenar todo por fecha
+  allPosts.sort((a, b) => {
+    const ta = a.createdAt?.toDate?.()?.getTime() || a.createdAt?.seconds * 1000 || 0
+    const tb = b.createdAt?.toDate?.()?.getTime() || b.createdAt?.seconds * 1000 || 0
+    return tb - ta
+  })
+  return allPosts.slice(0, pageSize)
+}
+
 // ─── UN POST (por slug o ID) ───
 export async function getPost(slugOrId) {
   // Intentar primero por ID directo
