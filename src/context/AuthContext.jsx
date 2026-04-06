@@ -11,13 +11,14 @@ export function AuthProvider({ children }) {
   const [user, setUser]           = useState(undefined)
   const [loading, setLoading]     = useState(true)
   const [maintenance, setMaintenance] = useState(false)
+  const [maintenanceMsg, setMaintenanceMsg] = useState('')
 
   useEffect(() => {
     // Chequear modo mantenimiento
-    getMaintenanceMode().then(setMaintenance).catch(() => {})
+    getMaintenanceMode().then(r => { setMaintenance(r.active); setMaintenanceMsg(r.message) }).catch(() => {})
     // Polling cada 30s para detectar cambios
     const interval = setInterval(() => {
-      getMaintenanceMode().then(setMaintenance).catch(() => {})
+      getMaintenanceMode().then(r => { setMaintenance(r.active); setMaintenanceMsg(r.message) }).catch(() => {})
     }, 30000)
     return () => clearInterval(interval)
   }, [])
@@ -44,7 +45,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, maintenance, setMaintenance, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, maintenance, maintenanceMsg, setMaintenance, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )
