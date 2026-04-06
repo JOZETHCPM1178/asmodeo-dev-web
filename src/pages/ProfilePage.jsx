@@ -103,8 +103,18 @@ export default function ProfilePage() {
             <div className={styles.nameRow}>
               <h1 className={styles.username}>{profile.displayName || profile.username}</h1>
               {profile.verified && <VerifiedBadge title="Usuario verificado" />}
-              {profile.role === 'admin'    && <span className="badge badge-purple">👑 ADMIN</span>}
-              {profile.role === 'admin_jr' && <span className="badge badge-cyan">🛡️ ADMIN JR</span>}
+              {(profile.role === 'owner' || profile.isOwner) && (
+                <span className={styles.roleOwner}>👑 OWNER</span>
+              )}
+              {profile.role === 'admin' && !profile.isOwner && (
+                <span className={styles.roleAdmin}>🛡️ ADMIN</span>
+              )}
+              {profile.role === 'admin_jr' && (
+                <span className={styles.roleMod}>🔰 MOD</span>
+              )}
+              {(!profile.role || profile.role === 'user') && (
+                <span className={styles.roleUser}>👤 Usuario</span>
+              )}
             </div>
 
             {profile.bio && <p className={styles.bio}>{profile.bio}</p>}

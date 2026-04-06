@@ -1,11 +1,12 @@
 // src/pages/MaintenancePage.jsx
 import styles from './MaintenancePage.module.css'
 
-export default function MaintenancePage() {
+export default function MaintenancePage({ message }) {
+  const displayMsg = message || 'Estamos mejorando la plataforma para ti.\nVolvemos muy pronto con novedades 🚀'
+
   return (
     <div className={styles.page}>
       <div className={styles.content}>
-        {/* Icono animado rainbow */}
         <div className={styles.iconWrap}>
           <div className={styles.ring} />
           <div className={styles.ring2} />
@@ -14,15 +15,16 @@ export default function MaintenancePage() {
         </div>
 
         <h1 className={styles.title}>
-          <span className={styles.rainbow}>ASMODEO</span>
+          <span className={styles.neon}>ASMODEO</span>
           <span className={styles.titleDev}>DEV</span>
         </h1>
 
         <div className={styles.badge}>🔧 EN MANTENIMIENTO</div>
 
         <p className={styles.desc}>
-          Estamos mejorando la plataforma para ti.<br />
-          Volvemos muy pronto con novedades 🚀
+          {displayMsg.split('\n').map((line, i) => (
+            <span key={i}>{line}{i < displayMsg.split('\n').length - 1 && <br />}</span>
+          ))}
         </p>
 
         <div className={styles.dots}>
