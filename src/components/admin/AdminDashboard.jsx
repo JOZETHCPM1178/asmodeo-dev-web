@@ -935,35 +935,63 @@ function ConfigPanel() {
 ══════════════════════════════════════════ */
 function MaintenanceToggle() {
   const [active, setActive]   = useState(false)
+  const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
-  useEffect(() => { getMaintenanceMode().then(setActive).catch(() => {}) }, [])
+
+  useEffect(() => {
+    getMaintenanceMode().then(r => {
+      setActive(r.active)
+      setMessage(r.message || '')
+    }).catch(() => {})
+  }, [])
+
   async function toggle() {
     setLoading(true)
     try {
-      await setMaintenanceMode(!active)
+      await setMaintenanceMode(!active, message)
       setActive(a => !a)
       toast.success(!active ? '🔧 Mantenimiento ACTIVADO' : '✅ Web restaurada para todos')
     } catch (e) { toast.error(e.message) }
     finally { setLoading(false) }
   }
+
   return (
     <div className={styles.maintenanceBox}>
-      <div className={styles.maintenanceInfo}>
+      <div style={{ display:'flex', alignItems:'center', gap:'.75rem', marginBottom:'.75rem' }}>
         <span style={{ fontSize:'1.5rem' }}>🔧</span>
-        <div>
-          <div style={{ fontWeight:700, fontSize:'0.9rem' }}>Sistema de Mantenimiento</div>
-          <div style={{ fontSize:'0.77rem', color:'var(--t3)', marginTop:2 }}>
-            Al activar, todos los usuarios verán la página de mantenimiento. Solo el Owner ve la web.
+        <div style={{ flex:1 }}>
+          <div style={{ fontWeight:700, fontSize:'.9rem' }}>Sistema de Mantenimiento</div>
+          <div style={{ fontSize:'.75rem', color:'var(--t3)', marginTop:2 }}>
+            Al activar, todos los usuarios verán esta página. Solo el Owner puede entrar.
           </div>
         </div>
         <span className={`badge ${active?'badge-red':'badge-green'}`} style={{ flexShrink:0 }}>
           {active ? '🔴 ACTIVO' : '🟢 NORMAL'}
         </span>
       </div>
-      <button className={`btn btn-lg ${active?'btn-primary':'btn-danger'}`}
+
+      {/* Mensaje personalizable */}
+      <div className="inp-group" style={{ marginBottom:'.75rem' }}>
+        <label className="inp-label">Mensaje para los usuarios (opcional)</label>
+        <textarea className="inp"
+          placeholder={'Ej: Estamos actualizando el servidor. Volvemos en 30 minutos 🚀'}
+          value={message}
+          onChange={e => setMessage(e.target.value)}
+          rows={2} maxLength={300}
+          style={{ resize:'vertical', fontSize:'.82rem' }}
+        />
+        <span style={{ fontSize:'.68rem', color:'var(--t3)' }}>
+          Si está vacío se muestra el mensaje por defecto.
+        </span>
+      </div>
+
+      <button className={`btn btn-lg ${active?'btn-secondary':'btn-danger'}`}
         onClick={toggle} disabled={loading} style={{ width:'100%' }}>
-        {loading ? <span className="spinner" style={{ width:18, height:18 }} />
-          : active ? '✅ Restaurar web para todos' : '🔧 Activar mantenimiento'}
+        {loading
+          ? <span className="spinner" style={{ width:18, height:18 }} />
+          : active
+            ? '✅ Restaurar web para todos'
+            : '🔧 Activar mantenimiento'}
       </button>
     </div>
   )
