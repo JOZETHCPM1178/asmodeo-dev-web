@@ -3,9 +3,12 @@
 
 .main {
   flex: 1;
-  /* nav(54) + benefitsBar(30) = 84px top, bottom bar(60) + safe area */
   padding-top: calc(var(--nav-h) + 30px);
   padding-bottom: calc(var(--bottom-h) + env(safe-area-inset-bottom, 0px));
+}
+/* When benefits bar is hidden (feed pages), reduce top padding */
+.mainNoBenefits {
+  padding-top: var(--nav-h) !important;
 }
 
 /* ── Benefits ticker ── */

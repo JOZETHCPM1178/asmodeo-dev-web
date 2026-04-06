@@ -22,7 +22,8 @@ const BENEFITS = [
 const INTRO_KEY = 'asmodeo_hasSeenIntro_v1'
 
 export default function Layout() {
-  const { user, maintenance, loading } = useAuth()
+  const { user, maintenance, maintenanceMsg, loading } = useAuth()
+  const location = useLocation()
 
   const alreadySeen = typeof window !== 'undefined'
     ? !!localStorage.getItem(INTRO_KEY)
@@ -39,7 +40,7 @@ export default function Layout() {
     return () => clearTimeout(safety)
   }, [alreadySeen])
 
-  if (!loading && maintenance && !user?.isOwner) return <MaintenancePage />
+  if (!loading && maintenance && !user?.isOwner) return <MaintenancePage message={maintenanceMsg} />
 
   return (
     <>
@@ -47,8 +48,12 @@ export default function Layout() {
       <YouTubeBackground />
       <div className={styles.layout} style={{ opacity: appVisible ? 1 : 0, transition: 'opacity 0.6s ease' }}>
         <Navbar />
-        <BenefitsBar />
-        <main className={styles.main}>
+        <BenefitsBar location={location} />
+        <main className={[
+          styles.main,
+          ['/feed', '/seguidos'].some(p => location?.pathname === p || location?.pathname?.startsWith(p + '/'))
+            ? styles.mainNoBenefits : ''
+        ].join(' ')}>
           <Outlet />
         </main>
         <BottomBar user={user} />
@@ -57,7 +62,12 @@ export default function Layout() {
   )
 }
 
-function BenefitsBar() {
+function BenefitsBar({ location }) {
+  // Hide on feed, following, post detail pages where it clutters the UI
+  const hide = ['/feed', '/seguidos'].some(p =>
+    location?.pathname === p || location?.pathname?.startsWith(p + '/')
+  )
+  if (hide) return null
   return (
     <div className={styles.benefitsBar}>
       <div className={styles.benefitsTrack}>
