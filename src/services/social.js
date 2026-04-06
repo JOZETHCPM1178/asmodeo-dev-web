@@ -238,11 +238,19 @@ export async function cleanOldChatMessages(daysOld = 7) {
 }
 
 // ─── MANTENIMIENTO ───
-export async function setMaintenanceMode(active) {
-  await setDoc(doc(db, 'config', 'maintenance'), { active, updatedAt: serverTimestamp() })
+export async function setMaintenanceMode(active, message = '') {
+  await setDoc(doc(db, 'config', 'maintenance'), {
+    active,
+    message: message || '',
+    updatedAt: serverTimestamp()
+  })
 }
 
 export async function getMaintenanceMode() {
   const snap = await getDoc(doc(db, 'config', 'maintenance'))
-  return snap.exists() ? snap.data().active : false
+  if (!snap.exists()) return { active: false, message: '' }
+  const data = snap.data()
+  // backward compat: if old format just had boolean
+  if (typeof data === 'boolean') return { active: data, message: '' }
+  return { active: data.active || false, message: data.message || '' }
 }
