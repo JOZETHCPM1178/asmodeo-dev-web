@@ -51,6 +51,7 @@ export default function UploadForm() {
   const [step, setStep]                   = useState(1)  // 1=info, 2=archivo, 3=extras
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const isTutorial = form.category === 'tutorials'
 
   function handleImageChange(e) {
     const file = e.target.files?.[0]
@@ -119,13 +120,17 @@ export default function UploadForm() {
 
     setLoading(true); setProgress(5)
     try {
-      setProgressLabel('📸 Subiendo imagen...')
-      setProgress(10)
-      const imageData = await uploadImage(imageFile, { folder: 'posts' })
+      let imageData = { url: '', thumbnailUrl: '' }
+      if (imageFile) {
+        setProgressLabel('📸 Subiendo imagen...')
+        setProgress(10)
+        imageData = await uploadImage(imageFile, { folder: 'posts' })
+      }
       setProgress(35)
 
       let finalDownloadUrl = form.downloadUrl.trim()
-      if (uploadMode === 'file' && apkFile) {
+      // Tutoriales no suben archivo — usan el link de YouTube/TikTok
+      if (form.category !== 'tutorials' && uploadMode === 'file' && apkFile) {
         setProgressLabel('📦 Subiendo archivo...')
         const archiveResult = await uploadToArchive(apkFile, (pct) => {
           setProgress(35 + Math.round(pct * 0.55))
@@ -146,7 +151,7 @@ export default function UploadForm() {
         name:           form.name.trim(),
         description:    fullDescription,
         category:       form.category,
-        downloadUrl:    finalDownloadUrl,
+        downloadUrl:    form.category === 'tutorials' ? form.youtubeUrl.trim() : finalDownloadUrl,
         youtubeUrl:     form.youtubeUrl.trim(),
         version:        form.version.trim(),
         size:           form.size.trim(),
@@ -182,11 +187,17 @@ export default function UploadForm() {
     } finally { setLoading(false); setProgress(0); setProgressLabel('') }
   }
 
-  const steps = [
-    { n: 1, label: 'Info básica' },
-    { n: 2, label: 'Archivo' },
-    { n: 3, label: 'Detalles' },
-  ]
+  const isTutorialMode = form.category === 'tutorials'
+  const steps = isTutorialMode
+    ? [
+        { n: 1, label: 'Info básica' },
+        { n: 3, label: 'Detalles' },
+      ]
+    : [
+        { n: 1, label: 'Info básica' },
+        { n: 2, label: 'Archivo' },
+        { n: 3, label: 'Detalles' },
+      ]
 
   return (
     <form className={styles.form} onSubmit={handleSubmit}>
@@ -272,13 +283,33 @@ export default function UploadForm() {
                   ))}
                 </div>
               </div>
+
+              {/* Tutorial: mostrar campo de video aquí mismo */}
+              {isTutorial && (
+                <div className="inp-group">
+                  <label className="inp-label" style={{ color: 'var(--gold)' }}>
+                    📺 Link del video tutorial *
+                  </label>
+                  <input className="inp"
+                    placeholder="https://youtube.com/watch?v=... o https://tiktok.com/..."
+                    value={form.youtubeUrl}
+                    onChange={e => set('youtubeUrl', e.target.value)}
+                    disabled={loading}
+                    style={{ borderColor: form.youtubeUrl ? 'var(--gold)' : undefined }}
+                  />
+                  <span style={{ fontSize: '.7rem', color: 'var(--t3)' }}>
+                    YouTube, TikTok o cualquier link de video
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
           <button type="button" className="btn btn-primary" style={{ alignSelf: 'flex-end' }}
             onClick={() => {
               if (!form.name.trim()) { toast.error('Escribe el nombre'); return }
-              setStep(2)
+              // Tutoriales saltan directo al paso 3 — no necesitan archivo
+              setStep(form.category === 'tutorials' ? 3 : 2)
             }}>
             Continuar →
           </button>
@@ -365,48 +396,70 @@ export default function UploadForm() {
       {step === 3 && (
         <div className={styles.stepContent}>
 
-          {/* Nivel de riesgo */}
-          <div className="inp-group">
-            <label className="inp-label">Nivel de riesgo *</label>
-            <div className={styles.riskGrid}>
-              {RISK_OPTS.map(r => (
-                <button key={r.value} type="button"
-                  className={`${styles.riskBtn} ${form.riskLevel === r.value ? styles.riskActive : ''}`}
-                  style={form.riskLevel === r.value ? { borderColor: r.color, color: r.color, background: `${r.color}11` } : {}}
-                  onClick={() => set('riskLevel', r.value)} disabled={loading}>
-                  <span className={styles.riskLabel}>{r.label}</span>
-                  <span className={styles.riskDesc}>{r.desc}</span>
-                </button>
-              ))}
+          {/* Nivel de riesgo — solo para APKs/Juegos/Scripts */}
+          {!isTutorial && (
+            <div className="inp-group">
+              <label className="inp-label">Nivel de riesgo *</label>
+              <div className={styles.riskGrid}>
+                {RISK_OPTS.map(r => (
+                  <button key={r.value} type="button"
+                    className={`${styles.riskBtn} ${form.riskLevel === r.value ? styles.riskActive : ''}`}
+                    style={form.riskLevel === r.value ? { borderColor: r.color, color: r.color, background: `${r.color}11` } : {}}
+                    onClick={() => set('riskLevel', r.value)} disabled={loading}>
+                    <span className={styles.riskLabel}>{r.label}</span>
+                    <span className={styles.riskDesc}>{r.desc}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Qué modifica */}
-          <div className="inp-group">
-            <label className="inp-label">¿Qué modifica exactamente? <span style={{ color: 'var(--t3)', fontWeight: 400 }}>(una por línea)</span></label>
-            <textarea className="inp"
-              placeholder={"Premium desbloqueado\nRecursos ilimitados\nSin anuncios\nTodos los skins disponibles"}
-              value={form.whatModifies}
-              onChange={e => set('whatModifies', e.target.value)}
-              rows={4} style={{ resize: 'vertical' }} disabled={loading} />
-          </div>
+          {/* Qué modifica — solo para APKs/Juegos/Scripts */}
+          {!isTutorial && (
+            <div className="inp-group">
+              <label className="inp-label">¿Qué modifica exactamente? <span style={{ color: 'var(--t3)', fontWeight: 400 }}>(una por línea)</span></label>
+              <textarea className="inp"
+                placeholder={"Premium desbloqueado\nRecursos ilimitados\nSin anuncios\nTodos los skins disponibles"}
+                value={form.whatModifies}
+                onChange={e => set('whatModifies', e.target.value)}
+                rows={4} style={{ resize: 'vertical' }} disabled={loading} />
+            </div>
+          )}
 
-          {/* Advertencia online (si aplica) */}
-          <div className="inp-group">
-            <label className="inp-label">Advertencia adicional <span style={{ color: 'var(--t3)', fontWeight: 400 }}>(opcional)</span></label>
-            <input className="inp"
-              placeholder="Ej: Usar con cuenta secundaria para evitar ban"
-              value={form.onlineWarning}
-              onChange={e => set('onlineWarning', e.target.value)}
-              maxLength={200} disabled={loading} />
-          </div>
+          {/* Advertencia — solo para APKs/Juegos/Scripts */}
+          {!isTutorial && (
+            <div className="inp-group">
+              <label className="inp-label">Advertencia adicional <span style={{ color: 'var(--t3)', fontWeight: 400 }}>(opcional)</span></label>
+              <input className="inp"
+                placeholder="Ej: Usar con cuenta secundaria para evitar ban"
+                value={form.onlineWarning}
+                onChange={e => set('onlineWarning', e.target.value)}
+                maxLength={200} disabled={loading} />
+            </div>
+          )}
 
-          {/* YouTube */}
-          <div className="inp-group">
-            <label className="inp-label">Video YouTube (opcional)</label>
-            <input className="inp" placeholder="https://youtube.com/watch?v=..."
-              value={form.youtubeUrl} onChange={e => set('youtubeUrl', e.target.value)} disabled={loading} />
-          </div>
+          {/* Video — para tutorial ya se capturó en paso 1, para otros es opcional */}
+          {!isTutorial && (
+            <div className="inp-group">
+              <label className="inp-label">Video YouTube (opcional)</label>
+              <input className="inp" placeholder="https://youtube.com/watch?v=..."
+                value={form.youtubeUrl} onChange={e => set('youtubeUrl', e.target.value)} disabled={loading} />
+            </div>
+          )}
+
+          {/* Tutorial: mostrar plataforma */}
+          {isTutorial && (
+            <div className="inp-group">
+              <label className="inp-label" style={{ color: 'var(--gold)' }}>📺 Link del video (confirmar)</label>
+              <input className="inp"
+                placeholder="https://youtube.com/watch?v=... o tiktok.com/..."
+                value={form.youtubeUrl}
+                onChange={e => set('youtubeUrl', e.target.value)}
+                disabled={loading}
+                style={{ borderColor: 'rgba(255,170,0,.3)' }}
+              />
+            </div>
+          )}
 
           {/* Tags */}
           <div className="inp-group">
@@ -417,8 +470,14 @@ export default function UploadForm() {
 
           {/* Aviso legal que se publicará */}
           <div className={styles.legalPreview}>
-            <div className={styles.legalTitle}>⚠️ Este aviso se añadirá automáticamente a la publicación</div>
-            <div className={styles.legalText}>{LEGAL_NOTICE}</div>
+            <div className={styles.legalTitle}>
+              {isTutorial ? '📺 Nota que se añadirá a la publicación' : '⚠️ Este aviso se añadirá automáticamente a la publicación'}
+            </div>
+            <div className={styles.legalText}>
+              {isTutorial
+                ? '📚 Este es un tutorial educativo. Sigue las instrucciones bajo tu propia responsabilidad. El contenido puede variar según la versión de tu dispositivo.'
+                : LEGAL_NOTICE}
+            </div>
           </div>
 
           {/* Progress */}
