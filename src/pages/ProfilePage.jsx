@@ -101,7 +101,13 @@ export default function ProfilePage() {
           {/* Info */}
           <div className={styles.profileInfo}>
             <div className={styles.nameRow}>
-              <h1 className={styles.username}>{profile.displayName || profile.username}</h1>
+              {/* Nombre con color según rol */}
+              {(profile.role === 'owner' || profile.isOwner)
+                ? <h1 className={styles.usernameOwner}>{profile.displayName || profile.username}</h1>
+                : profile.role === 'admin'
+                  ? <h1 className={styles.usernameAdmin}>{profile.displayName || profile.username}</h1>
+                  : <h1 className={styles.username}>{profile.displayName || profile.username}</h1>
+              }
               {profile.verified && <VerifiedBadge title="Usuario verificado" />}
               {(profile.role === 'owner' || profile.isOwner) && (
                 <span className={styles.roleOwner}>👑 OWNER</span>
