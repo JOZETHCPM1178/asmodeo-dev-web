@@ -1,0 +1,62 @@
+/* PostAudio.module.css */
+.hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  opacity: 0; pointer-events: none;
+  left: -9999px; top: -9999px;
+}
+
+.wrap { position: absolute; bottom: 0; left: 0; right: 0; z-index: 15; }
+
+/* Control flotante de audio */
+.control {
+  position: absolute;
+  bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+  right: 70px;
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  background: rgba(0,0,0,.45);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 20px;
+  padding: .3rem .6rem .3rem .4rem;
+  animation: fadeIn .3s ease;
+}
+
+@keyframes fadeIn { from { opacity:0; transform:translateY(4px) } to { opacity:1; transform:translateY(0) } }
+
+.muteBtn {
+  background: none; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  padding: .15rem;
+  -webkit-tap-highlight-color: transparent;
+  opacity: .9;
+  transition: opacity .15s;
+}
+.muteBtn:hover { opacity: 1; }
+
+.slider {
+  width: 64px; height: 3px;
+  -webkit-appearance: none; appearance: none;
+  background: rgba(255,255,255,.3);
+  border-radius: 2px; outline: none; cursor: pointer;
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: #ff0040;
+  box-shadow: 0 0 6px rgba(255,0,64,.6);
+  cursor: pointer;
+}
+
+/* Nota musical animada */
+.note {
+  font-size: .75rem; color: rgba(255,255,255,.8);
+  animation: noteBounce 1s ease-in-out infinite;
+}
+@keyframes noteBounce {
+  0%,100% { transform: translateY(0) rotate(-5deg); }
+  50%      { transform: translateY(-3px) rotate(5deg); }
+}

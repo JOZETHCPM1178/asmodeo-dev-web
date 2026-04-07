@@ -438,12 +438,19 @@ export default function UploadForm() {
             </div>
           )}
 
-          {/* Video — para tutorial ya se capturó en paso 1, para otros es opcional */}
+          {/* Video/Música — para tutorial ya se capturó en paso 1 */}
           {!isTutorial && (
             <div className="inp-group">
-              <label className="inp-label">Video YouTube (opcional)</label>
-              <input className="inp" placeholder="https://youtube.com/watch?v=..."
-                value={form.youtubeUrl} onChange={e => set('youtubeUrl', e.target.value)} disabled={loading} />
+              <label className="inp-label">🎵 Música / Video preview (opcional)</label>
+              <input className="inp"
+                placeholder="https://youtube.com/watch?v=... — ID o URL de YouTube"
+                value={form.youtubeUrl}
+                onChange={e => set('youtubeUrl', e.target.value)}
+                disabled={loading}
+              />
+              <span style={{ fontSize:'.7rem', color:'var(--t3)' }}>
+                Si agregas un video de YouTube, su audio sonará automáticamente cuando alguien vea tu publicación en el feed
+              </span>
             </div>
           )}
 
