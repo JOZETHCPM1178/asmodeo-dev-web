@@ -77,21 +77,37 @@ export default function UploadForm() {
 
   async function handleGenerateAI() {
     if (!form.name.trim()) { toast.error('Primero escribe el nombre'); return }
-    if (!WORKER_URL || WORKER_URL.includes('your-worker')) { toast.error('Worker URL no configurada'); return }
+    // Si no hay Worker configurado, simplemente no hacer nada
+    if (!WORKER_URL || WORKER_URL.includes('your-worker') || !WORKER_URL.startsWith('http')) {
+      toast.error('IA no disponible — escribe la descripción manualmente')
+      return
+    }
     setAiLoading(true)
     try {
-      const res  = await fetch(`${WORKER_URL}/generate-description`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 10000)
+      const res = await fetch(`${WORKER_URL}/generate-description`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: form.name.trim(), category: form.category }),
+        signal: controller.signal,
       })
+      clearTimeout(timeout)
       const data = await res.json()
       if (data.ok && data.text) {
         set('description', data.text)
         if (data.tags?.length) set('tags', data.tags.join(', '))
-        toast.success('🤖 Descripción generada con IA')
-      } else { toast.error(data.error || 'La IA no respondió') }
-    } catch { toast.error('Error conectando con el Worker') }
-    finally { setAiLoading(false) }
+        toast.success('🤖 Descripción generada')
+      } else {
+        toast.error(data.error || 'La IA no respondió — escribe la descripción manualmente')
+      }
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        toast.error('La IA tardó demasiado — escribe la descripción manualmente')
+      } else {
+        toast.error('IA no disponible — puedes continuar sin ella')
+      }
+    } finally { setAiLoading(false) }
   }
 
   async function handleSubmit(e) {
