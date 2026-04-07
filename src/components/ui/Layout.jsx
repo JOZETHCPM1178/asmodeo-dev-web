@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import Navbar from './Navbar'
 import IntroOverlay from './IntroOverlay'
-import YouTubeBackground from './YouTubeBackground'
 import MaintenancePage from '../../pages/MaintenancePage'
 import { useAuth } from '../../context/AuthContext'
 import styles from './Layout.module.css'
@@ -45,14 +44,14 @@ export default function Layout() {
   return (
     <>
       {showIntro && <IntroOverlay onDone={handleIntroDone} />}
-      <YouTubeBackground />
       <div className={styles.layout} style={{ opacity: appVisible ? 1 : 0, transition: 'opacity 0.6s ease' }}>
         <Navbar />
         <BenefitsBar location={location} />
         <main className={[
           styles.main,
-          ['/feed', '/seguidos'].some(p => location?.pathname === p || location?.pathname?.startsWith(p + '/'))
-            ? styles.mainNoBenefits : ''
+          ['/feed', '/seguidos'].some(p =>
+            location?.pathname === p || location?.pathname?.startsWith(p + '/'))
+            ? styles.mainFeed : ''
         ].join(' ')}>
           <Outlet />
         </main>
