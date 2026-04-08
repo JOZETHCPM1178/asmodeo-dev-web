@@ -13,111 +13,112 @@ function needsNewTab(url) {
 export default function DownloadModal({ post, onClose }) {
   const [phase, setPhase]         = useState('ready')
   const [countdown, setCountdown] = useState(4)
-  // Usamos una ref para saber si ya se llamó onClose — evita doble llamada
-  const doneRef  = useRef(false)
-  const timerRef = useRef(null)
-  const rawUrl   = post?.downloadUrl || ''
+  const closedRef  = useRef(false)   // true = onClose ya fue llamado, ignorar todo
+  const timerRef   = useRef(null)
+  const rawUrl     = post?.downloadUrl || ''
 
-  // Reset limpio al montar
+  // Montaje: reset. Desmontaje: cleanup.
   useEffect(() => {
-    doneRef.current = false
-    setPhase('ready')
-    setCountdown(4)
+    closedRef.current = false
     return () => {
-      doneRef.current = true
-      if (timerRef.current) clearTimeout(timerRef.current)
+      closedRef.current = true
+      if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
     }
   }, []) // eslint-disable-line
 
-  // Mega/Drive: abrir y cerrar
+  // Abrir links externos directamente y cerrar
   useEffect(() => {
-    if (needsNewTab(rawUrl)) {
+    if (needsNewTab(rawUrl) && rawUrl) {
       window.open(rawUrl, '_blank', 'noopener,noreferrer')
-      close()
+      closeModal()
     }
   }, []) // eslint-disable-line
 
-  // Countdown
+  // Countdown tick
   useEffect(() => {
-    if (phase !== 'countdown') return
-    if (countdown <= 0) { doDownload(); return }
+    if (phase !== 'countdown' || closedRef.current) return
+    if (countdown <= 0) { triggerDownload(); return }
     timerRef.current = setTimeout(() => {
-      if (!doneRef.current) setCountdown(c => c - 1)
+      if (!closedRef.current) setCountdown(c => c - 1)
     }, 1000)
-    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
+    return () => { if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null } }
   }, [phase, countdown]) // eslint-disable-line
 
-  // Cierre — UNA sola vez, sin importar cuántas veces se llame
-  function close() {
-    if (doneRef.current) return
-    doneRef.current = true
-    if (timerRef.current) clearTimeout(timerRef.current)
-    // Pequeño delay para que React pueda procesar el estado antes de desmontar
-    setTimeout(() => onClose(), 0)
+  function closeModal() {
+    // Guardia: si ya cerramos, no hacer nada más
+    if (closedRef.current) return
+    closedRef.current = true
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
+    // Llamar onClose en el siguiente tick para que React termine el render actual
+    Promise.resolve().then(() => onClose())
   }
 
-  function handleOverlay(e) {
-    if (e.target === e.currentTarget) close()
+  function handleOverlayClick(e) {
+    if (e.target === e.currentTarget) closeModal()
   }
 
   function startCountdown() {
-    if (doneRef.current) return
+    if (closedRef.current) return
     setPhase('countdown')
     setCountdown(4)
   }
 
   function skipCountdown() {
-    if (timerRef.current) clearTimeout(timerRef.current)
-    doDownload()
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
+    triggerDownload()
   }
 
-  function retry() {
-    if (timerRef.current) clearTimeout(timerRef.current)
+  function retryDownload() {
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
     setPhase('ready')
     setCountdown(4)
   }
 
-  function doDownload() {
-    if (doneRef.current) return
+  function triggerDownload() {
+    if (closedRef.current) return
     setPhase('triggered')
 
     if (isArchive(rawUrl)) {
+      // Archive.org: iframe oculto — el servidor manda Content-Disposition:attachment
       const iframe = document.createElement('iframe')
       iframe.style.cssText = 'display:none!important;position:fixed;left:-9999px;top:-9999px;width:0;height:0;border:0;'
       iframe.src = rawUrl
       document.body.appendChild(iframe)
       setTimeout(() => { try { document.body.removeChild(iframe) } catch {} }, 120_000)
     } else {
+      // MediaFire u otro: nueva pestaña
       window.open(rawUrl, '_blank', 'noopener,noreferrer')
     }
 
     timerRef.current = setTimeout(() => {
-      if (!doneRef.current) setPhase('done')
+      if (!closedRef.current) setPhase('done')
     }, 1200)
   }
 
+  // Links tipo Mega: se abren en el useEffect de arriba, no renderizar nada
   if (needsNewTab(rawUrl)) return null
 
   if (!rawUrl) return (
-    <div className={styles.overlay} onClick={handleOverlay}>
-      <div className={styles.modal}>
+    <div className={styles.overlay} onClick={handleOverlayClick}>
+      <div className={styles.modal} onClick={e => e.stopPropagation()}>
         <div className={styles.header}>
           <div className={styles.headerLeft}>
             <div className={styles.headerIcon}>⬇</div>
             <div><div className={styles.headerTitle}>Sin enlace</div></div>
           </div>
-          <button className={styles.closeBtn} onClick={close}>✕</button>
+          <button className={styles.closeBtn} onClick={closeModal}>✕</button>
         </div>
         <p style={{ color:'var(--t2)', fontSize:'.85rem', padding:'.5rem 0' }}>
           Esta publicación no tiene archivo disponible.
         </p>
-        <button className={styles.cancelBtn} style={{ width:'100%' }} onClick={close}>Cerrar</button>
+        <button className={styles.cancelBtn} style={{ width:'100%' }} onClick={closeModal}>Cerrar</button>
       </div>
     </div>
   )
 
-  const fileSize   = post?.size || null
-  const serverLabel = isArchive(rawUrl) ? 'archive.org'
+  const fileSize    = post?.size || null
+  const serverLabel = isArchive(rawUrl)
+    ? 'archive.org'
     : isMediafire(rawUrl) ? 'MediaFire'
     : 'servidor externo'
 
@@ -127,8 +128,9 @@ export default function DownloadModal({ post, onClose }) {
     : 100
 
   return (
-    <div className={styles.overlay} onClick={handleOverlay}>
-      <div className={styles.modal}>
+    <div className={styles.overlay} onClick={handleOverlayClick}>
+      {/* stopPropagation en el modal para que clicks internos no cierren */}
+      <div className={styles.modal} onClick={e => e.stopPropagation()}>
 
         <div className={styles.header}>
           <div className={styles.headerLeft}>
@@ -138,7 +140,7 @@ export default function DownloadModal({ post, onClose }) {
               <div className={styles.headerSub}>Desde {serverLabel}</div>
             </div>
           </div>
-          <button className={styles.closeBtn} onClick={close} aria-label="Cerrar">✕</button>
+          <button className={styles.closeBtn} onClick={closeModal} aria-label="Cerrar">✕</button>
         </div>
 
         <div className={styles.fileCard}>
@@ -154,7 +156,12 @@ export default function DownloadModal({ post, onClose }) {
               {post?.version && <span>📦 v{post.version}</span>}
               {fileSize      && <span>💾 {fileSize}</span>}
               {post?.category && (
-                <span>{post.category === 'apk' ? '📱 APK' : post.category === 'games' ? '🎮 Juego' : '📄 Archivo'}</span>
+                <span>
+                  {post.category === 'apk' ? '📱 APK'
+                   : post.category === 'games' ? '🎮 Juego'
+                   : post.category === 'tutorials' ? '📺 Tutorial'
+                   : '📄 Archivo'}
+                </span>
               )}
             </div>
           </div>
@@ -170,13 +177,14 @@ export default function DownloadModal({ post, onClose }) {
               VirusTotal
             </a>{' '}
             antes de instalar. Si algo es raro,{' '}
-            <button className={styles.reportInline} onClick={close}>reporta la publicación</button>.
+            <button className={styles.reportInline} onClick={closeModal}>reporta la publicación</button>.
           </div>
         </div>
 
         <div className={styles.stateBox}>
           {phase === 'ready' && (
-            <><div className={styles.stateIcon}>📥</div><p className={styles.stateText}>Listo para descargar</p></>
+            <><div className={styles.stateIcon}>📥</div>
+            <p className={styles.stateText}>Listo para descargar</p></>
           )}
           {phase === 'countdown' && (
             <>
@@ -209,7 +217,7 @@ export default function DownloadModal({ post, onClose }) {
             <p className={styles.stateText}>
               {isArchive(rawUrl)
                 ? '¡Descarga iniciada! Revisa tus notificaciones.'
-                : '¡Se abrió! Toca el botón de descarga ahí.'}
+                : '¡Listo! Busca el archivo en tu gestor de descargas.'}
             </p></>
           )}
         </div>
@@ -230,11 +238,11 @@ export default function DownloadModal({ post, onClose }) {
             </button>
           )}
           {(phase === 'triggered' || phase === 'done') && (
-            <button className={styles.dlBtn} onClick={retry}>
+            <button className={styles.dlBtn} onClick={retryDownload}>
               🔄 Descargar de nuevo
             </button>
           )}
-          <button className={styles.cancelBtn} onClick={close}>Cerrar</button>
+          <button className={styles.cancelBtn} onClick={closeModal}>Cerrar</button>
         </div>
 
         <div className={styles.footerNote}>
@@ -242,6 +250,7 @@ export default function DownloadModal({ post, onClose }) {
             ? '🔒 Descarga directa desde archive.org'
             : '📂 Se abrirá en nueva pestaña'}
         </div>
+
       </div>
     </div>
   )
