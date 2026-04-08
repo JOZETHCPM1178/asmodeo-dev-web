@@ -4,59 +4,81 @@
   width: 1px; height: 1px;
   opacity: 0; pointer-events: none;
   left: -9999px; top: -9999px;
+  overflow: hidden;
 }
 
-.wrap { position: absolute; bottom: 0; left: 0; right: 0; z-index: 15; }
+.wrap { position: absolute; inset: 0; pointer-events: none; z-index: 15; }
 
-/* Control flotante de audio */
+/* Control flotante */
 .control {
   position: absolute;
-  bottom: calc(90px + env(safe-area-inset-bottom, 0px));
-  right: 70px;
+  bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  right: 68px;
   display: flex;
   align-items: center;
-  gap: .4rem;
-  background: rgba(0,0,0,.45);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255,255,255,.15);
+  gap: .35rem;
+  background: rgba(0,0,0,.5);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,.12);
   border-radius: 20px;
-  padding: .3rem .6rem .3rem .4rem;
-  animation: fadeIn .3s ease;
+  padding: .28rem .55rem .28rem .4rem;
+  pointer-events: all;
+  animation: slideUp .3s ease;
+}
+@keyframes slideUp {
+  from { opacity:0; transform:translateY(6px); }
+  to   { opacity:1; transform:translateY(0); }
 }
 
-@keyframes fadeIn { from { opacity:0; transform:translateY(4px) } to { opacity:1; transform:translateY(0) } }
+/* Etiqueta tipo */
+.typeLabel {
+  font-size: .65rem; font-weight: 700;
+  color: rgba(255,255,255,.75);
+  white-space: nowrap;
+  padding-right: .2rem;
+  border-right: 1px solid rgba(255,255,255,.15);
+  margin-right: .1rem;
+}
 
 .muteBtn {
   background: none; border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  padding: .15rem;
+  padding: .1rem;
   -webkit-tap-highlight-color: transparent;
-  opacity: .9;
-  transition: opacity .15s;
+  opacity: .85; transition: opacity .15s;
 }
 .muteBtn:hover { opacity: 1; }
 
 .slider {
-  width: 64px; height: 3px;
+  width: 55px; height: 3px;
   -webkit-appearance: none; appearance: none;
-  background: rgba(255,255,255,.3);
+  background: rgba(255,255,255,.25);
   border-radius: 2px; outline: none; cursor: pointer;
 }
 .slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 12px; height: 12px;
+  width: 11px; height: 11px;
   border-radius: 50%;
   background: #ff0040;
-  box-shadow: 0 0 6px rgba(255,0,64,.6);
+  box-shadow: 0 0 5px rgba(255,0,64,.6);
   cursor: pointer;
 }
 
-/* Nota musical animada */
-.note {
-  font-size: .75rem; color: rgba(255,255,255,.8);
-  animation: noteBounce 1s ease-in-out infinite;
+/* Barras animadas estilo ecualizador */
+.bars {
+  display: flex; align-items: flex-end; gap: 2px; height: 14px;
 }
-@keyframes noteBounce {
-  0%,100% { transform: translateY(0) rotate(-5deg); }
-  50%      { transform: translateY(-3px) rotate(5deg); }
+.bars span {
+  width: 2px; border-radius: 1px;
+  background: #ff0040;
+  box-shadow: 0 0 3px rgba(255,0,64,.6);
+}
+.bars span:nth-child(1) { height: 6px;  animation: bar .8s ease-in-out infinite; }
+.bars span:nth-child(2) { height: 12px; animation: bar .8s ease-in-out infinite .15s; }
+.bars span:nth-child(3) { height: 9px;  animation: bar .8s ease-in-out infinite .3s; }
+.bars span:nth-child(4) { height: 5px;  animation: bar .8s ease-in-out infinite .45s; }
+
+@keyframes bar {
+  0%,100% { transform: scaleY(1); }
+  50%      { transform: scaleY(.3); }
 }
