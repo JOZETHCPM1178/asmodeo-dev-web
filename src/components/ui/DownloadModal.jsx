@@ -13,79 +13,87 @@ function needsNewTab(url) {
 export default function DownloadModal({ post, onClose }) {
   const [phase, setPhase]         = useState('ready')
   const [countdown, setCountdown] = useState(4)
-  const closedRef = useRef(false)
-  const timerRef  = useRef(null)
-  const rawUrl    = post?.downloadUrl || ''
+  // Usamos una ref para saber si ya se llamó onClose — evita doble llamada
+  const doneRef  = useRef(false)
+  const timerRef = useRef(null)
+  const rawUrl   = post?.downloadUrl || ''
 
+  // Reset limpio al montar
   useEffect(() => {
-    closedRef.current = false
+    doneRef.current = false
     setPhase('ready')
     setCountdown(4)
-    return () => { closedRef.current = true; clearTimer() }
-  }, []) // eslint-disable-line
-
-  // Mega etc — abrir y cerrar inmediatamente
-  useEffect(() => {
-    if (needsNewTab(rawUrl)) {
-      window.open(rawUrl, '_blank', 'noopener,noreferrer')
-      safeClose()
+    return () => {
+      doneRef.current = true
+      if (timerRef.current) clearTimeout(timerRef.current)
     }
   }, []) // eslint-disable-line
 
-  // Countdown tick
+  // Mega/Drive: abrir y cerrar
+  useEffect(() => {
+    if (needsNewTab(rawUrl)) {
+      window.open(rawUrl, '_blank', 'noopener,noreferrer')
+      close()
+    }
+  }, []) // eslint-disable-line
+
+  // Countdown
   useEffect(() => {
     if (phase !== 'countdown') return
     if (countdown <= 0) { doDownload(); return }
     timerRef.current = setTimeout(() => {
-      if (!closedRef.current) setCountdown(c => c - 1)
+      if (!doneRef.current) setCountdown(c => c - 1)
     }, 1000)
-    return clearTimer
+    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
   }, [phase, countdown]) // eslint-disable-line
 
-  function clearTimer() {
-    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
+  // Cierre — UNA sola vez, sin importar cuántas veces se llame
+  function close() {
+    if (doneRef.current) return
+    doneRef.current = true
+    if (timerRef.current) clearTimeout(timerRef.current)
+    // Pequeño delay para que React pueda procesar el estado antes de desmontar
+    setTimeout(() => onClose(), 0)
   }
-  function safeClose() {
-    if (closedRef.current) return
-    closedRef.current = true
-    clearTimer()
-    onClose()
+
+  function handleOverlay(e) {
+    if (e.target === e.currentTarget) close()
   }
-  function handleClose()   { safeClose() }
-  function handleOverlay(e){ if (e.target === e.currentTarget) safeClose() }
-  function startCountdown(){ if (!closedRef.current) { setPhase('countdown'); setCountdown(4) } }
-  function skipCountdown() { clearTimer(); doDownload() }
-  function retry()         { clearTimer(); setPhase('ready'); setCountdown(4) }
+
+  function startCountdown() {
+    if (doneRef.current) return
+    setPhase('countdown')
+    setCountdown(4)
+  }
+
+  function skipCountdown() {
+    if (timerRef.current) clearTimeout(timerRef.current)
+    doDownload()
+  }
+
+  function retry() {
+    if (timerRef.current) clearTimeout(timerRef.current)
+    setPhase('ready')
+    setCountdown(4)
+  }
 
   function doDownload() {
-    if (closedRef.current) return
+    if (doneRef.current) return
     setPhase('triggered')
 
     if (isArchive(rawUrl)) {
-      // ── Archive.org: iframe oculto ──
-      // Archive.org envía Content-Disposition:attachment, el navegador
-      // lo intercepta como descarga sin abrir pestaña en negro.
       const iframe = document.createElement('iframe')
       iframe.style.cssText = 'display:none!important;position:fixed;left:-9999px;top:-9999px;width:0;height:0;border:0;'
       iframe.src = rawUrl
       document.body.appendChild(iframe)
       setTimeout(() => { try { document.body.removeChild(iframe) } catch {} }, 120_000)
-
-    } else if (isMediafire(rawUrl)) {
-      // ── MediaFire: abrir directo en nueva pestaña ──
-      // NO pasar por el proxy — el proxy devuelve dl.html porque
-      // MediaFire requiere resolver varios redirects que el worker no maneja.
-      // El usuario aterriza en MediaFire y descarga desde ahí.
-      window.open(rawUrl, '_blank', 'noopener,noreferrer')
-
     } else {
-      // ── Cualquier otro link ──
       window.open(rawUrl, '_blank', 'noopener,noreferrer')
     }
 
     timerRef.current = setTimeout(() => {
-      if (!closedRef.current) setPhase('done')
-    }, 1400)
+      if (!doneRef.current) setPhase('done')
+    }, 1200)
   }
 
   if (needsNewTab(rawUrl)) return null
@@ -98,17 +106,17 @@ export default function DownloadModal({ post, onClose }) {
             <div className={styles.headerIcon}>⬇</div>
             <div><div className={styles.headerTitle}>Sin enlace</div></div>
           </div>
-          <button className={styles.closeBtn} onClick={handleClose}>✕</button>
+          <button className={styles.closeBtn} onClick={close}>✕</button>
         </div>
         <p style={{ color:'var(--t2)', fontSize:'.85rem', padding:'.5rem 0' }}>
           Esta publicación no tiene archivo disponible.
         </p>
-        <button className={styles.cancelBtn} style={{ width:'100%' }} onClick={handleClose}>Cerrar</button>
+        <button className={styles.cancelBtn} style={{ width:'100%' }} onClick={close}>Cerrar</button>
       </div>
     </div>
   )
 
-  const fileSize = post?.size || null
+  const fileSize   = post?.size || null
   const serverLabel = isArchive(rawUrl) ? 'archive.org'
     : isMediafire(rawUrl) ? 'MediaFire'
     : 'servidor externo'
@@ -122,7 +130,6 @@ export default function DownloadModal({ post, onClose }) {
     <div className={styles.overlay} onClick={handleOverlay}>
       <div className={styles.modal}>
 
-        {/* Header */}
         <div className={styles.header}>
           <div className={styles.headerLeft}>
             <div className={styles.headerIcon}>⬇</div>
@@ -131,10 +138,9 @@ export default function DownloadModal({ post, onClose }) {
               <div className={styles.headerSub}>Desde {serverLabel}</div>
             </div>
           </div>
-          <button className={styles.closeBtn} onClick={handleClose} aria-label="Cerrar">✕</button>
+          <button className={styles.closeBtn} onClick={close} aria-label="Cerrar">✕</button>
         </div>
 
-        {/* Info archivo */}
         <div className={styles.fileCard}>
           {post?.imageUrl
             ? <img src={post.imageUrl} alt={post?.name} className={styles.fileThumb} />
@@ -154,7 +160,6 @@ export default function DownloadModal({ post, onClose }) {
           </div>
         </div>
 
-        {/* Aviso legal */}
         <div className={styles.warning}>
           <span className={styles.warningIcon}>⚠️</span>
           <div className={styles.warningText}>
@@ -165,11 +170,10 @@ export default function DownloadModal({ post, onClose }) {
               VirusTotal
             </a>{' '}
             antes de instalar. Si algo es raro,{' '}
-            <button className={styles.reportInline} onClick={handleClose}>reporta la publicación</button>.
+            <button className={styles.reportInline} onClick={close}>reporta la publicación</button>.
           </div>
         </div>
 
-        {/* Estado */}
         <div className={styles.stateBox}>
           {phase === 'ready' && (
             <><div className={styles.stateIcon}>📥</div><p className={styles.stateText}>Listo para descargar</p></>
@@ -197,7 +201,7 @@ export default function DownloadModal({ post, onClose }) {
           {phase === 'triggered' && (
             <><div className={`${styles.stateIcon} ${styles.bounce}`}>⬇️</div>
             <p className={styles.stateText}>
-              {isArchive(rawUrl) ? 'Descargando...' : 'Abriendo MediaFire...'}
+              {isArchive(rawUrl) ? 'Descargando...' : 'Abriendo en nueva pestaña...'}
             </p></>
           )}
           {phase === 'done' && (
@@ -205,17 +209,15 @@ export default function DownloadModal({ post, onClose }) {
             <p className={styles.stateText}>
               {isArchive(rawUrl)
                 ? '¡Descarga iniciada! Revisa tus notificaciones.'
-                : '¡Se abrió MediaFire! Toca el botón de descarga ahí.'}
+                : '¡Se abrió! Toca el botón de descarga ahí.'}
             </p></>
           )}
         </div>
 
-        {/* Progreso */}
         <div className={styles.progressTrack}>
           <div className={styles.progressFill} style={{ width:`${pct}%` }} />
         </div>
 
-        {/* Botones */}
         <div className={styles.actions}>
           {phase === 'ready' && (
             <button className={styles.dlBtn} onClick={startCountdown}>
@@ -232,15 +234,14 @@ export default function DownloadModal({ post, onClose }) {
               🔄 Descargar de nuevo
             </button>
           )}
-          <button className={styles.cancelBtn} onClick={handleClose}>Cerrar</button>
+          <button className={styles.cancelBtn} onClick={close}>Cerrar</button>
         </div>
 
         <div className={styles.footerNote}>
           {isArchive(rawUrl)
-            ? '🔒 Descarga directa desde archive.org · sin salir de la web'
-            : '📂 Se abrirá MediaFire en nueva pestaña'}
+            ? '🔒 Descarga directa desde archive.org'
+            : '📂 Se abrirá en nueva pestaña'}
         </div>
-
       </div>
     </div>
   )
