@@ -38,6 +38,7 @@ export default function TikTokFeed({ category = null, posts: initialPosts = null
   const [currentIdx, setCurrentIdx] = useState(0)
   // Modal gestionado a nivel FEED — no dentro de cada card
   const [downloadPost, setDownloadPost] = useState(null)
+  const downloadPostRef = useRef(null)
   const lastDocRef   = useRef(null)
   const containerRef = useRef(null)
   const observerRef  = useRef(null)
@@ -58,6 +59,12 @@ export default function TikTokFeed({ category = null, posts: initialPosts = null
     setPosts([]); lastDocRef.current = null; setHasMore(true); setCurrentIdx(0)
     loadInitial()
   }, [loadInitial])
+
+  // Cerrar modal de descarga automáticamente cuando el usuario hace swipe
+  useEffect(() => {
+    setDownloadPost(null)
+    downloadPostRef.current = null
+  }, [currentIdx])
 
   async function loadMore() {
     if (!hasMore || loadingMore || !lastDocRef.current) return
@@ -171,11 +178,11 @@ function TikTokCard({ post, idx, isActive, onDownload }) {
     hasLiked(post.id, user.uid).then(setLiked).catch(() => {})
   }, [user?.uid, post.id])
 
-  // Cuando el card deja de ser activo: parar video y cerrar modal
+  // Cuando el card deja de ser activo: parar video
   useEffect(() => {
     if (!isActive) {
       setShowVideo(false)
-      setShowDownload(false)   // ← fix: evita que el modal aparezca en la card siguiente
+      // El modal de descarga se gestiona en el Feed padre, no aquí
     }
   }, [isActive])
 
