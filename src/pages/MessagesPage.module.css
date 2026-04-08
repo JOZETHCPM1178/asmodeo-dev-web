@@ -4,8 +4,9 @@
 .page {
   max-width: 680px;
   margin: 0 auto;
-  padding: 0 0 4rem;
+  padding: 0 0 1rem;
   min-height: calc(100vh - var(--nav-h));
+  /* Lista de conversaciones ya tiene padding-bottom del main (bottom bar) */
 }
 
 .listHeader {
@@ -96,7 +97,9 @@
 .chatPage {
   position: fixed;
   top: var(--nav-h);
-  left: 0; right: 0; bottom: 0;
+  left: 0; right: 0;
+  /* Dejar espacio para el bottom bar de navegación */
+  bottom: calc(var(--bottom-h) + env(safe-area-inset-bottom, 0px));
   background: var(--bg);
   display: flex;
   flex-direction: column;
