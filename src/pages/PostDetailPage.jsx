@@ -16,6 +16,7 @@ import FollowButton from '../components/social/FollowButton'
 import VerifiedBadge from '../components/ui/VerifiedBadge'
 import SEO from '../components/ui/SEO'
 import DownloadModal from '../components/ui/DownloadModal'
+import ImageCropper from '../components/ui/ImageCropper'
 import styles from './PostDetailPage.module.css'
 
 const CATS = {
@@ -334,6 +335,7 @@ function EditPostModal({ post, user, onClose, onSaved }) {
   const [saving, setSaving]             = useState(false)
   const [imageFile, setImageFile]       = useState(null)
   const [imagePreview, setImagePreview] = useState(post.imageUrl || null)
+  const [cropSrc, setCropSrc]           = useState(null)
   const imageRef = useRef(null)
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -342,10 +344,18 @@ function EditPostModal({ post, user, onClose, onSaved }) {
     const file = e.target.files?.[0]
     if (!file) return
     if (file.size > 10 * 1024 * 1024) { toast.error('Imagen máx 10MB'); return }
-    setImageFile(file)
     const reader = new FileReader()
-    reader.onload = ev => setImagePreview(ev.target.result)
+    reader.onload = ev => setCropSrc(ev.target.result)
     reader.readAsDataURL(file)
+    // Reset input so same file can be selected again
+    e.target.value = ''
+  }
+
+  function onCropDone(croppedBlob) {
+    setCropSrc(null)
+    const file = new File([croppedBlob], 'portada.jpg', { type: 'image/jpeg' })
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(croppedBlob))
   }
 
   async function handleSave() {
@@ -387,6 +397,16 @@ function EditPostModal({ post, user, onClose, onSaved }) {
   }
 
   return (
+    <>
+    {cropSrc && (
+      <ImageCropper
+        imageSrc={cropSrc}
+        aspectRatio={16/9}
+        circleMode={false}
+        onCrop={onCropDone}
+        onCancel={() => setCropSrc(null)}
+      />
+    )}
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className={`modal-box ${styles.editModal}`}>
 
@@ -491,6 +511,7 @@ function EditPostModal({ post, user, onClose, onSaved }) {
         </div>
       </div>
     </div>
+    </>
   )
 }
 

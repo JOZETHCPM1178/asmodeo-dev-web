@@ -69,3 +69,58 @@
 /* Edit form */
 .editForm { display:flex;flex-direction:column;gap:.8rem; }
 .editActions { display:flex;gap:.5rem; }
+
+/* ── Edit post modal ── */
+.editModal { max-width: 520px !important; }
+
+.editHeader {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 1rem; gap: .5rem;
+}
+.editTitle { font-size: 1rem; font-weight: 700; letter-spacing: -.2px; }
+
+.editBody { display: flex; flex-direction: column; gap: .85rem; }
+
+/* Imagen editable */
+.editImgWrap {
+  position: relative; width: 100%;
+  aspect-ratio: 16/9; border-radius: var(--r);
+  overflow: hidden; cursor: pointer;
+  background: var(--bg2);
+  border: 1.5px dashed rgba(255,0,64,.3);
+  transition: border-color .2s;
+}
+.editImgWrap:hover { border-color: var(--p); }
+.editImgPreview {
+  width: 100%; height: 100%;
+  object-fit: cover; display: block;
+}
+.editImgPlaceholder {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .88rem; color: var(--t3); gap: .4rem;
+}
+.editImgOverlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.5);
+  display: flex; align-items: center; justify-content: center;
+  font-size: .88rem; font-weight: 600; color: #fff;
+  opacity: 0; transition: opacity .2s;
+}
+.editImgWrap:hover .editImgOverlay { opacity: 1; }
+
+/* Category grid in edit */
+.editCatGrid {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: .4rem;
+}
+
+/* Restricted notice */
+.restrictedNotice {
+  font-size: .78rem; color: var(--t3);
+  background: var(--bg2); border: 1px solid var(--borderg);
+  border-radius: var(--r); padding: .6rem .85rem;
+}
+
+/* Edit actions */
+.editFooter { display: flex; gap: .5rem; justify-content: flex-end; margin-top: .5rem; }
